@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="FIDEITEC - Plataforma integral para la gestión moderna de fideicomisos inmobiliarios con tecnología blockchain">
+    <title>FIDEITEC - Gestión General de Fideicomisos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Color Schemes - Default: Purple */
+            --primary-color: #667eea;
+            --primary-dark: #5568d3;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --gradient-start: #667eea;
+            --gradient-end: #764ba2;
+
+            /* Neutral Colors */
+            --white: #ffffff;
+            --black: #000000;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+
+            /* Semantic Colors */
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+
+            /* Spacing */
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+            --spacing-2xl: 4rem;
+
+            /* Border Radius */
+            --radius-sm: 0.5rem;
+            --radius-md: 1rem;
+            --radius-lg: 1.5rem;
+            --radius-xl: 2rem;
+            --radius-full: 9999px;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+            /* Transitions */
+            --transition-fast: 150ms ease-in-out;
+            --transition-normal: 300ms ease-in-out;
+            --transition-slow: 500ms ease-in-out;
+
+            /* Z-Index */
+            --z-dropdown: 1000;
+            --z-sticky: 1020;
+            --z-fixed: 1030;
+            --z-modal-backdrop: 1040;
+            --z-modal: 1050;
+            --z-tooltip: 1070;
+        }
+
+        /* Color Themes */
+        .theme-blue {
+            --gradient-start: #3b82f6;
+            --gradient-end: #1d4ed8;
+            --primary-color: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary-color: #1d4ed8;
+        }
+
+        .theme-green {
+            --gradient-start: #10b981;
+            --gradient-end: #047857;
+            --primary-color: #10b981;
+            --primary-dark: #059669;
+            --secondary-color: #047857;
+        }
+
+        .theme-orange {
+            --gradient-start: #f97316;
+            --gradient-end: #c2410c;
+            --primary-color: #f97316;
+            --primary-dark: #ea580c;
+            --secondary-color: #c2410c;
+        }
+
+        .theme-pink {
+            --gradient-start: #ec4899;
+            --gradient-end: #be185d;
+            --primary-color: #ec4899;
+            --primary-dark: #db2777;
+            --secondary-color: #be185d;
+        }
+
+        .theme-teal {
+            --gradient-start: #14b8a6;
+            --gradient-end: #0f766e;
+            --primary-color: #14b8a6;
+            --primary-dark: #0d9488;
+            --secondary-color: #0f766e;
+        }
+
+        .theme-indigo {
+            --gradient-start: #6366f1;
+            --gradient-end: #4338ca;
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary-color: #4338ca;
+        }
+
+        .theme-red {
+            --gradient-start: #ef4444;
+            --gradient-end: #b91c1c;
+            --primary-color: #ef4444;
+            --primary-dark: #dc2626;
+            --secondary-color: #b91c1c;
+        }
+
+        .theme-cyan {
+            --gradient-start: #06b6d4;
+            --gradient-end: #0e7490;
+            --primary-color: #06b6d4;
+            --primary-dark: #0891b2;
+            --secondary-color: #0e7490;
+        }
+
+        /* Reset & Base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-900);
+            background: var(--gray-50);
+            overflow-x: hidden;
+            transition: background-color var(--transition-normal);
+        }
+
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: -0.025em;
+        }
+
+        h1 { font-size: clamp(2rem, 5vw, 3.5rem); }
+        h2 { font-size: clamp(1.75rem, 4vw, 2.5rem); }
+        h3 { font-size: clamp(1.25rem, 3vw, 1.75rem); }
+
+        /* Container */
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-md);
+        }
+
+        /* Theme Switcher */
+        .theme-switcher {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            z-index: var(--z-fixed);
+            background: var(--white);
+            border-radius: var(--radius-xl);
+            padding: var(--spacing-sm);
+            box-shadow: var(--shadow-2xl);
+            animation: slideInRight 0.5s ease-out;
+        }
+
+        .theme-toggle-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: var(--radius-full);
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all var(--transition-normal);
+            box-shadow: var(--shadow-md);
+        }
+
+        .theme-toggle-btn:hover {
+            transform: scale(1.1) rotate(15deg);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .theme-options {
+            display: none;
+            margin-top: var(--spacing-sm);
+            gap: var(--spacing-xs);
+            flex-direction: column;
+        }
+
+        .theme-options.active {
+            display: flex;
+        }
+
+        .theme-option {
+            width: 50px;
+            height: 50px;
+            border-radius: var(--radius-full);
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .theme-option:hover {
+            transform: scale(1.1);
+            border-color: var(--white);
+        }
+
+        .theme-option.active {
+            border-color: var(--white);
+            box-shadow: 0 0 0 3px var(--gray-900);
+        }
+
+        .theme-option::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            background: var(--white);
+            transition: opacity var(--transition-fast);
+        }
+
+        .theme-option:hover::before {
+            opacity: 0.2;
+        }
+
+        /* Header */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: var(--z-sticky);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--gray-200);
+            transition: all var(--transition-normal);
+        }
+
+        header.scrolled {
+            box-shadow: var(--shadow-md);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm) 0;
+        }
+
+        .logo {
+            font-size: 1.75rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+            transition: all var(--transition-normal);
+        }
+
+        .logo:hover {
+            transform: scale(1.05);
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: var(--spacing-lg);
+            align-items: center;
+        }
+
+        .nav-menu a {
+            color: var(--gray-700);
+            text-decoration: none;
+            font-weight: 500;
+            position: relative;
+            transition: color var(--transition-fast);
+            padding: var(--spacing-xs) 0;
+        }
+
+        .nav-menu a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            transition: width var(--transition-normal);
+        }
+
+        .nav-menu a:hover {
+            color: var(--primary-color);
+        }
+
+        .nav-menu a:hover::after {
+            width: 100%;
+        }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: var(--spacing-xs);
+        }
+
+        .hamburger span {
+            width: 25px;
+            height: 3px;
+            background: var(--gray-700);
+            border-radius: var(--radius-full);
+            transition: all var(--transition-normal);
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(7px, 7px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -7px);
+        }
+
+        .auth-buttons {
+            display: flex;
+            gap: var(--spacing-sm);
+            align-items: center;
+        }
+
+        .auth-btn {
+            padding: 0.625rem 1.5rem;
+            border-radius: var(--radius-full);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all var(--transition-normal);
+            border: 2px solid transparent;
+            white-space: nowrap;
+        }
+
+        .auth-btn.login {
+            color: var(--primary-color);
+            background: transparent;
+            border-color: var(--primary-color);
+        }
+
+        .auth-btn.login:hover {
+            background: var(--primary-color);
+            color: var(--white);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .auth-btn.register {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: var(--white);
+        }
+
+        .auth-btn.register:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        /* Hero Section */
+        .hero {
+            position: relative;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            padding: clamp(4rem, 15vh, 8rem) 0;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.15) 0%, transparent 60%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: var(--white);
+        }
+
+        .hero h1 {
+            margin-bottom: var(--spacing-md);
+            text-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .hero p {
+            font-size: clamp(1rem, 2vw, 1.25rem);
+            margin-bottom: var(--spacing-xl);
+            opacity: 0.95;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: var(--spacing-md);
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: var(--radius-full);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all var(--transition-normal);
+            border: 2px solid transparent;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.2);
+            transform: translateX(-100%);
+            transition: transform var(--transition-normal);
+        }
+
+        .btn:hover::before {
+            transform: translateX(100%);
+        }
+
+        .btn-primary {
+            background: var(--white);
+            color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--white);
+            border-color: var(--white);
+        }
+
+        .btn-secondary:hover {
+            background: var(--white);
+            color: var(--primary-color);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        /* Animated Background */
+        .animated-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .floating-shape {
+            position: absolute;
+            opacity: 0.1;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .floating-shape:nth-child(1) {
+            top: 20%;
+            left: 10%;
+            width: 100px;
+            height: 100px;
+            background: var(--white);
+            border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+            animation-delay: 0s;
+        }
+
+        .floating-shape:nth-child(2) {
+            top: 60%;
+            left: 70%;
+            width: 150px;
+            height: 150px;
+            background: var(--white);
+            border-radius: 70% 30% 30% 70% / 70% 70% 30% 30%;
+            animation-delay: 2s;
+        }
+
+        .floating-shape:nth-child(3) {
+            top: 40%;
+            left: 80%;
+            width: 80px;
+            height: 80px;
+            background: var(--white);
+            border-radius: 50%;
+            animation-delay: 4s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-30px) rotate(180deg);
+            }
+        }
+
+        /* Features Section */
+        .features {
+            padding: clamp(3rem, 10vh, 6rem) 0;
+            background: var(--white);
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+            color: var(--gray-900);
+            position: relative;
+        }
+
+        .section-title::after {
+            content: '';
+            display: block;
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            margin: var(--spacing-md) auto 0;
+            border-radius: var(--radius-full);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+        }
+
+        .feature-card {
+            background: var(--white);
+            padding: var(--spacing-xl);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+            transition: all var(--transition-normal);
+            border: 1px solid var(--gray-100);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            opacity: 0;
+            transition: opacity var(--transition-normal);
+        }
+
+        .feature-card:hover::before {
+            opacity: 0.05;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--shadow-2xl);
+            border-color: var(--primary-color);
+        }
+
+        .feature-icon {
+            font-size: 3.5rem;
+            margin-bottom: var(--spacing-md);
+            filter: grayscale(0.3);
+            transition: all var(--transition-normal);
+            position: relative;
+            z-index: 1;
+        }
+
+        .feature-card:hover .feature-icon {
+            filter: grayscale(0);
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .feature-card h3 {
+            margin-bottom: var(--spacing-sm);
+            color: var(--gray-900);
+            position: relative;
+            z-index: 1;
+        }
+
+        .feature-card p {
+            color: var(--gray-600);
+            line-height: 1.7;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Process Steps */
+        .process-steps {
+            padding: clamp(3rem, 10vh, 6rem) 0;
+            background: linear-gradient(180deg, var(--white), var(--gray-50));
+        }
+
+        .steps-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-xl);
+            margin-top: var(--spacing-xl);
+        }
+
+        .step {
+            text-align: center;
+            position: relative;
+        }
+
+        .step::after {
+            content: '→';
+            position: absolute;
+            top: 30px;
+            right: -30px;
+            font-size: 2rem;
+            color: var(--gray-300);
+            font-weight: bold;
+        }
+
+        .step:last-child::after {
+            display: none;
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: var(--white);
+            width: 70px;
+            height: 70px;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            font-weight: 800;
+            margin: 0 auto var(--spacing-md);
+            box-shadow: var(--shadow-lg);
+            transition: all var(--transition-normal);
+        }
+
+        .step:hover .step-number {
+            transform: scale(1.15) rotate(10deg);
+            box-shadow: var(--shadow-2xl);
+        }
+
+        .step-title {
+            font-size: 1.25rem;
+            margin-bottom: var(--spacing-sm);
+            color: var(--gray-900);
+        }
+
+        .step-description {
+            color: var(--gray-600);
+            line-height: 1.7;
+        }
+
+        /* Technology Stack */
+        .tech-stack {
+            padding: clamp(3rem, 10vh, 6rem) 0;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: var(--white);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tech-stack::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="2" height="2" x="0" y="0" fill="white" opacity="0.1"/></svg>');
+            opacity: 0.3;
+        }
+
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--spacing-lg);
+            position: relative;
+            z-index: 2;
+        }
+
+        .tech-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            text-align: center;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all var(--transition-normal);
+        }
+
+        .tech-card:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+
+        .tech-icon {
+            font-size: 3rem;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .tech-card h3 {
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .tech-card p {
+            opacity: 0.9;
+            line-height: 1.7;
+        }
+
+        /* Dashboard Preview */
+        .dashboard-preview {
+            padding: clamp(3rem, 10vh, 6rem) 0;
+            background: var(--gray-50);
+        }
+
+        .dashboard-container {
+            background: var(--white);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-2xl);
+            overflow: hidden;
+            margin-top: var(--spacing-xl);
+        }
+
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: var(--white);
+            padding: var(--spacing-xl);
+            text-align: center;
+        }
+
+        .dashboard-content {
+            padding: var(--spacing-xl);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-lg);
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: var(--white);
+            padding: var(--spacing-xl);
+            border-radius: var(--radius-lg);
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+            transition: all var(--transition-normal);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: var(--shadow-2xl);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .stat-label {
+            opacity: 0.9;
+        }
+
+        /* Contact Section */
+        .contact-section {
+            padding: clamp(3rem, 10vh, 6rem) 0;
+            background: var(--white);
+        }
+
+        .contact-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-2xl);
+            align-items: start;
+        }
+
+        .contact-info h3 {
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .contact-info ul {
+            list-style: none;
+            margin: var(--spacing-md) 0;
+        }
+
+        .contact-info li {
+            margin-bottom: var(--spacing-sm);
+            color: var(--gray-700);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .contact-form {
+            background: var(--gray-50);
+            padding: var(--spacing-xl);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.875rem;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all var(--transition-fast);
+            background: var(--white);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--gray-900);
+            color: var(--gray-300);
+            padding: var(--spacing-2xl) 0 var(--spacing-md);
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--spacing-xl);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .footer-section h3 {
+            color: var(--white);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .footer-section ul {
+            list-style: none;
+        }
+
+        .footer-section li {
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .footer-section a {
+            color: var(--gray-400);
+            text-decoration: none;
+            transition: color var(--transition-fast);
+        }
+
+        .footer-section a:hover {
+            color: var(--primary-color);
+        }
+
+        .footer-bottom {
+            text-align: center;
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--gray-700);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: var(--z-modal);
+            inset: 0;
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: var(--white);
+            border-radius: var(--radius-xl);
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-2xl);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: var(--white);
+            padding: var(--spacing-xl);
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            text-align: center;
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            right: var(--spacing-md);
+            top: var(--spacing-md);
+            width: 35px;
+            height: 35px;
+            border-radius: var(--radius-full);
+            background: rgba(255,255,255,0.2);
+            color: var(--white);
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: var(--spacing-xl);
+        }
+
+        .social-login {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .social-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            padding: 0.875rem;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            background: var(--white);
+            color: var(--gray-700);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+        }
+
+        .social-btn:hover {
+            border-color: var(--primary-color);
+            background: var(--gray-50);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .divider {
+            text-align: center;
+            margin: var(--spacing-lg) 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--gray-200);
+        }
+
+        .divider span {
+            background: var(--white);
+            padding: 0 var(--spacing-md);
+            color: var(--gray-500);
+            font-size: 0.875rem;
+            position: relative;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .steps-container {
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            }
+
+            .step::after {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-menu {
+                position: fixed;
+                top: 70px;
+                left: -100%;
+                width: 100%;
+                background: var(--white);
+                flex-direction: column;
+                padding: var(--spacing-lg);
+                box-shadow: var(--shadow-xl);
+                transition: left var(--transition-normal);
+                gap: var(--spacing-md);
+            }
+
+            .nav-menu.active {
+                left: 0;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            .auth-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .auth-btn {
+                width: 100%;
+                text-align: center;
+                justify-content: center;
+            }
+
+            .contact-container {
+                grid-template-columns: 1fr;
+            }
+
+            .theme-switcher {
+                top: 80px;
+                right: 10px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .steps-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid var(--gray-200);
+            border-top: 3px solid var(--primary-color);
+            border-radius: var(--radius-full);
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: var(--spacing-lg);
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .success-message,
+        .error-message {
+            display: none;
+            text-align: center;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            margin-top: var(--spacing-md);
+        }
+
+        .success-message.active {
+            display: block;
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error-message.active {
+            display: block;
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Scroll reveal animation */
+        .reveal {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 0.8s ease-out;
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Theme Switcher -->
+    <div class="theme-switcher">
+        <button class="theme-toggle-btn" onclick="toggleThemeOptions()" aria-label="Toggle theme options">
+            🎨
+        </button>
+        <div class="theme-options" id="themeOptions">
+            <button class="theme-option active" style="background: linear-gradient(135deg, #667eea, #764ba2);" onclick="changeTheme('default')" title="Purple"></button>
+            <button class="theme-option" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);" onclick="changeTheme('blue')" title="Blue"></button>
+            <button class="theme-option" style="background: linear-gradient(135deg, #10b981, #047857);" onclick="changeTheme('green')" title="Green"></button>
+            <button class="theme-option" style="background: linear-gradient(135deg, #f97316, #c2410c);" onclick="changeTheme('orange')" title="Orange"></button>
+            <button class="theme-option" style="background: linear-gradient(135deg, #ec4899, #be185d);" onclick="changeTheme('pink')" title="Pink"></button>
+            <button class="theme-option" style="background: linear-gradient(135deg, #14b8a6, #0f766e);" onclick="changeTheme('teal')" title="Teal"></button>
+            <button class="theme-option" style="background: linear-gradient(135deg, #6366f1, #4338ca);" onclick="changeTheme('indigo')" title="Indigo"></button>
+            <button class="theme-option" style="background: linear-gradient(135deg, #ef4444, #b91c1c);" onclick="changeTheme('red')" title="Red"></button>
+            <button class="theme-option" style="background: linear-gradient(135deg, #06b6d4, #0e7490);" onclick="changeTheme('cyan')" title="Cyan"></button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header id="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="#" class="logo">FIDEITEC</a>
+                <nav>
+                    <ul class="nav-menu" id="navMenu">
+                        <li><a href="#inicio">Inicio</a></li>
+                        <li><a href="#servicios">Servicios</a></li>
+                        <li><a href="#proceso">Proceso</a></li>
+                        <li><a href="#tecnologia">Tecnología</a></li>
+                        <li><a href="#dashboard">Dashboard</a></li>
+                        <li><a href="#contacto">Contacto</a></li>
+                    </ul>
+                </nav>
+                <div class="auth-buttons">
+                    <a href="http://localhost:5175/login" class="auth-btn login">Iniciar Sesión</a>
+                    <a href="http://localhost:5175/register" class="auth-btn register">Registrarse</a>
+                </div>
+                <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Toggle menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero" id="inicio">
+        <div class="animated-bg">
+            <div class="floating-shape"></div>
+            <div class="floating-shape"></div>
+            <div class="floating-shape"></div>
+        </div>
+        <div class="container">
+            <div class="hero-content">
+                <h1>Gestión Integral de Fideicomisos</h1>
+                <p>Transforme la administración de fideicomisos inmobiliarios con tecnología blockchain de última generación. Seguridad, transparencia y eficiencia en una sola plataforma.</p>
+                <div class="cta-buttons">
+                    <a href="http://localhost:5175/register" class="btn btn-primary">
+                        🚀 Comenzar Ahora
+                    </a>
+                    <a href="#contacto" class="btn btn-secondary">
+                        📞 Solicitar Demo
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="servicios">
+        <div class="container">
+            <h2 class="section-title">Servicios Integrales</h2>
+            <div class="features-grid">
+                <div class="feature-card reveal">
+                    <div class="feature-icon">🏢</div>
+                    <h3>Gestión de Fideicomisos</h3>
+                    <p>Administración completa de fideicomisos inmobiliarios con seguimiento en tiempo real de todas las operaciones y cumplimiento normativo automatizado.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">💰</div>
+                    <h3>Tokenización de Activos</h3>
+                    <p>Transformación de propiedades inmobiliarias en tokens digitales para facilitar la inversión fraccionada y mejorar la liquidez del mercado.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Seguridad Blockchain</h3>
+                    <p>Tecnología blockchain para garantizar la transparencia total, inmutabilidad y seguridad máxima de todas las transacciones y registros.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">📊</div>
+                    <h3>Analytics Avanzado</h3>
+                    <p>Herramientas de análisis y reporting en tiempo real para monitorear el rendimiento de inversiones y tomar decisiones informadas.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">⚖️</div>
+                    <h3>Compliance Legal</h3>
+                    <p>Cumplimiento automático de normativas argentinas con validación KYC/AML integrada y generación automática de documentación legal.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon">🌐</div>
+                    <h3>Plataforma Multi-Rol</h3>
+                    <p>Sistema diferenciado para administradores, operadores, inversores y auditores con permisos granulares y control total.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Process Steps -->
+    <section class="process-steps" id="proceso">
+        <div class="container">
+            <h2 class="section-title">Proceso de Gestión</h2>
+            <div class="steps-container">
+                <div class="step reveal">
+                    <div class="step-number">1</div>
+                    <h3 class="step-title">Registro y KYC</h3>
+                    <p class="step-description">Verificación de identidad y cumplimiento normativo para todos los participantes del fideicomiso.</p>
+                </div>
+                <div class="step reveal">
+                    <div class="step-number">2</div>
+                    <h3 class="step-title">Constitución Legal</h3>
+                    <p class="step-description">Creación del fideicomiso con documentación legal completa y registro ante organismos competentes.</p>
+                </div>
+                <div class="step reveal">
+                    <div class="step-number">3</div>
+                    <h3 class="step-title">Tokenización</h3>
+                    <p class="step-description">Transformación de cuotas parte en tokens digitales para facilitar la gestión y transferencia.</p>
+                </div>
+                <div class="step reveal">
+                    <div class="step-number">4</div>
+                    <h3 class="step-title">Gestión Activa</h3>
+                    <p class="step-description">Administración diaria del fideicomiso con reportes automáticos y seguimiento de objetivos.</p>
+                </div>
+                <div class="step reveal">
+                    <div class="step-number">5</div>
+                    <h3 class="step-title">Distribución</h3>
+                    <p class="step-description">Distribución automática de rendimientos y liquidación final con transparencia total.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Technology Stack -->
+    <section class="tech-stack" id="tecnologia">
+        <div class="container">
+            <h2 class="section-title">Tecnología de Vanguardia</h2>
+            <div class="tech-grid">
+                <div class="tech-card reveal">
+                    <div class="tech-icon">⚡</div>
+                    <h3>Backend Enterprise</h3>
+                    <p>Node.js + Express con arquitectura escalable, autenticación JWT y base de datos PostgreSQL en Google Cloud.</p>
+                </div>
+                <div class="tech-card reveal">
+                    <div class="tech-icon">🔗</div>
+                    <h3>Blockchain</h3>
+                    <p>Smart contracts en Ethereum para tokenización de activos con integración Thirdweb para máxima seguridad.</p>
+                </div>
+                <div class="tech-card reveal">
+                    <div class="tech-icon">🛡️</div>
+                    <h3>Seguridad</h3>
+                    <p>Cifrado end-to-end, autenticación multifactor, auditorías automáticas y compliance bancario de nivel empresarial.</p>
+                </div>
+                <div class="tech-card reveal">
+                    <div class="tech-icon">☁️</div>
+                    <h3>Cloud Infrastructure</h3>
+                    <p>Google Cloud Platform con alta disponibilidad 99.9%, escalabilidad automática y respaldo empresarial 24/7.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dashboard Preview -->
+    <section class="dashboard-preview" id="dashboard">
+        <div class="container">
+            <h2 class="section-title">Dashboard Ejecutivo</h2>
+            <div class="dashboard-container reveal">
+                <div class="dashboard-header">
+                    <h3>Panel de Control en Tiempo Real</h3>
+                    <p>Gestión integral de fideicomisos con métricas y análisis avanzados</p>
+                </div>
+                <div class="dashboard-content">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number">$2.5M</div>
+                            <div class="stat-label">Assets Bajo Gestión</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">47</div>
+                            <div class="stat-label">Fideicomisos Activos</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">1,247</div>
+                            <div class="stat-label">Inversores Registrados</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">15.2%</div>
+                            <div class="stat-label">ROI Promedio Anual</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="contact-section" id="contacto">
+        <div class="container">
+            <h2 class="section-title">Contacto y Solicitud de Acceso</h2>
+            <div class="contact-container">
+                <div class="contact-info reveal">
+                    <h3>Únase a FIDEITEC</h3>
+                    <p>Únase a la plataforma líder en gestión de fideicomisos inmobiliarios tokenizados. Experimente la eficiencia y transparencia que ofrece la tecnología blockchain aplicada a la gestión patrimonial.</p>
+
+                    <h3>Beneficios Exclusivos</h3>
+                    <ul>
+                        <li>✅ Gestión automatizada de fideicomisos</li>
+                        <li>✅ Reportes en tiempo real</li>
+                        <li>✅ Cumplimiento normativo automático</li>
+                        <li>✅ Tokenización de activos inmobiliarios</li>
+                        <li>✅ Soporte especializado 24/7</li>
+                    </ul>
+
+                    <h3>Información de Contacto</h3>
+                    <ul>
+                        <li>📧 info@fideitec.com</li>
+                        <li>📞 +54 11 4000-0000</li>
+                        <li>📍 Buenos Aires, Argentina</li>
+                        <li>🌐 www.fideitec.com</li>
+                    </ul>
+                </div>
+
+                <div class="contact-form reveal">
+                    <h3>Solicitar Acceso</h3>
+                    <form id="contactForm" onsubmit="handleContactSubmit(event)">
+                        <div class="form-group">
+                            <label for="fullName">Nombre Completo *</label>
+                            <input type="text" id="fullName" name="fullName" required placeholder="Juan Pérez">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email Corporativo *</label>
+                            <input type="email" id="email" name="email" required placeholder="juan.perez@empresa.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="company">Empresa/Institución *</label>
+                            <input type="text" id="company" name="company" required placeholder="Empresa SA">
+                        </div>
+                        <div class="form-group">
+                            <label for="role">Tipo de Usuario *</label>
+                            <select id="role" name="role" required>
+                                <option value="">Seleccione...</option>
+                                <option value="admin">Administrador</option>
+                                <option value="operator">Operador</option>
+                                <option value="investor">Inversor</option>
+                                <option value="viewer">Auditor</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Teléfono *</label>
+                            <input type="tel" id="phone" name="phone" required placeholder="+54 11 1234-5678">
+                        </div>
+                        <div class="form-group">
+                            <label for="message">Mensaje</label>
+                            <textarea id="message" name="message" rows="4" placeholder="Descripción de su necesidad..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Solicitar Acceso</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>FIDEITEC</h3>
+                    <p>Gestión General de Fideicomisos con tecnología blockchain para la transformación digital del sector inmobiliario argentino.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Servicios</h3>
+                    <ul>
+                        <li><a href="#servicios">Gestión de Fideicomisos</a></li>
+                        <li><a href="#servicios">Tokenización de Activos</a></li>
+                        <li><a href="#servicios">Compliance Legal</a></li>
+                        <li><a href="#servicios">Analytics Avanzado</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Soporte</h3>
+                    <ul>
+                        <li><a href="#">Documentación</a></li>
+                        <li><a href="#">Centro de Ayuda</a></li>
+                        <li><a href="#">Soporte Técnico</a></li>
+                        <li><a href="#contacto">Contacto</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Legal</h3>
+                    <ul>
+                        <li><a href="#">Términos de Uso</a></li>
+                        <li><a href="#">Política de Privacidad</a></li>
+                        <li><a href="#">Compliance</a></li>
+                        <li><a href="#">Regulaciones</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 FIDEITEC - Gestión General de Fideicomisos. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Auth Modal removed - now using React app at /app/login and /app/register -->
+
+    <script>
+        // Theme Management
+        function changeTheme(theme) {
+            const body = document.body;
+            body.className = theme !== 'default' ? `theme-${theme}` : '';
+
+            // Update active state
+            document.querySelectorAll('.theme-option').forEach(opt => opt.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Save to localStorage
+            localStorage.setItem('fideitec-theme', theme);
+        }
+
+        function toggleThemeOptions() {
+            const options = document.getElementById('themeOptions');
+            options.classList.toggle('active');
+        }
+
+        // Load saved theme
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('fideitec-theme');
+            if (savedTheme && savedTheme !== 'default') {
+                document.body.className = `theme-${savedTheme}`;
+                const themeOptions = document.querySelectorAll('.theme-option');
+                const themes = ['default', 'blue', 'green', 'orange', 'pink', 'teal', 'indigo', 'red', 'cyan'];
+                const themeIndex = themes.indexOf(savedTheme);
+                if (themeIndex >= 0 && themeOptions[themeIndex]) {
+                    themeOptions.forEach(opt => opt.classList.remove('active'));
+                    themeOptions[themeIndex].classList.add('active');
+                }
+            }
+        });
+
+        // Mobile Menu
+        function toggleMenu() {
+            const navMenu = document.getElementById('navMenu');
+            const hamburger = document.getElementById('hamburger');
+            navMenu.classList.toggle('active');
+            hamburger.classList.toggle('active');
+        }
+
+        // Close menu when clicking on a link
+        document.querySelectorAll('.nav-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('navMenu').classList.remove('active');
+                document.getElementById('hamburger').classList.remove('active');
+            });
+        });
+
+        // Header scroll effect
+        window.addEventListener('scroll', function() {
+            const header = document.getElementById('header');
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+
+        // Scroll reveal animation
+        function reveal() {
+            const reveals = document.querySelectorAll('.reveal');
+
+            reveals.forEach(element => {
+                const windowHeight = window.innerHeight;
+                const elementTop = element.getBoundingClientRect().top;
+                const elementVisible = 150;
+
+                if (elementTop < windowHeight - elementVisible) {
+                    element.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', reveal);
+        reveal(); // Initial check
+
+        // Auth is now handled by React app at /app/login and /app/register
+
+        // Contact Form Submit
+        function handleContactSubmit(event) {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const data = {
+                fullName: formData.get('fullName'),
+                email: formData.get('email'),
+                company: formData.get('company'),
+                role: formData.get('role'),
+                phone: formData.get('phone'),
+                message: formData.get('message')
+            };
+
+            // Here you would send to your backend
+            console.log('Contact form data:', data);
+
+            alert(`¡Solicitud enviada exitosamente!\n\nGracias ${data.fullName}, nos pondremos en contacto contigo pronto.\n\nEn producción, esto enviará:\n- Email a ${data.email}\n- Notificación al equipo de ventas\n- Registro en CRM`);
+
+            event.target.reset();
+        }
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Counter animation for stats
+        function animateCounter(element, target, duration = 2000) {
+            const start = 0;
+            const increment = target / (duration / 16);
+            let current = start;
+
+            const timer = setInterval(() => {
+                current += increment;
+
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+
+                if (element.textContent.includes('%')) {
+                    element.textContent = current.toFixed(1) + '%';
+                } else if (element.textContent.includes('M')) {
+                    element.textContent = '$' + current.toFixed(1) + 'M';
+                } else if (element.textContent.includes(',')) {
+                    element.textContent = Math.floor(current).toLocaleString();
+                } else {
+                    element.textContent = Math.floor(current);
+                }
+            }, 16);
+        }
+
+        // Animate counters when section is visible
+        const observerOptions = {
+            threshold: 0.5,
+            rootMargin: '0px'
+        };
+
+        const counterObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !entry.target.classList.contains('animated')) {
+                    entry.target.classList.add('animated');
+                    const statCards = entry.target.querySelectorAll('.stat-number');
+
+                    if (statCards.length >= 4) {
+                        animateCounter(statCards[0], 2.5);
+                        animateCounter(statCards[1], 47);
+                        animateCounter(statCards[2], 1247);
+                        animateCounter(statCards[3], 15.2);
+                    }
+                }
+            });
+        }, observerOptions);
+
+        const statsGrid = document.querySelector('.stats-grid');
+        if (statsGrid) {
+            counterObserver.observe(statsGrid);
+        }
+
+        console.log('🚀 FIDEITEC Platform Initialized');
+        console.log('✅ Ready for backend integration');
+        console.log('🎨 Theme switcher active');
+        console.log('📱 Fully responsive design');
+    </script>
+</body>
+</html>
