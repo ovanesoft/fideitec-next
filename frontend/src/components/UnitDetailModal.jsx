@@ -277,30 +277,50 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   // Función para recalcular pesos dentro de una categoría
   // Cuando el total de pesos excede 100%, normaliza proporcionalmente
   const recalculateWeights = useCallback(async (categoryCode, itemsInCategory) => {
+    if (!itemsInCategory || itemsInCategory.length === 0) return;
+    
     const applicableItems = itemsInCategory.filter(i => i.status !== 'not_applicable');
     const totalWeight = applicableItems.reduce((sum, i) => sum + (i.weight || 100), 0);
     
-    // Si el total es exactamente 100%, no hacer nada
-    if (totalWeight === 100) return;
+    // Si el total es exactamente 100% o menos, no hacer nada
+    if (totalWeight <= 100) return;
     
     // Normalizar pesos proporcionalmente
     const factor = 100 / totalWeight;
     
+    console.log(`Recalculando pesos para ${categoryCode}: total=${totalWeight}, factor=${factor}`);
+    
     // Actualizar cada item con su nuevo peso normalizado
+    const updates = [];
     for (const item of applicableItems) {
-      const newWeight = Math.round((item.weight || 100) * factor);
+      const newWeight = Math.max(1, Math.round((item.weight || 100) * factor));
       if (newWeight !== item.weight) {
+        updates.push({ id: item.id, newWeight });
+      }
+    }
+    
+    // Actualizar localmente primero para evitar parpadeo
+    if (updates.length > 0) {
+      setUnit(prev => ({
+        ...prev,
+        progress_items: prev.progress_items.map(item => {
+          const update = updates.find(u => u.id === item.id);
+          return update ? { ...item, weight: update.newWeight } : item;
+        })
+      }));
+      
+      // Luego guardar en el servidor
+      for (const update of updates) {
         try {
-          await api.put(`/units/${unitId}/progress/${item.id}`, { weight: newWeight });
+          await api.put(`/units/${unitId}/progress/${update.id}`, { weight: update.newWeight });
         } catch (error) {
           console.error('Error actualizando peso:', error);
         }
       }
+      
+      toast.success('Pesos recalculados automáticamente');
     }
-    
-    // Recargar la unidad para reflejar cambios
-    loadUnit();
-  }, [unitId, loadUnit]);
+  }, [unitId]);
 
   // Eliminar item
   const handleDeleteItem = async (itemId, itemName) => {
@@ -395,7 +415,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         // Crear nuevo item
         const response = await api.post(`/units/${unitId}/progress`, {
           name: newItemForm.name,
-          category_code: newItemForm.category_code,
+          category_code: newItemForm.category_code || null,
           weight: finalWeight,
           notes: newItemForm.notes,
           status: 'pending',
@@ -404,15 +424,26 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         
         if (response.data.success) {
           const newItem = response.data.data.item;
+          console.log('Nuevo item creado:', newItem);
+          
+          // Asegurar que el item tenga category_code y category_name
+          const itemToAdd = {
+            ...newItem,
+            category_code: newItem.category_code || newItemForm.category_code || 'other',
+            category_name: newItem.category_name || 
+              availableCategories.find(c => c.code === newItemForm.category_code)?.name || 
+              'General'
+          };
+          
           setUnit(prev => ({
             ...prev,
-            progress_items: [...(prev.progress_items || []), newItem]
+            progress_items: [...(prev.progress_items || []), itemToAdd]
           }));
           toast.success('Item agregado');
           
           // Recalcular pesos si excede 100%
           if (shouldRecalculate && categoryCode) {
-            const allCategoryItems = [...currentCategoryItems, newItem];
+            const allCategoryItems = [...currentCategoryItems, itemToAdd];
             setTimeout(() => recalculateWeights(categoryCode, allCategoryItems), 500);
           }
         }
