@@ -27,6 +27,12 @@ router.put('/profile',
 // Rutas de administración de usuarios
 // ===========================================
 
+// Listar usuarios del tenant actual (para admin/manager)
+router.get('/tenant',
+  requireRole(['root', 'admin', 'manager']),
+  userController.listTenantUsers
+);
+
 // Listar todos los usuarios (solo root)
 router.get('/',
   requireRole('root'),

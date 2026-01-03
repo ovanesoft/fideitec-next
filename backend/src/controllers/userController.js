@@ -533,12 +533,56 @@ const listAllUsers = async (req, res) => {
   }
 };
 
+// Listar usuarios del tenant actual (para admin/manager)
+const listTenantUsers = async (req, res) => {
+  try {
+    const user = req.user;
+    const tenantId = user.tenant_id;
+    const { search } = req.query;
+
+    let whereConditions = ['u.tenant_id = $1', 'u.is_active = true'];
+    const params = [tenantId];
+    let paramCount = 2;
+
+    if (search) {
+      whereConditions.push(`(u.email ILIKE $${paramCount} OR u.first_name ILIKE $${paramCount} OR u.last_name ILIKE $${paramCount})`);
+      params.push(`%${search}%`);
+      paramCount++;
+    }
+
+    const whereClause = whereConditions.join(' AND ');
+
+    const result = await query(
+      `SELECT u.id, u.email, u.first_name, u.last_name, u.role
+       FROM users u
+       WHERE ${whereClause}
+       ORDER BY u.first_name, u.last_name`,
+      params
+    );
+
+    res.json({
+      success: true,
+      data: {
+        users: result.rows
+      }
+    });
+
+  } catch (error) {
+    console.error('Error listando usuarios del tenant:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al listar usuarios'
+    });
+  }
+};
+
 module.exports = {
   updateProfile,
   getUserById,
   updateUser,
   createUser,
   deactivateUser,
-  listAllUsers
+  listAllUsers,
+  listTenantUsers
 };
 

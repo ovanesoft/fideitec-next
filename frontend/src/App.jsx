@@ -10,6 +10,8 @@ import Register from './pages/Register';
 import DashboardContent from './pages/DashboardContent';
 import Clients from './pages/Clients';
 import Suppliers from './pages/Suppliers';
+import Trusts from './pages/Trusts';
+import Assets from './pages/Assets';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -122,6 +124,8 @@ function AppRoutes() {
         <Route path="/dashboard" element={<DashboardContent />} />
         <Route path="/clients" element={<Clients />} />
         <Route path="/suppliers" element={<Suppliers />} />
+        <Route path="/trusts" element={<Trusts />} />
+        <Route path="/assets" element={<Assets />} />
       </Route>
 
       {/* Redirect root to login or dashboard */}

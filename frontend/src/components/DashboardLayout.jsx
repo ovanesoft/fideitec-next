@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   LogOut, User, Building2, Users, Settings, Bell, 
   ChevronDown, Menu, X, Shield, Mail,
-  LayoutDashboard, Zap, UserCheck, Truck
+  LayoutDashboard, Zap, UserCheck, Truck, Building, FileText
 } from 'lucide-react';
 
 const DashboardLayout = () => {
@@ -40,10 +40,10 @@ const DashboardLayout = () => {
 
   const navigation = [
     { name: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+    { name: 'Fideicomisos', icon: FileText, href: '/trusts' },
+    { name: 'Activos', icon: Building, href: '/assets' },
     { name: 'Clientes', icon: UserCheck, href: '/clients' },
     { name: 'Proveedores', icon: Truck, href: '/suppliers' },
-    { name: 'Fideicomisos', icon: Building2, href: '#' },
-    { name: 'Inversores', icon: Users, href: '#' },
     { name: 'Configuración', icon: Settings, href: '#' },
   ];
 
