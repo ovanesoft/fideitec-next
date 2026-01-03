@@ -1,7 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+
+// Hook para debounce
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+};
 import { 
   Users, Search, Plus, Filter, MoreVertical, 
   CheckCircle2, Clock, AlertCircle, Shield, 
@@ -15,7 +25,7 @@ const Clients = () => {
   const [clients, setClients] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [kycFilter, setKycFilter] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -35,6 +45,18 @@ const Clients = () => {
     notes: ''
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // Debounce del search para no buscar en cada tecla
+  const search = useDebounce(searchInput, 300);
+
+  // Handler memoizado para formulario
+  const handleFormChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }, []);
 
   // Cargar clientes
   const loadClients = async () => {
@@ -307,8 +329,8 @@ const Clients = () => {
             <input
               type="text"
               placeholder="Buscar por nombre, email o documento..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="input-field pl-10"
             />
           </div>

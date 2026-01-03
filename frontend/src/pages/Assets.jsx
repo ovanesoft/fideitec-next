@@ -1,7 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+
+// Hook para debounce
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+};
 import { 
   Building, Search, Plus, Filter, 
   CheckCircle2, Clock, AlertCircle, AlertTriangle,
@@ -86,7 +96,7 @@ const Assets = () => {
   const [assets, setAssets] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -96,6 +106,9 @@ const Assets = () => {
   const [showUnitModal, setShowUnitModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Debounce del search para no buscar en cada tecla
+  const search = useDebounce(searchInput, 300);
   
   // Lista de fideicomisos
   const [trustsList, setTrustsList] = useState([]);
@@ -168,6 +181,23 @@ const Assets = () => {
     is_template: false,
     notes: ''
   });
+
+  // Handlers memoizados para evitar re-renders
+  const handleFormChange = useCallback((e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  }, []);
+
+  const handleUnitChange = useCallback((e) => {
+    const { name, value, type, checked } = e.target;
+    setUnitForm(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  }, []);
 
   // Cargar activos
   const loadAssets = async () => {
@@ -521,8 +551,8 @@ const Assets = () => {
             <input
               type="text"
               placeholder="Buscar por nombre, código o ubicación..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="input-field pl-10"
             />
           </div>

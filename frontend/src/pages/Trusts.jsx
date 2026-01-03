@@ -1,7 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+
+// Hook para debounce
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+};
 import { 
   Building2, Search, Plus, Filter, 
   CheckCircle2, Clock, AlertCircle, FileText,
@@ -47,7 +57,7 @@ const Trusts = () => {
   const [trusts, setTrusts] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -57,6 +67,9 @@ const Trusts = () => {
   const [showPartyModal, setShowPartyModal] = useState(false);
   const [selectedTrust, setSelectedTrust] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Debounce del search para no buscar en cada tecla
+  const search = useDebounce(searchInput, 300);
   
   // Listas para selectores
   const [clientsList, setClientsList] = useState([]);
@@ -99,6 +112,23 @@ const Trusts = () => {
     contribution_amount: '',
     notes: ''
   });
+
+  // Handlers memoizados para evitar re-renders
+  const handleFormChange = useCallback((e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  }, []);
+
+  const handlePartyChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setPartyForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }, []);
 
   // Cargar fideicomisos
   const loadTrusts = async () => {
@@ -378,8 +408,8 @@ const Trusts = () => {
             <input
               type="text"
               placeholder="Buscar por nombre o código..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="input-field pl-10"
             />
           </div>
@@ -582,10 +612,11 @@ const Trusts = () => {
                   <label className="form-label">Nombre *</label>
                   <input 
                     type="text" 
+                    name="name"
                     className="input-field" 
                     placeholder="Nombre del fideicomiso"
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={handleFormChange}
                     required
                   />
                 </div>
@@ -593,10 +624,11 @@ const Trusts = () => {
                   <label className="form-label">Código</label>
                   <input 
                     type="text" 
+                    name="code"
                     className="input-field" 
                     placeholder="FID-001"
                     value={formData.code}
-                    onChange={(e) => setFormData({...formData, code: e.target.value})}
+                    onChange={handleFormChange}
                   />
                 </div>
               </div>
@@ -604,11 +636,12 @@ const Trusts = () => {
               <div>
                 <label className="form-label">Descripción</label>
                 <textarea 
+                  name="description"
                   className="input-field" 
                   rows="2"
                   placeholder="Descripción del fideicomiso..."
                   value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  onChange={handleFormChange}
                 />
               </div>
 
@@ -616,9 +649,10 @@ const Trusts = () => {
                 <div>
                   <label className="form-label">Tipo de Fideicomiso</label>
                   <select 
+                    name="trust_type"
                     className="input-field"
                     value={formData.trust_type}
-                    onChange={(e) => setFormData({...formData, trust_type: e.target.value})}
+                    onChange={handleFormChange}
                   >
                     <option value="real_estate">Inmobiliario</option>
                     <option value="financial">Financiero</option>
@@ -631,9 +665,10 @@ const Trusts = () => {
                 <div>
                   <label className="form-label">Moneda</label>
                   <select 
+                    name="currency"
                     className="input-field"
                     value={formData.currency}
-                    onChange={(e) => setFormData({...formData, currency: e.target.value})}
+                    onChange={handleFormChange}
                   >
                     <option value="ARS">ARS - Peso Argentino</option>
                     <option value="USD">USD - Dólar</option>
@@ -648,27 +683,30 @@ const Trusts = () => {
                   <label className="form-label">Fecha Constitución</label>
                   <input 
                     type="date" 
+                    name="constitution_date"
                     className="input-field"
                     value={formData.constitution_date}
-                    onChange={(e) => setFormData({...formData, constitution_date: e.target.value})}
+                    onChange={handleFormChange}
                   />
                 </div>
                 <div>
                   <label className="form-label">Fecha Inicio</label>
                   <input 
                     type="date" 
+                    name="start_date"
                     className="input-field"
                     value={formData.start_date}
-                    onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                    onChange={handleFormChange}
                   />
                 </div>
                 <div>
                   <label className="form-label">Fecha Fin Prevista</label>
                   <input 
                     type="date" 
+                    name="end_date"
                     className="input-field"
                     value={formData.end_date}
-                    onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+                    onChange={handleFormChange}
                   />
                 </div>
               </div>
@@ -679,30 +717,33 @@ const Trusts = () => {
                   <label className="form-label">Nº Contrato</label>
                   <input 
                     type="text" 
+                    name="contract_number"
                     className="input-field"
                     placeholder="Escritura Nº"
                     value={formData.contract_number}
-                    onChange={(e) => setFormData({...formData, contract_number: e.target.value})}
+                    onChange={handleFormChange}
                   />
                 </div>
                 <div>
                   <label className="form-label">Escribano</label>
                   <input 
                     type="text" 
+                    name="notary_name"
                     className="input-field"
                     placeholder="Nombre del escribano"
                     value={formData.notary_name}
-                    onChange={(e) => setFormData({...formData, notary_name: e.target.value})}
+                    onChange={handleFormChange}
                   />
                 </div>
                 <div>
                   <label className="form-label">Registro</label>
                   <input 
                     type="text" 
+                    name="notary_registry"
                     className="input-field"
                     placeholder="Nº de registro"
                     value={formData.notary_registry}
-                    onChange={(e) => setFormData({...formData, notary_registry: e.target.value})}
+                    onChange={handleFormChange}
                   />
                 </div>
               </div>
@@ -712,11 +753,12 @@ const Trusts = () => {
                 <label className="form-label">Patrimonio Inicial</label>
                 <input 
                   type="number" 
+                  name="initial_patrimony"
                   className="input-field"
                   placeholder="0.00"
                   step="0.01"
                   value={formData.initial_patrimony}
-                  onChange={(e) => setFormData({...formData, initial_patrimony: e.target.value})}
+                  onChange={handleFormChange}
                 />
               </div>
 
@@ -725,9 +767,10 @@ const Trusts = () => {
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
+                    name="is_tokenizable"
                     id="is_tokenizable"
                     checked={formData.is_tokenizable}
-                    onChange={(e) => setFormData({...formData, is_tokenizable: e.target.checked})}
+                    onChange={handleFormChange}
                     className="w-4 h-4 text-primary-600 rounded"
                   />
                   <label htmlFor="is_tokenizable" className="font-medium text-slate-800">
@@ -741,21 +784,23 @@ const Trusts = () => {
                       <label className="form-label">Cantidad de Tokens</label>
                       <input 
                         type="number" 
+                        name="total_tokens"
                         className="input-field"
                         placeholder="1000000"
                         value={formData.total_tokens}
-                        onChange={(e) => setFormData({...formData, total_tokens: e.target.value})}
+                        onChange={handleFormChange}
                       />
                     </div>
                     <div>
                       <label className="form-label">Valor por Token</label>
                       <input 
                         type="number" 
+                        name="token_value"
                         className="input-field"
                         placeholder="1.00"
                         step="0.00000001"
                         value={formData.token_value}
-                        onChange={(e) => setFormData({...formData, token_value: e.target.value})}
+                        onChange={handleFormChange}
                       />
                     </div>
                   </div>
@@ -766,11 +811,12 @@ const Trusts = () => {
               <div>
                 <label className="form-label">Notas</label>
                 <textarea 
+                  name="notes"
                   className="input-field" 
                   rows="2"
                   placeholder="Notas adicionales..."
                   value={formData.notes}
-                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                  onChange={handleFormChange}
                 />
               </div>
 
@@ -936,9 +982,10 @@ const Trusts = () => {
               <div>
                 <label className="form-label">Rol en el Fideicomiso *</label>
                 <select 
+                  name="party_role"
                   className="input-field"
                   value={partyForm.party_role}
-                  onChange={(e) => setPartyForm({...partyForm, party_role: e.target.value})}
+                  onChange={handlePartyChange}
                 >
                   {Object.entries(PARTY_ROLES).map(([key, { label, description }]) => (
                     <option key={key} value={key}>{label} - {description}</option>
@@ -949,9 +996,10 @@ const Trusts = () => {
               <div>
                 <label className="form-label">Tipo de Entidad *</label>
                 <select 
+                  name="party_type"
                   className="input-field"
                   value={partyForm.party_type}
-                  onChange={(e) => setPartyForm({...partyForm, party_type: e.target.value})}
+                  onChange={handlePartyChange}
                 >
                   <option value="client">Cliente/Inversor</option>
                   <option value="user">Usuario del Sistema</option>
@@ -965,9 +1013,10 @@ const Trusts = () => {
                 <div>
                   <label className="form-label">Seleccionar Cliente</label>
                   <select 
+                    name="client_id"
                     className="input-field"
                     value={partyForm.client_id}
-                    onChange={(e) => setPartyForm({...partyForm, client_id: e.target.value})}
+                    onChange={handlePartyChange}
                   >
                     <option value="">Seleccionar...</option>
                     {clientsList.map(c => (
@@ -981,9 +1030,10 @@ const Trusts = () => {
                 <div>
                   <label className="form-label">Seleccionar Usuario</label>
                   <select 
+                    name="user_id"
                     className="input-field"
                     value={partyForm.user_id}
-                    onChange={(e) => setPartyForm({...partyForm, user_id: e.target.value})}
+                    onChange={handlePartyChange}
                   >
                     <option value="">Seleccionar...</option>
                     {usersList.map(u => (
@@ -997,9 +1047,10 @@ const Trusts = () => {
                 <div>
                   <label className="form-label">Seleccionar Proveedor</label>
                   <select 
+                    name="supplier_id"
                     className="input-field"
                     value={partyForm.supplier_id}
-                    onChange={(e) => setPartyForm({...partyForm, supplier_id: e.target.value})}
+                    onChange={handlePartyChange}
                   >
                     <option value="">Seleccionar...</option>
                     {suppliersList.map(s => (
@@ -1015,19 +1066,21 @@ const Trusts = () => {
                     <label className="form-label">Nombre *</label>
                     <input 
                       type="text" 
+                      name="external_name"
                       className="input-field"
                       placeholder="Nombre o Razón Social"
                       value={partyForm.external_name}
-                      onChange={(e) => setPartyForm({...partyForm, external_name: e.target.value})}
+                      onChange={handlePartyChange}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="form-label">Tipo Doc.</label>
                       <select 
+                        name="external_document_type"
                         className="input-field"
                         value={partyForm.external_document_type}
-                        onChange={(e) => setPartyForm({...partyForm, external_document_type: e.target.value})}
+                        onChange={handlePartyChange}
                       >
                         <option value="DNI">DNI</option>
                         <option value="CUIT">CUIT</option>
@@ -1039,10 +1092,11 @@ const Trusts = () => {
                       <label className="form-label">Número</label>
                       <input 
                         type="text" 
+                        name="external_document_number"
                         className="input-field"
                         placeholder="Nº Documento"
                         value={partyForm.external_document_number}
-                        onChange={(e) => setPartyForm({...partyForm, external_document_number: e.target.value})}
+                        onChange={handlePartyChange}
                       />
                     </div>
                   </div>
@@ -1050,10 +1104,11 @@ const Trusts = () => {
                     <label className="form-label">Email</label>
                     <input 
                       type="email" 
+                      name="external_email"
                       className="input-field"
                       placeholder="email@ejemplo.com"
                       value={partyForm.external_email}
-                      onChange={(e) => setPartyForm({...partyForm, external_email: e.target.value})}
+                      onChange={handlePartyChange}
                     />
                   </div>
                 </div>
@@ -1064,24 +1119,26 @@ const Trusts = () => {
                   <label className="form-label">% Participación</label>
                   <input 
                     type="number" 
+                    name="participation_percentage"
                     className="input-field"
                     placeholder="0"
                     step="0.01"
                     min="0"
                     max="100"
                     value={partyForm.participation_percentage}
-                    onChange={(e) => setPartyForm({...partyForm, participation_percentage: e.target.value})}
+                    onChange={handlePartyChange}
                   />
                 </div>
                 <div>
                   <label className="form-label">Monto Aportado</label>
                   <input 
                     type="number" 
+                    name="contribution_amount"
                     className="input-field"
                     placeholder="0.00"
                     step="0.01"
                     value={partyForm.contribution_amount}
-                    onChange={(e) => setPartyForm({...partyForm, contribution_amount: e.target.value})}
+                    onChange={handlePartyChange}
                   />
                 </div>
               </div>

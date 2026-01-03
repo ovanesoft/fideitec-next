@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from '../api/axios';
 import { 
@@ -9,12 +9,23 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+// Hook para debounce
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+};
+
 const Suppliers = () => {
   const { user } = useAuth();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const searchTerm = useDebounce(searchInput, 300);
   const [stats, setStats] = useState(null);
   
   // Modal de nuevo proveedor
@@ -336,8 +347,8 @@ const Suppliers = () => {
           <input
             type="text"
             placeholder="Buscar por nombre, email, documento..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="input-field pl-10"
           />
         </div>
