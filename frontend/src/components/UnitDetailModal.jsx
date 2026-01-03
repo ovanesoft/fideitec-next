@@ -7,7 +7,7 @@ import {
   Image, Upload, Trash2, Plus, ChevronDown, ChevronUp,
   Zap, Droplets, Flame, PaintBucket, DoorOpen, Bath,
   Wrench, Sparkles, ClipboardCheck, Check, Loader2,
-  Eye, Download, ExternalLink, Home, Layers, Ban
+  Eye, Download, ExternalLink, Home, Layers, Ban, RefreshCcw
 } from 'lucide-react';
 
 // Iconos para categorías
@@ -1121,16 +1121,25 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                   {/* Items agrupados por categoría - COLAPSADOS POR DEFECTO */}
                   {Object.entries(groupedItems).map(([categoryCode, items]) => {
                     const isExpanded = expandedCategories[categoryCode] === true;
-                    // Excluir items "No Aplica" del conteo
-                    const applicableItems = items.filter(i => i.status !== 'not_applicable');
-                    const completedCount = applicableItems.filter(i => i.status === 'completed').length;
-                    const totalCount = applicableItems.length;
+                    const categoryName = items[0]?.category_name || categoryCode;
+                    
+                    // Identificar el item GENERAL (el que tiene el mismo nombre que la categoría)
+                    const generalItem = items.find(i => i.name === categoryName);
+                    // Los SUBITEMS son todos los demás
+                    const subitems = items.filter(i => i.name !== categoryName);
+                    
+                    // Excluir items "No Aplica" del conteo (solo subitems)
+                    const applicableSubitems = subitems.filter(i => i.status !== 'not_applicable');
+                    const completedCount = applicableSubitems.filter(i => i.status === 'completed').length;
+                    const totalCount = applicableSubitems.length;
                     const CategoryIcon = CATEGORY_ICONS[categoryCode] || CATEGORY_ICONS.default;
                     
-                    // Detectar si toda la categoría está suspendida
-                    const allSuspended = items.length > 0 && applicableItems.length === 0;
+                    // Detectar si toda la categoría está suspendida (el general está suspendido)
+                    const allSuspended = generalItem?.status === 'not_applicable' || 
+                                        (items.length > 0 && items.every(i => i.status === 'not_applicable'));
                     
-                    // Calcular progreso ponderado de la categoría
+                    // Calcular progreso ponderado de la categoría (usando subitems + general si aplica)
+                    const applicableItems = items.filter(i => i.status !== 'not_applicable');
                     const totalWeight = applicableItems.reduce((sum, i) => sum + (i.weight || 100), 0);
                     const weightedProgress = totalWeight > 0 
                       ? applicableItems.reduce((sum, i) => {
@@ -1140,78 +1149,146 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                         }, 0)
                       : 0;
                     
+                    // Peso disponible del general
+                    const generalWeight = generalItem?.weight || 0;
+                    const usedBySubitems = applicableSubitems.reduce((sum, i) => sum + (i.weight || 0), 0);
+                    
                     return (
                       <div key={categoryCode} className={`border rounded-xl overflow-hidden ${
                         allSuspended 
                           ? 'border-slate-200 bg-slate-100 opacity-60' 
                           : 'border-slate-200'
                       }`}>
-                        {/* Header de categoría */}
-                        <button
-                          onClick={() => toggleCategory(categoryCode)}
-                          className={`w-full flex items-center justify-between p-4 transition-colors ${
-                            allSuspended 
-                              ? 'bg-slate-100 hover:bg-slate-150' 
-                              : 'bg-slate-50 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <CategoryIcon className={`w-5 h-5 ${allSuspended ? 'text-slate-400' : 'text-slate-500'}`} />
-                            <span className={`font-medium ${allSuspended ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                              {items[0]?.category_name || categoryCode}
-                            </span>
-                            {allSuspended ? (
-                              <span className="px-2 py-0.5 bg-slate-200 text-slate-500 text-xs rounded-full flex items-center gap-1">
-                                <Ban className="w-3 h-3" />
-                                No Aplica
+                        {/* Header de categoría - INCLUYE INFO DEL GENERAL */}
+                        <div className={`p-4 transition-colors ${
+                          allSuspended 
+                            ? 'bg-slate-100' 
+                            : 'bg-slate-50'
+                        }`}>
+                          <button
+                            onClick={() => toggleCategory(categoryCode)}
+                            className="w-full flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-3">
+                              <CategoryIcon className={`w-5 h-5 ${allSuspended ? 'text-slate-400' : 'text-slate-500'}`} />
+                              <span className={`font-medium ${allSuspended ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                                {categoryName}
                               </span>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-slate-500">
-                                  ({completedCount}/{totalCount}) · {Math.round(weightedProgress)}%
+                              {allSuspended ? (
+                                <span className="px-2 py-0.5 bg-slate-200 text-slate-500 text-xs rounded-full flex items-center gap-1">
+                                  <Ban className="w-3 h-3" />
+                                  No Aplica
                                 </span>
-                                {/* Mostrar suma de pesos si hay items con peso != 100 */}
-                                {totalWeight !== applicableItems.length * 100 && totalWeight > 0 && (
-                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                    totalWeight > 100 
-                                      ? 'bg-amber-100 text-amber-700' 
-                                      : 'bg-blue-100 text-blue-700'
-                                  }`}>
-                                    Σ{totalWeight}%
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  {totalCount > 0 && (
+                                    <span className="text-sm text-slate-500">
+                                      ({completedCount}/{totalCount} subitems)
+                                    </span>
+                                  )}
+                                  <span className="text-sm font-medium text-slate-700">
+                                    {Math.round(weightedProgress)}%
                                   </span>
-                                )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {/* Botón agregar subitem a esta categoría */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openAddItemModal(categoryCode);
+                                }}
+                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                title="Agregar subitem a esta categoría"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                              {/* Mini barra de progreso ponderado - ocultar si suspendida */}
+                              {!allSuspended && (
+                                <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-green-500 transition-all"
+                                    style={{ width: `${weightedProgress}%` }}
+                                  />
+                                </div>
+                              )}
+                              {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                            </div>
+                          </button>
+                          
+                          {/* Info del GENERAL - Siempre visible en el header */}
+                          {generalItem && !allSuspended && (
+                            <div className="mt-3 pt-3 border-t border-slate-200">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-slate-500 uppercase">General/Resto:</span>
+                                  <span className="text-sm font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                                    {generalWeight}% disponible
+                                  </span>
+                                  {usedBySubitems > 0 && (
+                                    <span className="text-xs text-slate-400">
+                                      ({usedBySubitems}% asignado a subitems)
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {/* Slider de progreso del general */}
+                                  <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    value={generalItem.progress_percentage || 0}
+                                    onChange={(e) => handleUpdateProgressItem(generalItem.id, { 
+                                      progress_percentage: parseInt(e.target.value),
+                                      status: parseInt(e.target.value) === 100 ? 'completed' : 
+                                              parseInt(e.target.value) > 0 ? 'in_progress' : 'pending'
+                                    })}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-20 h-1 accent-green-500 cursor-pointer"
+                                  />
+                                  <span className="text-sm font-medium w-10 text-right text-slate-600">
+                                    {generalItem.progress_percentage || 0}%
+                                  </span>
+                                  {/* Botón No Aplica para el general */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm('¿Marcar toda la categoría como "No Aplica"?')) {
+                                        handleUpdateProgressItem(generalItem.id, { status: 'not_applicable', progress_percentage: 0 });
+                                      }
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded"
+                                    title="Marcar categoría como No Aplica"
+                                  >
+                                    <Ban className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {/* Botón agregar item a esta categoría */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openAddItemModal(categoryCode);
-                              }}
-                              className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                              title="Agregar item a esta categoría"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                            {/* Mini barra de progreso ponderado - ocultar si suspendida */}
-                            {!allSuspended && (
-                              <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                <div 
-                                  className="h-full bg-green-500 transition-all"
-                                  style={{ width: `${weightedProgress}%` }}
-                                />
-                              </div>
-                            )}
-                            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                          </div>
-                        </button>
+                            </div>
+                          )}
+                          
+                          {/* Botón restaurar si está suspendida */}
+                          {allSuspended && generalItem && (
+                            <div className="mt-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateProgressItem(generalItem.id, { status: 'pending', progress_percentage: 0 });
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                              >
+                                <RefreshCcw className="w-3 h-3" />
+                                Restaurar categoría
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         
-                        {/* Items de la categoría */}
-                        {isExpanded && (
+                        {/* SUBITEMS de la categoría (NO incluye el general) */}
+                        {isExpanded && subitems.length > 0 && (
                           <div className="divide-y divide-slate-100">
-                            {items.map(item => {
+                            {subitems.map(item => {
                               const statusInfo = ITEM_STATUS[item.status] || ITEM_STATUS.pending;
                               const StatusIcon = statusInfo.icon;
                               
