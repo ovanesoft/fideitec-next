@@ -297,115 +297,160 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   // =============================================
   // SISTEMA DE CÁLCULO DE INCIDENCIAS
   // =============================================
-  // Un proyecto tiene 100% de incidencia total.
-  // Al agregar un ítem con X%, todos los existentes se reducen proporcionalmente:
-  //   factor = (100 - X) / 100
-  //   nuevo_porcentaje = porcentaje_actual × factor
-  // Al eliminar un ítem con X%, los restantes se expanden proporcionalmente:
-  //   factor = 100 / (100 - X)
-  //   nuevo_porcentaje = porcentaje_actual × factor
+  // - El item de CATEGORÍA (creado desde "Agregar Categoría") representa el GENERAL/RESTO
+  // - Los SUBITEMS (creados desde "+") consumen del general
+  // - Mientras haya espacio (general > 0): el general absorbe la diferencia
+  // - Cuando el general llega a 0 y se agrega más: redistribución proporcional
   // =============================================
 
-  // Recalcular pesos al AGREGAR un ítem nuevo
+  // Encontrar el item "general" de una categoría (el primero creado / el que tiene nombre = categoría)
+  const findGeneralItem = useCallback((categoryCode, items) => {
+    const categoryItems = items.filter(i => i.category_code === categoryCode && i.status !== 'not_applicable');
+    if (categoryItems.length === 0) return null;
+    
+    // El general es el que tiene el nombre igual a la categoría o el primero creado
+    const categoryName = categoryItems[0]?.category_name;
+    const generalItem = categoryItems.find(i => i.name === categoryName) || categoryItems[0];
+    return generalItem;
+  }, []);
+
+  // Recalcular pesos al AGREGAR un subitem
   const recalculateWeightsOnAdd = useCallback(async (categoryCode, existingItems, newItemWeight) => {
     if (!existingItems || existingItems.length === 0) return;
     
     const applicableItems = existingItems.filter(i => i.status !== 'not_applicable');
     if (applicableItems.length === 0) return;
     
-    // Factor de reducción: (100 - nuevo) / 100
-    const factor = (100 - newItemWeight) / 100;
+    // Encontrar el item general
+    const generalItem = findGeneralItem(categoryCode, applicableItems);
+    if (!generalItem) return;
     
-    console.log(`Agregando item ${newItemWeight}%: factor de reducción = ${factor.toFixed(2)}`);
+    // Los subitems son todos menos el general
+    const subitems = applicableItems.filter(i => i.id !== generalItem.id);
+    const sumSubitems = subitems.reduce((sum, i) => sum + (i.weight || 0), 0);
+    const generalWeight = generalItem.weight || 100;
     
-    // Calcular nuevos pesos para los items existentes
-    const updates = [];
-    let totalAfterReduction = 0;
+    console.log(`Categoría ${categoryCode}: General=${generalWeight}%, Subitems=${sumSubitems}%, Nuevo=${newItemWeight}%`);
     
-    for (const item of applicableItems) {
-      const currentWeight = item.weight || 100;
-      const newWeight = Math.max(1, Math.round(currentWeight * factor));
-      totalAfterReduction += newWeight;
+    // CASO 1: Hay espacio en el general para absorber el nuevo subitem
+    if (generalWeight >= newItemWeight) {
+      const newGeneralWeight = generalWeight - newItemWeight;
+      console.log(`General absorbe: ${generalWeight}% → ${newGeneralWeight}%`);
       
-      if (newWeight !== currentWeight) {
-        updates.push({ id: item.id, oldWeight: currentWeight, newWeight });
-      }
-    }
-    
-    console.log(`Pesos reducidos: ${updates.map(u => `${u.oldWeight}→${u.newWeight}`).join(', ')}`);
-    console.log(`Total después de reducción: ${totalAfterReduction}% + nuevo ${newItemWeight}% = ${totalAfterReduction + newItemWeight}%`);
-    
-    // Actualizar localmente
-    if (updates.length > 0) {
+      // Solo actualizar el general
       setUnit(prev => ({
         ...prev,
-        progress_items: prev.progress_items.map(item => {
-          const update = updates.find(u => u.id === item.id);
-          return update ? { ...item, weight: update.newWeight } : item;
-        })
+        progress_items: prev.progress_items.map(item =>
+          item.id === generalItem.id ? { ...item, weight: newGeneralWeight } : item
+        )
       }));
       
-      // Guardar en el servidor
-      for (const update of updates) {
-        try {
-          await api.put(`/units/${unitId}/progress/${update.id}`, { weight: update.newWeight });
-        } catch (error) {
-          console.error('Error actualizando peso:', error);
+      try {
+        await api.put(`/units/${unitId}/progress/${generalItem.id}`, { weight: newGeneralWeight });
+        toast.success(`${generalItem.name}: ${generalWeight}% → ${newGeneralWeight}%`);
+      } catch (error) {
+        console.error('Error actualizando peso:', error);
+      }
+    }
+    // CASO 2: No hay suficiente espacio, redistribuir proporcionalmente
+    else {
+      const factor = (100 - newItemWeight) / 100;
+      console.log(`Redistribución proporcional: factor = ${factor.toFixed(2)}`);
+      
+      const updates = [];
+      for (const item of applicableItems) {
+        const currentWeight = item.weight || 100;
+        const newWeight = Math.max(1, Math.round(currentWeight * factor));
+        if (newWeight !== currentWeight) {
+          updates.push({ id: item.id, oldWeight: currentWeight, newWeight });
         }
       }
       
-      toast.success(`Incidencias ajustadas proporcionalmente`);
+      if (updates.length > 0) {
+        setUnit(prev => ({
+          ...prev,
+          progress_items: prev.progress_items.map(item => {
+            const update = updates.find(u => u.id === item.id);
+            return update ? { ...item, weight: update.newWeight } : item;
+          })
+        }));
+        
+        for (const update of updates) {
+          try {
+            await api.put(`/units/${unitId}/progress/${update.id}`, { weight: update.newWeight });
+          } catch (error) {
+            console.error('Error actualizando peso:', error);
+          }
+        }
+        
+        toast.success(`Incidencias redistribuidas proporcionalmente`);
+      }
     }
-  }, [unitId]);
+  }, [unitId, findGeneralItem]);
 
-  // Recalcular pesos al ELIMINAR un ítem
+  // Recalcular pesos al ELIMINAR un subitem
   const recalculateWeightsOnDelete = useCallback(async (categoryCode, remainingItems, deletedItemWeight) => {
     if (!remainingItems || remainingItems.length === 0) return;
     
     const applicableItems = remainingItems.filter(i => i.status !== 'not_applicable');
     if (applicableItems.length === 0) return;
     
-    // Factor de expansión: 100 / (100 - eliminado)
-    const factor = 100 / (100 - deletedItemWeight);
+    // Encontrar el item general
+    const generalItem = findGeneralItem(categoryCode, applicableItems);
     
-    console.log(`Eliminando item ${deletedItemWeight}%: factor de expansión = ${factor.toFixed(2)}`);
-    
-    // Calcular nuevos pesos para los items restantes
-    const updates = [];
-    
-    for (const item of applicableItems) {
-      const currentWeight = item.weight || 100;
-      const newWeight = Math.min(100, Math.max(1, Math.round(currentWeight * factor)));
+    if (generalItem) {
+      // El peso liberado va al general
+      const newGeneralWeight = Math.min(100, (generalItem.weight || 0) + deletedItemWeight);
+      console.log(`Peso liberado (${deletedItemWeight}%) va al general: ${generalItem.weight}% → ${newGeneralWeight}%`);
       
-      if (newWeight !== currentWeight) {
-        updates.push({ id: item.id, oldWeight: currentWeight, newWeight });
-      }
-    }
-    
-    console.log(`Pesos expandidos: ${updates.map(u => `${u.oldWeight}→${u.newWeight}`).join(', ')}`);
-    
-    // Actualizar localmente
-    if (updates.length > 0) {
       setUnit(prev => ({
         ...prev,
-        progress_items: prev.progress_items.map(item => {
-          const update = updates.find(u => u.id === item.id);
-          return update ? { ...item, weight: update.newWeight } : item;
-        })
+        progress_items: prev.progress_items.map(item =>
+          item.id === generalItem.id ? { ...item, weight: newGeneralWeight } : item
+        )
       }));
       
-      // Guardar en el servidor
-      for (const update of updates) {
-        try {
-          await api.put(`/units/${unitId}/progress/${update.id}`, { weight: update.newWeight });
-        } catch (error) {
-          console.error('Error actualizando peso:', error);
+      try {
+        await api.put(`/units/${unitId}/progress/${generalItem.id}`, { weight: newGeneralWeight });
+        toast.success(`${deletedItemWeight}% devuelto a ${generalItem.name}`);
+      } catch (error) {
+        console.error('Error actualizando peso:', error);
+      }
+    } else {
+      // Si no hay general, redistribuir proporcionalmente
+      const factor = 100 / (100 - deletedItemWeight);
+      console.log(`Sin general, redistribución proporcional: factor = ${factor.toFixed(2)}`);
+      
+      const updates = [];
+      for (const item of applicableItems) {
+        const currentWeight = item.weight || 100;
+        const newWeight = Math.min(100, Math.max(1, Math.round(currentWeight * factor)));
+        if (newWeight !== currentWeight) {
+          updates.push({ id: item.id, oldWeight: currentWeight, newWeight });
         }
       }
       
-      toast.success(`Incidencias redistribuidas`);
+      if (updates.length > 0) {
+        setUnit(prev => ({
+          ...prev,
+          progress_items: prev.progress_items.map(item => {
+            const update = updates.find(u => u.id === item.id);
+            return update ? { ...item, weight: update.newWeight } : item;
+          })
+        }));
+        
+        for (const update of updates) {
+          try {
+            await api.put(`/units/${unitId}/progress/${update.id}`, { weight: update.newWeight });
+          } catch (error) {
+            console.error('Error actualizando peso:', error);
+          }
+        }
+        
+        toast.success(`Incidencias redistribuidas`);
+      }
     }
-  }, [unitId]);
+  }, [unitId, findGeneralItem]);
 
   // Eliminar item
   const handleDeleteItem = async (itemId, itemName) => {
