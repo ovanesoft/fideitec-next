@@ -38,6 +38,14 @@ api.interceptors.request.use(
   }
 );
 
+// Rutas públicas donde no se debe redirigir al login
+const publicPaths = ['/reset-password', '/forgot-password', '/verify-email', '/register', '/login', '/privacy', '/terms', '/data-deletion', '/portal', '/supplier-portal'];
+
+const isPublicPath = () => {
+  const currentPath = window.location.pathname;
+  return publicPaths.some(path => currentPath.startsWith(path));
+};
+
 // Interceptor para manejar respuestas y refresh de token
 api.interceptors.response.use(
   (response) => response,
@@ -63,10 +71,14 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // Si falla el refresh, limpiar y redirigir al login
+        // Si falla el refresh, limpiar tokens
         localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        
+        // Solo redirigir al login si NO estamos en una ruta pública
+        if (!isPublicPath()) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       }
     }
