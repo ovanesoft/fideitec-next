@@ -294,44 +294,48 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     setShowAddItemModal(true);
   };
   
-  // Función para recalcular pesos dentro de una categoría
-  // El item nuevo/editado MANTIENE su peso, los demás se ajustan
-  const recalculateWeights = useCallback(async (categoryCode, itemsInCategory, newItemId = null) => {
-    if (!itemsInCategory || itemsInCategory.length === 0) return;
+  // =============================================
+  // SISTEMA DE CÁLCULO DE INCIDENCIAS
+  // =============================================
+  // Un proyecto tiene 100% de incidencia total.
+  // Al agregar un ítem con X%, todos los existentes se reducen proporcionalmente:
+  //   factor = (100 - X) / 100
+  //   nuevo_porcentaje = porcentaje_actual × factor
+  // Al eliminar un ítem con X%, los restantes se expanden proporcionalmente:
+  //   factor = 100 / (100 - X)
+  //   nuevo_porcentaje = porcentaje_actual × factor
+  // =============================================
+
+  // Recalcular pesos al AGREGAR un ítem nuevo
+  const recalculateWeightsOnAdd = useCallback(async (categoryCode, existingItems, newItemWeight) => {
+    if (!existingItems || existingItems.length === 0) return;
     
-    const applicableItems = itemsInCategory.filter(i => i.status !== 'not_applicable');
-    const totalWeight = applicableItems.reduce((sum, i) => sum + (i.weight || 100), 0);
+    const applicableItems = existingItems.filter(i => i.status !== 'not_applicable');
+    if (applicableItems.length === 0) return;
     
-    // Si el total es exactamente 100% o menos, no hacer nada
-    if (totalWeight <= 100) return;
+    // Factor de reducción: (100 - nuevo) / 100
+    const factor = (100 - newItemWeight) / 100;
     
-    // El item nuevo/editado mantiene su peso, los demás se ajustan
-    const newItem = newItemId ? applicableItems.find(i => i.id === newItemId) : null;
-    const newItemWeight = newItem?.weight || 0;
-    const otherItems = applicableItems.filter(i => i.id !== newItemId);
-    const otherTotalWeight = otherItems.reduce((sum, i) => sum + (i.weight || 100), 0);
+    console.log(`Agregando item ${newItemWeight}%: factor de reducción = ${factor.toFixed(2)}`);
     
-    // El espacio disponible para los otros items es 100 - peso del nuevo
-    const availableForOthers = 100 - newItemWeight;
-    
-    // Si no hay otros items o el peso disponible es 0, no recalcular
-    if (otherItems.length === 0 || availableForOthers <= 0) return;
-    
-    // Factor para ajustar los otros items
-    const factor = availableForOthers / otherTotalWeight;
-    
-    console.log(`Recalculando: nuevo=${newItemWeight}%, otros=${otherTotalWeight}%, factor=${factor.toFixed(2)}`);
-    
-    // Actualizar cada item (excepto el nuevo) con su peso ajustado
+    // Calcular nuevos pesos para los items existentes
     const updates = [];
-    for (const item of otherItems) {
-      const newWeight = Math.max(1, Math.round((item.weight || 100) * factor));
-      if (newWeight !== item.weight) {
-        updates.push({ id: item.id, newWeight });
+    let totalAfterReduction = 0;
+    
+    for (const item of applicableItems) {
+      const currentWeight = item.weight || 100;
+      const newWeight = Math.max(1, Math.round(currentWeight * factor));
+      totalAfterReduction += newWeight;
+      
+      if (newWeight !== currentWeight) {
+        updates.push({ id: item.id, oldWeight: currentWeight, newWeight });
       }
     }
     
-    // Actualizar localmente primero para evitar parpadeo
+    console.log(`Pesos reducidos: ${updates.map(u => `${u.oldWeight}→${u.newWeight}`).join(', ')}`);
+    console.log(`Total después de reducción: ${totalAfterReduction}% + nuevo ${newItemWeight}% = ${totalAfterReduction + newItemWeight}%`);
+    
+    // Actualizar localmente
     if (updates.length > 0) {
       setUnit(prev => ({
         ...prev,
@@ -341,7 +345,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         })
       }));
       
-      // Luego guardar en el servidor
+      // Guardar en el servidor
       for (const update of updates) {
         try {
           await api.put(`/units/${unitId}/progress/${update.id}`, { weight: update.newWeight });
@@ -350,7 +354,56 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         }
       }
       
-      toast.success(`Pesos ajustados: nuevo item ${newItemWeight}%, resto ${availableForOthers}%`);
+      toast.success(`Incidencias ajustadas proporcionalmente`);
+    }
+  }, [unitId]);
+
+  // Recalcular pesos al ELIMINAR un ítem
+  const recalculateWeightsOnDelete = useCallback(async (categoryCode, remainingItems, deletedItemWeight) => {
+    if (!remainingItems || remainingItems.length === 0) return;
+    
+    const applicableItems = remainingItems.filter(i => i.status !== 'not_applicable');
+    if (applicableItems.length === 0) return;
+    
+    // Factor de expansión: 100 / (100 - eliminado)
+    const factor = 100 / (100 - deletedItemWeight);
+    
+    console.log(`Eliminando item ${deletedItemWeight}%: factor de expansión = ${factor.toFixed(2)}`);
+    
+    // Calcular nuevos pesos para los items restantes
+    const updates = [];
+    
+    for (const item of applicableItems) {
+      const currentWeight = item.weight || 100;
+      const newWeight = Math.min(100, Math.max(1, Math.round(currentWeight * factor)));
+      
+      if (newWeight !== currentWeight) {
+        updates.push({ id: item.id, oldWeight: currentWeight, newWeight });
+      }
+    }
+    
+    console.log(`Pesos expandidos: ${updates.map(u => `${u.oldWeight}→${u.newWeight}`).join(', ')}`);
+    
+    // Actualizar localmente
+    if (updates.length > 0) {
+      setUnit(prev => ({
+        ...prev,
+        progress_items: prev.progress_items.map(item => {
+          const update = updates.find(u => u.id === item.id);
+          return update ? { ...item, weight: update.newWeight } : item;
+        })
+      }));
+      
+      // Guardar en el servidor
+      for (const update of updates) {
+        try {
+          await api.put(`/units/${unitId}/progress/${update.id}`, { weight: update.newWeight });
+        } catch (error) {
+          console.error('Error actualizando peso:', error);
+        }
+      }
+      
+      toast.success(`Incidencias redistribuidas`);
     }
   }, [unitId]);
 
@@ -363,6 +416,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     try {
       const itemToDelete = unit.progress_items.find(i => i.id === itemId);
       const categoryCode = itemToDelete?.category_code;
+      const deletedWeight = itemToDelete?.weight || 100;
       
       const response = await api.delete(`/units/${unitId}/progress/${itemId}`);
       
@@ -376,11 +430,11 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         
         toast.success('Item eliminado');
         
-        // Recalcular pesos de la categoría si había más items
+        // Redistribuir incidencias entre los items restantes de la categoría
         if (categoryCode) {
           const categoryItems = remainingItems.filter(i => i.category_code === categoryCode);
           if (categoryItems.length > 0) {
-            setTimeout(() => recalculateWeights(categoryCode, categoryItems), 500);
+            setTimeout(() => recalculateWeightsOnDelete(categoryCode, categoryItems, deletedWeight), 500);
           }
         }
       }
@@ -406,40 +460,33 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     try {
       setSaving(true);
       
-      const categoryCode = newItemForm.category_code;
-      const currentCategoryItems = unit?.progress_items?.filter(
-        i => i.category_code === categoryCode && i.status !== 'not_applicable'
-      ) || [];
-      
-      // Calcular peso disponible en la categoría
-      const currentTotalWeight = currentCategoryItems.reduce((sum, i) => {
-        // Si estamos editando, no contar el item actual
-        if (editingItem && i.id === editingItem.id) return sum;
-        return sum + (i.weight || 100);
-      }, 0);
-      
-      let finalWeight = newItemForm.weight;
-      let shouldRecalculate = false;
-      
-      // Si el nuevo peso haría exceder el 100%, normalizar
-      if (currentTotalWeight + finalWeight > 100 && currentCategoryItems.length > 0) {
-        shouldRecalculate = true;
-      }
-      
       // Determinar el category_code y category_name a usar
       const categoryCodeToUse = newItemForm.category_code || null;
       const categoryNameToUse = showNewCategoryInput ? newItemForm.new_category_name : null;
+      
+      // Items existentes en la categoría (excluyendo el que estamos editando)
+      const existingCategoryItems = unit?.progress_items?.filter(
+        i => i.category_code === categoryCodeToUse && 
+             i.status !== 'not_applicable' &&
+             (!editingItem || i.id !== editingItem.id)
+      ) || [];
+      
+      const newItemWeight = newItemForm.weight;
 
       if (editingItem) {
         // Actualizar item existente
         const response = await api.put(`/units/${unitId}/progress/${editingItem.id}`, {
           name: newItemForm.name,
           category_code: categoryCodeToUse,
-          weight: finalWeight,
+          weight: newItemWeight,
           notes: newItemForm.notes
         });
         
         if (response.data.success) {
+          // Calcular diferencia de peso para ajustar otros items
+          const oldWeight = editingItem.weight || 100;
+          const weightDiff = newItemWeight - oldWeight;
+          
           setUnit(prev => ({
             ...prev,
             progress_items: prev.progress_items.map(item =>
@@ -448,20 +495,24 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
           }));
           toast.success('Item actualizado');
           
-          if (shouldRecalculate && categoryCode) {
-            const updatedItems = unit.progress_items.map(item =>
-              item.id === editingItem.id ? { ...item, weight: finalWeight } : item
-            ).filter(i => i.category_code === categoryCode);
-            setTimeout(() => recalculateWeights(categoryCode, updatedItems, editingItem.id), 500);
+          // Si el peso cambió y hay otros items, recalcular
+          if (weightDiff !== 0 && existingCategoryItems.length > 0) {
+            // Tratar como si eliminamos el viejo y agregamos el nuevo
+            setTimeout(() => recalculateWeightsOnAdd(categoryCodeToUse, existingCategoryItems, newItemWeight), 500);
           }
         }
       } else {
-        // Crear nuevo item
+        // PRIMERO: Si hay items existentes, reducir sus pesos proporcionalmente
+        if (existingCategoryItems.length > 0) {
+          await recalculateWeightsOnAdd(categoryCodeToUse, existingCategoryItems, newItemWeight);
+        }
+        
+        // DESPUÉS: Crear el nuevo item con su peso original
         const response = await api.post(`/units/${unitId}/progress`, {
           name: newItemForm.name,
           category_code: categoryCodeToUse,
-          category_name: categoryNameToUse, // Para categorías nuevas
-          weight: finalWeight,
+          category_name: categoryNameToUse,
+          weight: newItemWeight,
           notes: newItemForm.notes,
           status: 'pending',
           progress_percentage: 0
@@ -486,12 +537,6 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
             progress_items: [...(prev.progress_items || []), itemToAdd]
           }));
           toast.success('Item agregado');
-          
-          // Recalcular pesos si excede 100% - el nuevo item MANTIENE su peso
-          if (shouldRecalculate && categoryCodeToUse) {
-            const allCategoryItems = [...currentCategoryItems, itemToAdd];
-            setTimeout(() => recalculateWeights(categoryCodeToUse, allCategoryItems, itemToAdd.id), 500);
-          }
         }
       }
       
