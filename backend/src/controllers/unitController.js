@@ -381,7 +381,8 @@ const addProgressItem = async (req, res) => {
     const { unitId } = req.params;
     const tenantId = req.user.tenant_id;
     const {
-      category_id, category_code, name, description, status,
+      category_id, category_code, category_name: providedCategoryName, 
+      name, description, status,
       estimated_cost, currency, priority, assigned_to, supplier_id,
       weight, notes, progress_percentage
     } = req.body;
@@ -403,7 +404,8 @@ const addProgressItem = async (req, res) => {
 
     // Obtener el id y nombre de la categoría si se proporciona category_code
     let categoryId = category_id || null;
-    let categoryName = null;
+    let categoryName = providedCategoryName || null;
+    
     if (category_code && !categoryId) {
       const catResult = await query(
         `SELECT id, name FROM unit_progress_categories WHERE code = $1 AND tenant_id = $2`,
@@ -411,9 +413,9 @@ const addProgressItem = async (req, res) => {
       );
       if (catResult.rows[0]) {
         categoryId = catResult.rows[0].id;
-        categoryName = catResult.rows[0].name;
-      } else {
-        categoryName = category_code; // Usar el código como nombre si no existe la categoría
+        categoryName = categoryName || catResult.rows[0].name; // Priorizar el nombre proporcionado
+      } else if (!categoryName) {
+        categoryName = category_code; // Usar el código como nombre si no existe la categoría y no se proporcionó nombre
       }
     }
 

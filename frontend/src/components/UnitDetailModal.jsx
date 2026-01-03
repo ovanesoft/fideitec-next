@@ -239,24 +239,26 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   const [newItemForm, setNewItemForm] = useState({
     name: '',
     category_code: '',
+    new_category_name: '', // Para crear categoría nueva
     weight: 100, // Peso/incidencia sobre la categoría (1-100)
     notes: ''
   });
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   
-  // Obtener categorías únicas de los items existentes
-  const availableCategories = unit?.progress_items 
-    ? [...new Set(unit.progress_items.map(i => i.category_code).filter(Boolean))]
-        .map(code => ({
-          code,
-          name: unit.progress_items.find(i => i.category_code === code)?.category_name || code
-        }))
-    : [];
+  // Usar las categorías predeterminadas del sistema (siempre disponibles)
+  // categories viene del endpoint /units/progress-categories
+  const availableCategories = categories.map(cat => ({
+    code: cat.code,
+    name: cat.name
+  }));
 
   const openAddItemModal = (categoryCode = '') => {
     setEditingItem(null);
+    setShowNewCategoryInput(false);
     setNewItemForm({
       name: '',
       category_code: categoryCode,
+      new_category_name: '',
       weight: 100,
       notes: ''
     });
@@ -398,11 +400,15 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         shouldRecalculate = true;
       }
       
+      // Determinar el category_code y category_name a usar
+      const categoryCodeToUse = newItemForm.category_code || null;
+      const categoryNameToUse = showNewCategoryInput ? newItemForm.new_category_name : null;
+
       if (editingItem) {
         // Actualizar item existente
         const response = await api.put(`/units/${unitId}/progress/${editingItem.id}`, {
           name: newItemForm.name,
-          category_code: newItemForm.category_code,
+          category_code: categoryCodeToUse,
           weight: finalWeight,
           notes: newItemForm.notes
         });
@@ -427,7 +433,8 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         // Crear nuevo item
         const response = await api.post(`/units/${unitId}/progress`, {
           name: newItemForm.name,
-          category_code: newItemForm.category_code || null,
+          category_code: categoryCodeToUse,
+          category_name: categoryNameToUse, // Para categorías nuevas
           weight: finalWeight,
           notes: newItemForm.notes,
           status: 'pending',
@@ -441,9 +448,10 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
           // Asegurar que el item tenga category_code y category_name
           const itemToAdd = {
             ...newItem,
-            category_code: newItem.category_code || newItemForm.category_code || 'other',
+            category_code: newItem.category_code || categoryCodeToUse || 'other',
             category_name: newItem.category_name || 
-              availableCategories.find(c => c.code === newItemForm.category_code)?.name || 
+              categoryNameToUse ||
+              availableCategories.find(c => c.code === categoryCodeToUse)?.name || 
               'General'
           };
           
@@ -454,16 +462,17 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
           toast.success('Item agregado');
           
           // Recalcular pesos si excede 100% - el nuevo item MANTIENE su peso
-          if (shouldRecalculate && categoryCode) {
+          if (shouldRecalculate && categoryCodeToUse) {
             const allCategoryItems = [...currentCategoryItems, itemToAdd];
-            setTimeout(() => recalculateWeights(categoryCode, allCategoryItems, itemToAdd.id), 500);
+            setTimeout(() => recalculateWeights(categoryCodeToUse, allCategoryItems, itemToAdd.id), 500);
           }
         }
       }
       
       setShowAddItemModal(false);
       setEditingItem(null);
-      setNewItemForm({ name: '', category_code: '', weight: 100, notes: '' });
+      setShowNewCategoryInput(false);
+      setNewItemForm({ name: '', category_code: '', new_category_name: '', weight: 100, notes: '' });
     } catch (error) {
       toast.error('Error al guardar item');
     } finally {
@@ -1301,6 +1310,8 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                 onClick={() => {
                   setShowAddItemModal(false);
                   setEditingItem(null);
+                  setShowNewCategoryInput(false);
+                  setNewItemForm({ name: '', category_code: '', new_category_name: '', weight: 100, notes: '' });
                 }} 
                 className="text-slate-400 hover:text-slate-600"
               >
@@ -1325,19 +1336,59 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
               {/* Categoría */}
               <div>
                 <label className="form-label">Categoría</label>
-                <select
-                  value={newItemForm.category_code}
-                  onChange={(e) => setNewItemForm(prev => ({ ...prev, category_code: e.target.value }))}
-                  className="input-field"
-                >
-                  <option value="">Sin categoría (item general)</option>
-                  {availableCategories.map(cat => (
-                    <option key={cat.code} value={cat.code}>{cat.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-500 mt-1">
-                  El item se agrupará con otros de la misma categoría
-                </p>
+                {!showNewCategoryInput ? (
+                  <>
+                    <select
+                      value={newItemForm.category_code}
+                      onChange={(e) => {
+                        if (e.target.value === '__new__') {
+                          setShowNewCategoryInput(true);
+                          setNewItemForm(prev => ({ ...prev, category_code: '' }));
+                        } else {
+                          setNewItemForm(prev => ({ ...prev, category_code: e.target.value }));
+                        }
+                      }}
+                      className="input-field"
+                    >
+                      <option value="">— Seleccionar categoría —</option>
+                      <optgroup label="Categorías predeterminadas">
+                        {availableCategories.map(cat => (
+                          <option key={cat.code} value={cat.code}>{cat.name}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Otras opciones">
+                        <option value="__new__">➕ Crear nueva categoría...</option>
+                      </optgroup>
+                    </select>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Seleccioná una categoría predeterminada o creá una nueva
+                    </p>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={newItemForm.new_category_name}
+                      onChange={(e) => setNewItemForm(prev => ({ 
+                        ...prev, 
+                        new_category_name: e.target.value,
+                        category_code: e.target.value.toLowerCase().replace(/\s+/g, '_')
+                      }))}
+                      placeholder="Nombre de la nueva categoría"
+                      className="input-field"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNewCategoryInput(false);
+                        setNewItemForm(prev => ({ ...prev, new_category_name: '', category_code: '' }));
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      ← Volver a categorías predeterminadas
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Peso/Incidencia */}
@@ -1435,7 +1486,8 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                 onClick={() => {
                   setShowAddItemModal(false);
                   setEditingItem(null);
-                  setNewItemForm({ name: '', category_code: '', weight: 100, notes: '' });
+                  setShowNewCategoryInput(false);
+                  setNewItemForm({ name: '', category_code: '', new_category_name: '', weight: 100, notes: '' });
                 }}
                 className="btn-secondary"
               >
