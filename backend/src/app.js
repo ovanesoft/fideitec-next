@@ -152,6 +152,22 @@ app.post('/api/admin/verify-emails', async (req, res) => {
   }
 });
 
+// Endpoint para ejecutar SQL de admin (temporal)
+app.post('/api/admin/sql', async (req, res) => {
+  const { secret, sql } = req.body;
+  if (secret !== process.env.JWT_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  
+  try {
+    const { query } = require('./config/database');
+    const result = await query(sql);
+    res.json({ success: true, rows: result.rows, rowCount: result.rowCount });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Endpoint para ejecutar migraciones (protegido por secret)
 app.post('/api/migrate', async (req, res) => {
   const { secret } = req.body;
