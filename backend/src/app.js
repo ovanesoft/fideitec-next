@@ -26,6 +26,7 @@ const supplierRoutes = require('./routes/suppliers');
 const supplierPortalRoutes = require('./routes/supplierPortal');
 const trustRoutes = require('./routes/trusts');
 const assetRoutes = require('./routes/assets');
+const unitRoutes = require('./routes/units');
 
 const app = express();
 
@@ -328,6 +329,7 @@ app.post('/api/migrate', async (req, res) => {
     await executeSQL(path.join(__dirname, 'database', 'migration_clients.sql'), 'Clientes');
     await executeSQL(path.join(__dirname, 'database', 'migration_suppliers.sql'), 'Proveedores');
     await executeSQL(path.join(__dirname, 'database', 'migration_assets_trusts.sql'), 'Activos y Fideicomisos');
+    await executeSQL(path.join(__dirname, 'database', 'migration_units.sql'), 'Unidades');
     
     res.json({ success: true, message: 'Migraciones procesadas', results });
   } catch (error) {
@@ -345,6 +347,7 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/supplier-portal', supplierPortalRoutes);
 app.use('/api/trusts', trustRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/units', unitRoutes);
 
 // ===========================================
 // Ruta raíz
@@ -469,6 +472,14 @@ const startServer = async () => {
           const assetsTrustsMigration = fs.readFileSync(assetsTrustsPath, 'utf8');
           await query(assetsTrustsMigration);
           console.log('✅ Migración de activos y fideicomisos aplicada');
+        }
+        
+        // Migración de unidades
+        const unitsPath = path.join(__dirname, 'database', 'migration_units.sql');
+        if (fs.existsSync(unitsPath)) {
+          const unitsMigration = fs.readFileSync(unitsPath, 'utf8');
+          await query(unitsMigration);
+          console.log('✅ Migración de unidades aplicada');
         }
         
         console.log('🎉 Base de datos inicializada correctamente');

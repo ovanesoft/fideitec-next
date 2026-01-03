@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import UnitDetailModal from '../components/UnitDetailModal';
 
 // Hook para debounce
 const useDebounce = (value, delay) => {
@@ -104,6 +105,8 @@ const Assets = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showUnitModal, setShowUnitModal] = useState(false);
+  const [showUnitDetailModal, setShowUnitDetailModal] = useState(false);
+  const [selectedUnitId, setSelectedUnitId] = useState(null);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   
@@ -1370,6 +1373,22 @@ const Assets = () => {
                         </div>
                       </div>
 
+                      {/* Barra de progreso de construcción */}
+                      {unit.overall_progress !== undefined && (
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-slate-500">Progreso</span>
+                            <span className="font-medium text-slate-700">{unit.overall_progress || 0}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all ${unit.overall_progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                              style={{ width: `${unit.overall_progress || 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between pt-3 border-t">
                         <p className="font-semibold text-slate-800">
                           {formatCurrency(unit.list_price, unit.currency)}
@@ -1384,7 +1403,14 @@ const Assets = () => {
                               <Copy className="w-4 h-4" />
                             </button>
                           )}
-                          <button className="p-1.5 text-slate-400 hover:text-slate-600 rounded">
+                          <button 
+                            onClick={() => {
+                              setSelectedUnitId(unit.id);
+                              setShowUnitDetailModal(true);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-primary-600 rounded"
+                            title="Ver detalle / Editar"
+                          >
                             <Edit className="w-4 h-4" />
                           </button>
                         </div>
@@ -1623,6 +1649,24 @@ const Assets = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal Detalle de Unidad */}
+      {showUnitDetailModal && selectedUnitId && (
+        <UnitDetailModal
+          unitId={selectedUnitId}
+          assetId={selectedAsset?.id}
+          onClose={() => {
+            setShowUnitDetailModal(false);
+            setSelectedUnitId(null);
+          }}
+          onUpdate={() => {
+            // Recargar detalle del activo para actualizar la lista de unidades
+            if (selectedAsset) {
+              loadAssetDetail(selectedAsset.id);
+            }
+          }}
+        />
       )}
     </div>
   );
