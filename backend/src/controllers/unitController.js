@@ -286,6 +286,7 @@ const getProgressCategories = async (req, res) => {
 };
 
 // Inicializar items de progreso para una unidad
+// Crea un item "General" con 100% de incidencia para cada categoría
 const initializeProgressItems = async (req, res) => {
   const client = await pool.connect();
   
@@ -325,20 +326,34 @@ const initializeProgressItems = async (req, res) => {
     const categoriesResult = await client.query(categoriesQuery, params);
 
     // Crear items para cada categoría
+    // Cada categoría obtiene un item "General" con 100% de incidencia (weight)
     const insertedItems = [];
     for (const category of categoriesResult.rows) {
       // Verificar si ya existe un item para esta categoría en esta unidad
       const existsResult = await client.query(
-        `SELECT id FROM unit_progress_items WHERE unit_id = $1 AND category_id = $2`,
-        [unitId, category.id]
+        `SELECT id FROM unit_progress_items WHERE unit_id = $1 AND (category_id = $2 OR category_code = $3)`,
+        [unitId, category.id, category.code]
       );
 
       if (existsResult.rows.length === 0) {
+        // Crear item "General" con 100% de incidencia
         const itemResult = await client.query(
-          `INSERT INTO unit_progress_items (unit_id, category_id, name, description, display_order)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO unit_progress_items 
+           (unit_id, category_id, category_code, category_name, name, description, display_order, weight, status, progress_percentage)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING *`,
-          [unitId, category.id, category.name, category.description, category.display_order]
+          [
+            unitId, 
+            category.id, 
+            category.code,
+            category.name,
+            `${category.name} General`, // Nombre del item: "[Categoría] General"
+            category.description, 
+            category.display_order,
+            100, // 100% de incidencia (weight)
+            'pending',
+            0
+          ]
         );
         insertedItems.push(itemResult.rows[0]);
       }
@@ -359,7 +374,7 @@ const initializeProgressItems = async (req, res) => {
       success: true,
       data: { 
         items: insertedItems,
-        message: `${insertedItems.length} items de progreso creados`
+        message: `${insertedItems.length} categorías inicializadas con items General`
       }
     });
 
@@ -598,32 +613,82 @@ const deleteProgressItem = async (req, res) => {
 };
 
 // Función auxiliar para actualizar progreso general de unidad
+// Calcula el progreso ponderado agrupando por categoría
 const updateUnitOverallProgress = async (unitId) => {
   try {
-    // Calcular progreso ponderado por peso de cada item
+    // Obtener todos los items agrupados por categoría
     const result = await query(
       `SELECT 
-        COALESCE(SUM(CASE WHEN status != 'not_applicable' THEN COALESCE(weight, 100) ELSE 0 END), 0) as total_weight,
-        COALESCE(SUM(CASE WHEN status != 'not_applicable' 
-          THEN (COALESCE(progress_percentage, 0) * COALESCE(weight, 100) / 100.0) 
-          ELSE 0 END), 0) as weighted_progress,
-        COUNT(*) FILTER (WHERE status != 'not_applicable') as total_items,
-        COUNT(*) FILTER (WHERE status = 'completed') as completed_items
-       FROM unit_progress_items WHERE unit_id = $1`,
+        COALESCE(category_code, 'other') as category_code,
+        status,
+        COALESCE(weight, 100) as weight,
+        COALESCE(progress_percentage, 0) as progress_percentage
+       FROM unit_progress_items 
+       WHERE unit_id = $1`,
       [unitId]
     );
 
-    const { total_weight, weighted_progress, total_items, completed_items } = result.rows[0];
-    
-    // Progreso ponderado: suma de (progress * weight) / suma de weights
-    const overallProgress = parseFloat(total_weight) > 0 
-      ? Math.round((parseFloat(weighted_progress) / parseFloat(total_weight)) * 100) 
+    if (result.rows.length === 0) {
+      await query(
+        `UPDATE asset_units 
+         SET overall_progress = 0, 
+             construction_status = 'not_started',
+             updated_at = NOW()
+         WHERE id = $1`,
+        [unitId]
+      );
+      return;
+    }
+
+    // Agrupar items por categoría
+    const categories = {};
+    for (const item of result.rows) {
+      const cat = item.category_code;
+      if (!categories[cat]) {
+        categories[cat] = [];
+      }
+      categories[cat].push(item);
+    }
+
+    // Calcular progreso ponderado por categoría
+    // Cada categoría tiene el mismo peso en el progreso general
+    let totalCategoryProgress = 0;
+    let activeCategoriesCount = 0;
+
+    for (const [catCode, items] of Object.entries(categories)) {
+      // Filtrar items aplicables (no "not_applicable")
+      const applicableItems = items.filter(i => i.status !== 'not_applicable');
+      if (applicableItems.length === 0) continue;
+
+      activeCategoriesCount++;
+
+      // Calcular progreso ponderado dentro de la categoría
+      const totalWeight = applicableItems.reduce((sum, i) => sum + i.weight, 0);
+      if (totalWeight === 0) continue;
+
+      const categoryProgress = applicableItems.reduce((sum, i) => {
+        // Normalizar peso para que sume 100 dentro de la categoría
+        const normalizedWeight = (i.weight / totalWeight) * 100;
+        return sum + (i.progress_percentage * normalizedWeight / 100);
+      }, 0);
+
+      totalCategoryProgress += categoryProgress;
+    }
+
+    // Promedio de progreso entre todas las categorías activas
+    const overallProgress = activeCategoriesCount > 0 
+      ? Math.round(totalCategoryProgress / activeCategoriesCount)
       : 0;
 
+    // Contar items completados vs totales (excluyendo not_applicable)
+    const applicableItems = result.rows.filter(i => i.status !== 'not_applicable');
+    const completedItems = applicableItems.filter(i => i.status === 'completed').length;
+    const totalItems = applicableItems.length;
+
     let constructionStatus = 'not_started';
-    if (overallProgress === 100 || (parseInt(total_items) > 0 && parseInt(completed_items) === parseInt(total_items))) {
+    if (overallProgress === 100 || (totalItems > 0 && completedItems === totalItems)) {
       constructionStatus = 'completed';
-    } else if (overallProgress > 0) {
+    } else if (overallProgress > 0 || completedItems > 0) {
       constructionStatus = 'in_progress';
     }
 

@@ -1,50 +1,83 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+/**
+ * UnitDetailModal - Modal de Detalle de Unidad con Checklist de Construcción
+ * @version 1.8
+ * @date 2026-01-03
+ * 
+ * Sistema de incidencias con subcategorías y item "General" automático
+ */
+
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+
+const MODAL_VERSION = '1.8';
 import {
   X, Save, CheckCircle2, Circle, Clock, AlertTriangle,
-  Building2, Ruler, DollarSign, Calendar, User, FileText,
-  Image, Upload, Trash2, Plus, ChevronDown, ChevronUp,
-  Zap, Droplets, Flame, PaintBucket, DoorOpen, Bath,
-  Wrench, Sparkles, ClipboardCheck, Check, Loader2,
-  Eye, Download, ExternalLink, Home, Layers, Ban, RefreshCcw
+  Building2, FileText, Image, Upload, Trash2, Plus, 
+  ChevronDown, ChevronRight, Zap, Droplets, Flame, 
+  PaintBucket, DoorOpen, Bath, Wrench, Sparkles, 
+  ClipboardCheck, Check, Loader2, Edit2, Info,
+  Thermometer, Layers, LayoutGrid, Grip, Hammer, 
+  ShowerHead, Package, Fence, FileCheck, Square
 } from 'lucide-react';
 
-// Iconos para categorías
-const CATEGORY_ICONS = {
-  masonry: Layers,
-  plastering: Layers,
-  electrical: Zap,
-  plumbing: Droplets,
-  gas: Flame,
-  hvac: Zap,
-  flooring: Home,
-  tiling: Layers,
-  painting: PaintBucket,
-  carpentry: DoorOpen,
-  metalwork: Wrench,
-  fixtures: Droplets,
-  sanitary: Bath,
-  countertops: Home,
-  windows: Home,
-  main_door: DoorOpen,
-  balcony: Home,
-  final_cleaning: Sparkles,
-  final_inspection: ClipboardCheck,
-  documentation: FileText,
-  default: Circle
+// =============================================
+// CONSTANTES - ALINEADAS CON EL BACKEND
+// =============================================
+
+// Mapeo de códigos de categoría del backend a iconos y colores
+const CATEGORY_CONFIG = {
+  // Estructura
+  masonry: { name: 'Mampostería', icon: Layers, color: 'amber' },
+  plastering: { name: 'Revoque y Enlucido', icon: Square, color: 'orange' },
+  // Instalaciones
+  electrical: { name: 'Electricidad', icon: Zap, color: 'yellow' },
+  plumbing: { name: 'Plomería', icon: Droplets, color: 'blue' },
+  gas: { name: 'Gas', icon: Flame, color: 'red' },
+  hvac: { name: 'Climatización', icon: Thermometer, color: 'cyan' },
+  // Terminaciones
+  flooring: { name: 'Pisos', icon: LayoutGrid, color: 'amber' },
+  tiling: { name: 'Revestimientos', icon: Grip, color: 'teal' },
+  painting: { name: 'Pintura', icon: PaintBucket, color: 'purple' },
+  carpentry: { name: 'Carpintería', icon: DoorOpen, color: 'amber' },
+  metalwork: { name: 'Herrería', icon: Hammer, color: 'slate' },
+  // Baño y cocina
+  fixtures: { name: 'Grifería', icon: ShowerHead, color: 'indigo' },
+  sanitary: { name: 'Sanitarios', icon: Bath, color: 'sky' },
+  countertops: { name: 'Mesada y Bachas', icon: Package, color: 'emerald' },
+  // Aberturas
+  windows: { name: 'Ventanas', icon: Square, color: 'blue' },
+  main_door: { name: 'Puerta Principal', icon: DoorOpen, color: 'rose' },
+  // Exteriores
+  balcony: { name: 'Balcón/Terraza', icon: Fence, color: 'green' },
+  // Final
+  final_cleaning: { name: 'Limpieza Final', icon: Sparkles, color: 'violet' },
+  final_inspection: { name: 'Inspección Final', icon: ClipboardCheck, color: 'lime' },
+  documentation: { name: 'Documentación', icon: FileCheck, color: 'fuchsia' }
 };
 
-// Estados de items
-const ITEM_STATUS = {
-  pending: { label: 'Pendiente', color: 'bg-slate-200 text-slate-700', icon: Circle },
-  in_progress: { label: 'En Progreso', color: 'bg-blue-100 text-blue-700', icon: Clock },
-  completed: { label: 'Completado', color: 'bg-green-100 text-green-700', icon: CheckCircle2 },
-  blocked: { label: 'Bloqueado', color: 'bg-red-100 text-red-700', icon: AlertTriangle },
-  not_applicable: { label: 'No Aplica', color: 'bg-gray-100 text-gray-500', icon: X }
+// Colores para las barras de progreso
+const CATEGORY_COLORS = {
+  amber: { bg: 'bg-amber-100', fill: 'bg-amber-500', text: 'text-amber-700', border: 'border-amber-300', accent: 'accent-amber-500' },
+  orange: { bg: 'bg-orange-100', fill: 'bg-orange-500', text: 'text-orange-700', border: 'border-orange-300', accent: 'accent-orange-500' },
+  yellow: { bg: 'bg-yellow-100', fill: 'bg-yellow-500', text: 'text-yellow-700', border: 'border-yellow-300', accent: 'accent-yellow-500' },
+  blue: { bg: 'bg-blue-100', fill: 'bg-blue-500', text: 'text-blue-700', border: 'border-blue-300', accent: 'accent-blue-500' },
+  red: { bg: 'bg-red-100', fill: 'bg-red-500', text: 'text-red-700', border: 'border-red-300', accent: 'accent-red-500' },
+  cyan: { bg: 'bg-cyan-100', fill: 'bg-cyan-500', text: 'text-cyan-700', border: 'border-cyan-300', accent: 'accent-cyan-500' },
+  teal: { bg: 'bg-teal-100', fill: 'bg-teal-500', text: 'text-teal-700', border: 'border-teal-300', accent: 'accent-teal-500' },
+  purple: { bg: 'bg-purple-100', fill: 'bg-purple-500', text: 'text-purple-700', border: 'border-purple-300', accent: 'accent-purple-500' },
+  slate: { bg: 'bg-slate-100', fill: 'bg-slate-500', text: 'text-slate-700', border: 'border-slate-300', accent: 'accent-slate-500' },
+  indigo: { bg: 'bg-indigo-100', fill: 'bg-indigo-500', text: 'text-indigo-700', border: 'border-indigo-300', accent: 'accent-indigo-500' },
+  sky: { bg: 'bg-sky-100', fill: 'bg-sky-500', text: 'text-sky-700', border: 'border-sky-300', accent: 'accent-sky-500' },
+  emerald: { bg: 'bg-emerald-100', fill: 'bg-emerald-500', text: 'text-emerald-700', border: 'border-emerald-300', accent: 'accent-emerald-500' },
+  rose: { bg: 'bg-rose-100', fill: 'bg-rose-500', text: 'text-rose-700', border: 'border-rose-300', accent: 'accent-rose-500' },
+  green: { bg: 'bg-green-100', fill: 'bg-green-500', text: 'text-green-700', border: 'border-green-300', accent: 'accent-green-500' },
+  violet: { bg: 'bg-violet-100', fill: 'bg-violet-500', text: 'text-violet-700', border: 'border-violet-300', accent: 'accent-violet-500' },
+  lime: { bg: 'bg-lime-100', fill: 'bg-lime-500', text: 'text-lime-700', border: 'border-lime-300', accent: 'accent-lime-500' },
+  fuchsia: { bg: 'bg-fuchsia-100', fill: 'bg-fuchsia-500', text: 'text-fuchsia-700', border: 'border-fuchsia-300', accent: 'accent-fuchsia-500' }
 };
 
-// Estados de construcción
+// Estados
 const CONSTRUCTION_STATUS = {
   not_started: { label: 'Sin Iniciar', color: 'bg-slate-100 text-slate-700' },
   in_progress: { label: 'En Construcción', color: 'bg-blue-100 text-blue-700' },
@@ -52,7 +85,6 @@ const CONSTRUCTION_STATUS = {
   delivered: { label: 'Entregado', color: 'bg-purple-100 text-purple-700' }
 };
 
-// Estados de venta
 const SALE_STATUS = {
   available: { label: 'Disponible', color: 'bg-green-100 text-green-700' },
   reserved: { label: 'Reservado', color: 'bg-yellow-100 text-yellow-700' },
@@ -61,81 +93,428 @@ const SALE_STATUS = {
   unavailable: { label: 'No Disponible', color: 'bg-red-100 text-red-700' }
 };
 
+// =============================================
+// COMPONENTE: BARRA DE PROGRESO
+// =============================================
+const ProgressBar = ({ progress, colorScheme = 'blue', size = 'md' }) => {
+  const colors = CATEGORY_COLORS[colorScheme] || CATEGORY_COLORS.blue;
+  const isComplete = progress >= 100;
+  const height = size === 'sm' ? 'h-2' : size === 'lg' ? 'h-5' : 'h-3';
+  
+  return (
+    <div className="flex items-center gap-3 w-full">
+      <div className={`flex-1 ${colors.bg} rounded-full ${height} overflow-hidden shadow-inner`}>
+        <div 
+          className={`${height} rounded-full transition-all duration-500 ${isComplete ? 'bg-green-500' : colors.fill}`}
+          style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+        />
+      </div>
+      <span className={`text-sm font-bold min-w-[3.5rem] text-right ${isComplete ? 'text-green-600' : colors.text}`}>
+        {Math.round(progress)}%
+      </span>
+    </div>
+  );
+};
+
+// =============================================
+// COMPONENTE: SUBCATEGORÍA ITEM
+// =============================================
+const SubcategoryItem = ({ 
+  item, 
+  categoryColor, 
+  onProgressChange, 
+  onWeightChange,
+  onDelete, 
+  onEdit,
+  isGeneral,
+  availableWeight
+}) => {
+  const colors = CATEGORY_COLORS[categoryColor] || CATEGORY_COLORS.blue;
+  const [localProgress, setLocalProgress] = useState(item.progress_percentage || 0);
+  const debounceRef = useRef(null);
+  
+  // Sincronizar con prop
+  useEffect(() => {
+    setLocalProgress(item.progress_percentage || 0);
+  }, [item.progress_percentage]);
+
+  const handleProgressChange = (value) => {
+    setLocalProgress(value);
+    // Debounce para no saturar el servidor
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      onProgressChange(item.id, value);
+    }, 300);
+  };
+
+  return (
+    <div className={`p-4 rounded-xl border-2 transition-all ${
+      isGeneral 
+        ? 'bg-slate-50/50 border-dashed border-slate-300' 
+        : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
+    }`}>
+      <div className="flex items-start gap-4">
+        {/* Info principal */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`font-semibold ${isGeneral ? 'text-slate-500 italic' : 'text-slate-800'}`}>
+              {item.name}
+            </span>
+            {isGeneral && (
+              <span className="text-xs text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full">
+                Auto-compensado
+              </span>
+            )}
+          </div>
+          
+          {/* Incidencia */}
+          <div className="flex items-center gap-3 mt-2">
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${colors.bg} ${colors.text}`}>
+              Incidencia: {item.weight || 0}%
+            </span>
+            <span className="text-xs text-slate-400">
+              Aporta {Math.round(((item.weight || 0) * localProgress) / 100)}% al total
+            </span>
+          </div>
+          
+          {item.notes && (
+            <p className="text-xs text-slate-500 mt-1 truncate">{item.notes}</p>
+          )}
+        </div>
+        
+        {/* Slider de progreso */}
+        <div className="w-52 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={localProgress}
+              onChange={(e) => handleProgressChange(parseInt(e.target.value))}
+              className={`flex-1 h-2 rounded-full appearance-none cursor-pointer bg-slate-200`}
+              style={{
+                background: `linear-gradient(to right, ${localProgress >= 100 ? '#22c55e' : ''} ${localProgress}%, #e2e8f0 ${localProgress}%)`
+              }}
+            />
+            <span className={`text-sm font-bold w-12 text-right ${localProgress >= 100 ? 'text-green-600' : colors.text}`}>
+              {localProgress}%
+            </span>
+          </div>
+        </div>
+        
+        {/* Acciones (solo para items no-general) */}
+        {!isGeneral && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={() => onEdit(item)}
+              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Editar incidencia"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onDelete(item)}
+              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Eliminar subcategoría"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// =============================================
+// COMPONENTE: CATEGORÍA DE CONSTRUCCIÓN
+// =============================================
+const ConstructionCategory = ({
+  categoryCode,
+  categoryName,
+  items,
+  isExpanded,
+  onToggle,
+  onAddSubcategory,
+  onProgressChange,
+  onDeleteSubcategory,
+  onEditSubcategory
+}) => {
+  const config = CATEGORY_CONFIG[categoryCode] || { name: categoryName, icon: Circle, color: 'slate' };
+  const colors = CATEGORY_COLORS[config.color] || CATEGORY_COLORS.slate;
+  const Icon = config.icon;
+  
+  // Separar items: el "General" y los demás
+  const generalItem = items.find(i => i.name?.toLowerCase().includes('general'));
+  const regularItems = items.filter(i => !i.name?.toLowerCase().includes('general'));
+  
+  // Calcular progreso ponderado de la categoría
+  const categoryProgress = useMemo(() => {
+    if (items.length === 0) return 0;
+    const totalWeight = items.reduce((sum, item) => sum + (item.weight || 0), 0);
+    if (totalWeight === 0) return 0;
+    
+    return items.reduce((acc, item) => {
+      const normalizedWeight = (item.weight || 0) / totalWeight * 100;
+      return acc + (normalizedWeight * (item.progress_percentage || 0)) / 100;
+    }, 0);
+  }, [items]);
+  
+  // Calcular peso disponible para nuevas subcategorías
+  const usedWeight = regularItems.reduce((sum, item) => sum + (item.weight || 0), 0);
+  const availableWeight = Math.max(0, 100 - usedWeight);
+  
+  const isComplete = categoryProgress >= 99.5;
+  
+  return (
+    <div className={`rounded-2xl border-2 overflow-hidden transition-all shadow-sm ${
+      isComplete 
+        ? 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50' 
+        : `${colors.border} bg-white`
+    }`}>
+      {/* Header */}
+      <div 
+        className={`p-5 cursor-pointer transition-colors ${
+          isComplete ? 'hover:bg-green-100/50' : 'hover:bg-slate-50'
+        }`}
+        onClick={onToggle}
+      >
+        <div className="flex items-center gap-4">
+          {/* Icono */}
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md ${
+            isComplete ? 'bg-gradient-to-br from-green-500 to-emerald-600' : colors.fill
+          }`}>
+            <Icon className="w-6 h-6 text-white" />
+          </div>
+          
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3">
+              <h3 className={`font-bold text-lg ${isComplete ? 'text-green-800' : 'text-slate-800'}`}>
+                {config.name}
+              </h3>
+              {isComplete && (
+                <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-200 px-2.5 py-1 rounded-full">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Completado
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {items.length} {items.length === 1 ? 'subcategoría' : 'subcategorías'}
+              {availableWeight < 100 && !isComplete && (
+                <span className="ml-2 text-amber-600">• {availableWeight}% disponible</span>
+              )}
+            </p>
+          </div>
+          
+          {/* Barra de progreso */}
+          <div className="w-64 flex-shrink-0">
+            <ProgressBar 
+              progress={categoryProgress}
+              colorScheme={isComplete ? 'green' : config.color}
+              size="md"
+            />
+          </div>
+          
+          {/* Chevron */}
+          <div className="p-2 text-slate-400">
+            {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+          </div>
+        </div>
+      </div>
+      
+      {/* Contenido expandido */}
+      {isExpanded && (
+        <div className="border-t border-slate-200 p-5 space-y-3 bg-slate-50/30">
+          {/* Items regulares primero */}
+          {regularItems.map((item) => (
+            <SubcategoryItem
+              key={item.id}
+              item={item}
+              categoryColor={config.color}
+              isGeneral={false}
+              onProgressChange={onProgressChange}
+              onDelete={onDeleteSubcategory}
+              onEdit={onEditSubcategory}
+              availableWeight={availableWeight}
+            />
+          ))}
+          
+          {/* Item "General" al final */}
+          {generalItem && (
+            <SubcategoryItem
+              key={generalItem.id}
+              item={generalItem}
+              categoryColor={config.color}
+              isGeneral={true}
+              onProgressChange={onProgressChange}
+              onDelete={() => {}}
+              onEdit={() => {}}
+              availableWeight={0}
+            />
+          )}
+          
+          {/* Botón agregar */}
+          {availableWeight > 0 && (
+            <button
+              onClick={onAddSubcategory}
+              className={`w-full p-4 rounded-xl border-2 border-dashed ${colors.border} 
+                text-slate-500 hover:${colors.text} hover:${colors.bg} hover:border-solid
+                transition-all flex items-center justify-center gap-2 font-medium`}
+            >
+              <Plus className="w-5 h-5" />
+              Agregar Subcategoría ({availableWeight}% disponible)
+            </button>
+          )}
+          
+          {availableWeight <= 0 && !generalItem && (
+            <div className="text-center py-3 text-amber-600 text-sm bg-amber-50 rounded-lg">
+              <AlertTriangle className="w-4 h-4 inline mr-2" />
+              100% asignado. Editá los porcentajes existentes para agregar más.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// =============================================
+// COMPONENTE PRINCIPAL: MODAL
+// =============================================
 const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [unit, setUnit] = useState(null);
-  const [activeTab, setActiveTab] = useState('info'); // info, progress, documents
+  const [activeTab, setActiveTab] = useState('checklist');
   const [expandedCategories, setExpandedCategories] = useState({});
   const [editingInfo, setEditingInfo] = useState(false);
-  const [categories, setCategories] = useState([]);
-  
-  // Form data para edición
   const [formData, setFormData] = useState({});
   
-  // Refs para debounce de sliders
-  const debounceTimers = useRef({});
+  // Modal de subcategoría
+  const [showSubcategoryModal, setShowSubcategoryModal] = useState(false);
+  const [editingSubcategory, setEditingSubcategory] = useState(null);
+  const [targetCategory, setTargetCategory] = useState(null);
+  const [subcategoryForm, setSubcategoryForm] = useState({ name: '', weight: 20 });
   
-  // Cargar detalle de unidad
+  // Refs
+  const debounceTimers = useRef({});
+
+  // =============================================
+  // CARGA DE DATOS
+  // =============================================
+  
   const loadUnit = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get(`/units/${unitId}`);
       if (response.data.success) {
-        setUnit(response.data.data.unit);
+        const unitData = response.data.data.unit;
+        setUnit(unitData);
         setFormData({
-          unit_code: response.data.data.unit.unit_code || '',
-          unit_name: response.data.data.unit.unit_name || '',
-          floor_number: response.data.data.unit.floor_number || '',
-          total_area_m2: response.data.data.unit.total_area_m2 || '',
-          covered_area_m2: response.data.data.unit.covered_area_m2 || '',
-          rooms: response.data.data.unit.rooms || '',
-          bedrooms: response.data.data.unit.bedrooms || '',
-          bathrooms: response.data.data.unit.bathrooms || '',
-          has_balcony: response.data.data.unit.has_balcony || false,
-          has_terrace: response.data.data.unit.has_terrace || false,
-          orientation: response.data.data.unit.orientation || '',
-          list_price: response.data.data.unit.list_price || '',
-          sale_price: response.data.data.unit.sale_price || '',
-          rental_price: response.data.data.unit.rental_price || '',
-          currency: response.data.data.unit.currency || 'USD',
-          construction_status: response.data.data.unit.construction_status || 'not_started',
-          sale_status: response.data.data.unit.sale_status || 'available',
-          delivery_date: response.data.data.unit.delivery_date?.split('T')[0] || '',
-          notes: response.data.data.unit.notes || ''
+          unit_code: unitData.unit_code || '',
+          unit_name: unitData.unit_name || '',
+          floor_number: unitData.floor_number || '',
+          total_area_m2: unitData.total_area_m2 || '',
+          covered_area_m2: unitData.covered_area_m2 || '',
+          rooms: unitData.rooms || '',
+          bedrooms: unitData.bedrooms || '',
+          bathrooms: unitData.bathrooms || '',
+          has_balcony: unitData.has_balcony || false,
+          has_terrace: unitData.has_terrace || false,
+          orientation: unitData.orientation || '',
+          list_price: unitData.list_price || '',
+          sale_price: unitData.sale_price || '',
+          rental_price: unitData.rental_price || '',
+          currency: unitData.currency || 'USD',
+          construction_status: unitData.construction_status || 'not_started',
+          sale_status: unitData.sale_status || 'available',
+          delivery_date: unitData.delivery_date?.split('T')[0] || '',
+          notes: unitData.notes || ''
         });
       }
     } catch (error) {
       console.error('Error cargando unidad:', error);
-      // Solo mostrar error si no es 401 (que ya maneja el interceptor)
-      if (error.response?.status !== 401) {
-        toast.error('Error al cargar unidad. Intentá de nuevo.');
-        onClose?.(); // Cerrar modal si hay error
-      }
+      toast.error('Error al cargar unidad');
+      onClose?.();
     } finally {
       setLoading(false);
     }
   }, [unitId, onClose]);
 
-  // Cargar categorías de progreso
-  const loadCategories = useCallback(async () => {
-    try {
-      const response = await api.get('/units/progress-categories');
-      if (response.data.success) {
-        setCategories(response.data.data.categories);
-      }
-    } catch (error) {
-      // Ignorar errores de categorías - no es crítico
-      console.error('Error cargando categorías:', error);
-    }
-  }, []);
-
   useEffect(() => {
     loadUnit();
-    loadCategories();
-  }, [loadUnit, loadCategories]);
+  }, [loadUnit]);
 
-  // Handler para cambios en form
+  // Agrupar items por categoría
+  const groupedItems = useMemo(() => {
+    if (!unit?.progress_items) return {};
+    
+    return unit.progress_items.reduce((acc, item) => {
+      const key = item.category_code || 'other';
+      if (!acc[key]) {
+        acc[key] = {
+          name: item.category_name || key,
+          items: []
+        };
+      }
+      acc[key].items.push(item);
+      return acc;
+    }, {});
+  }, [unit?.progress_items]);
+
+  // Calcular progreso general
+  const overallProgress = useMemo(() => {
+    const categories = Object.values(groupedItems);
+    if (categories.length === 0) return 0;
+    
+    let totalProgress = 0;
+    let validCategories = 0;
+    
+    categories.forEach(({ items }) => {
+      if (items.length === 0) return;
+      const totalWeight = items.reduce((sum, i) => sum + (i.weight || 0), 0);
+      if (totalWeight === 0) return;
+      
+      const catProgress = items.reduce((acc, item) => {
+        const normalizedWeight = (item.weight || 0) / totalWeight * 100;
+        return acc + (normalizedWeight * (item.progress_percentage || 0)) / 100;
+      }, 0);
+      
+      totalProgress += catProgress;
+      validCategories++;
+    });
+    
+    return validCategories > 0 ? Math.round(totalProgress / validCategories) : 0;
+  }, [groupedItems]);
+
+  // Stats
+  const progressStats = useMemo(() => {
+    const categories = Object.entries(groupedItems);
+    let completed = 0;
+    let inProgress = 0;
+    let notStarted = 0;
+    
+    categories.forEach(([, { items }]) => {
+      const totalWeight = items.reduce((sum, i) => sum + (i.weight || 0), 0);
+      const catProgress = totalWeight > 0 
+        ? items.reduce((acc, i) => acc + ((i.weight || 0) / totalWeight * 100 * (i.progress_percentage || 0)) / 100, 0)
+        : 0;
+      
+      if (catProgress >= 99.5) completed++;
+      else if (catProgress > 0) inProgress++;
+      else notStarted++;
+    });
+    
+    return { completed, inProgress, notStarted, total: categories.length };
+  }, [groupedItems]);
+
+  // =============================================
+  // HANDLERS
+  // =============================================
+  
   const handleFormChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -144,7 +523,6 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     }));
   }, []);
 
-  // Guardar información
   const handleSaveInfo = async () => {
     try {
       setSaving(true);
@@ -162,497 +540,212 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     }
   };
 
+  const toggleCategory = (code) => {
+    setExpandedCategories(prev => ({ ...prev, [code]: !prev[code] }));
+  };
+
+  // Cambiar progreso de un item
+  const handleProgressChange = useCallback(async (itemId, newProgress) => {
+    // Actualizar localmente
+    setUnit(prev => ({
+      ...prev,
+      progress_items: prev.progress_items.map(item =>
+        item.id === itemId 
+          ? { 
+              ...item, 
+              progress_percentage: newProgress,
+              status: newProgress >= 100 ? 'completed' : newProgress > 0 ? 'in_progress' : 'pending'
+            } 
+          : item
+      )
+    }));
+
+    // Debounce para servidor
+    const timerKey = `progress_${itemId}`;
+    if (debounceTimers.current[timerKey]) {
+      clearTimeout(debounceTimers.current[timerKey]);
+    }
+
+    debounceTimers.current[timerKey] = setTimeout(async () => {
+      try {
+        await api.put(`/units/${unitId}/progress/${itemId}`, {
+          progress_percentage: newProgress,
+          status: newProgress >= 100 ? 'completed' : newProgress > 0 ? 'in_progress' : 'pending'
+        });
+      } catch (error) {
+        console.error('Error guardando progreso:', error);
+        toast.error('Error al guardar progreso');
+      }
+    }, 500);
+  }, [unitId]);
+
   // Inicializar checklist
-  const handleInitializeProgress = async () => {
+  const handleInitializeChecklist = async () => {
     try {
       setSaving(true);
       const response = await api.post(`/units/${unitId}/progress/initialize`, {
         categories: 'all'
       });
+      
       if (response.data.success) {
-        toast.success(`${response.data.data.items.length} items creados`);
-        loadUnit();
+        toast.success(`${response.data.data.items?.length || 0} categorías inicializadas`);
+        await loadUnit();
       }
     } catch (error) {
-      toast.error('Error al inicializar');
+      console.error('Error inicializando:', error);
+      toast.error('Error al inicializar checklist');
     } finally {
       setSaving(false);
     }
   };
 
-  // Actualizar item de progreso (sin recargar toda la página)
-  const handleUpdateProgressItem = useCallback((itemId, updates) => {
-    // Actualizar localmente INMEDIATAMENTE para evitar parpadeo
-    setUnit(prev => {
-      if (!prev) return prev;
-      const updatedItems = prev.progress_items.map(item =>
-        item.id === itemId ? { ...item, ...updates } : item
-      );
-      
-      // Recalcular stats localmente
-      const total = updatedItems.filter(i => i.status !== 'not_applicable').length;
-      const completed = updatedItems.filter(i => i.status === 'completed').length;
-      const inProgress = updatedItems.filter(i => i.status === 'in_progress').length;
-      const pending = updatedItems.filter(i => i.status === 'pending').length;
-      const blocked = updatedItems.filter(i => i.status === 'blocked').length;
-      const avgProgress = total > 0 
-        ? Math.round(updatedItems.filter(i => i.status !== 'not_applicable')
-            .reduce((sum, i) => sum + (i.progress_percentage || 0), 0) / total)
-        : 0;
-      const overallProgress = total > 0 ? Math.round((completed * 100) / total) : 0;
-
-      return {
-        ...prev,
-        progress_items: updatedItems,
-        overall_progress: overallProgress,
-        progress_stats: {
-          ...prev.progress_stats,
-          total_items: total,
-          completed,
-          in_progress: inProgress,
-          pending,
-          blocked,
-          avg_progress: avgProgress
-        }
-      };
-    });
-
-    // Cancelar timer anterior para este item
-    if (debounceTimers.current[itemId]) {
-      clearTimeout(debounceTimers.current[itemId]);
-    }
-
-    // Guardar en el servidor con debounce de 500ms
-    debounceTimers.current[itemId] = setTimeout(async () => {
-      try {
-        await api.put(`/units/${unitId}/progress/${itemId}`, updates);
-      } catch (error) {
-        console.error('Error guardando progreso:', error);
-        toast.error('Error al guardar cambio');
-      }
-    }, 500);
-  }, [unitId]);
-
-  // Agregar/Editar item personalizado
-  const [showAddItemModal, setShowAddItemModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null); // Para editar items existentes
-  const [newItemForm, setNewItemForm] = useState({
-    name: '',
-    category_code: '',
-    new_category_name: '', // Para crear categoría nueva
-    weight: 100, // Peso/incidencia sobre la categoría (1-100)
-    notes: ''
-  });
-  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
-  
-  // Usar las categorías predeterminadas del sistema (siempre disponibles)
-  // categories viene del endpoint /units/progress-categories
-  const availableCategories = categories.map(cat => ({
-    code: cat.code,
-    name: cat.name
-  }));
-
-  // Modo del modal: 'category' = agregar categoría, 'subitem' = agregar subitem
-  const [addItemMode, setAddItemMode] = useState('category');
-
-  const openAddItemModal = (categoryCode = '') => {
-    setEditingItem(null);
-    setShowNewCategoryInput(false);
+  // Abrir modal para agregar subcategoría
+  const openAddSubcategoryModal = (categoryCode, categoryName) => {
+    const items = groupedItems[categoryCode]?.items || [];
+    const regularItems = items.filter(i => !i.name?.toLowerCase().includes('general'));
+    const usedWeight = regularItems.reduce((sum, i) => sum + (i.weight || 0), 0);
+    const available = Math.max(0, 100 - usedWeight);
     
-    if (categoryCode) {
-      // Agregar subitem a una categoría existente
-      setAddItemMode('subitem');
-      setNewItemForm({
-        name: '',
-        category_code: categoryCode,
-        new_category_name: '',
-        weight: 100,
-        notes: ''
-      });
-    } else {
-      // Agregar categoría nueva
-      setAddItemMode('category');
-      setNewItemForm({
-        name: '',
-        category_code: '',
-        new_category_name: '',
-        weight: 100,
-        notes: ''
-      });
-    }
-    setShowAddItemModal(true);
-  };
-
-  const openEditItemModal = (item) => {
-    setEditingItem(item);
-    setNewItemForm({
-      name: item.name,
-      category_code: item.category_code || '',
-      weight: item.weight || 100,
-      notes: item.notes || ''
-    });
-    setShowAddItemModal(true);
-  };
-  
-  // =============================================
-  // SISTEMA DE CÁLCULO DE INCIDENCIAS
-  // =============================================
-  // - El item de CATEGORÍA (creado desde "Agregar Categoría") representa el GENERAL/RESTO
-  // - Los SUBITEMS (creados desde "+") consumen del general
-  // - Mientras haya espacio (general > 0): el general absorbe la diferencia
-  // - Cuando el general llega a 0 y se agrega más: redistribución proporcional
-  // =============================================
-
-  // Encontrar el item "general" de una categoría (el primero creado / el que tiene nombre = categoría)
-  const findGeneralItem = useCallback((categoryCode, items) => {
-    const categoryItems = items.filter(i => i.category_code === categoryCode && i.status !== 'not_applicable');
-    if (categoryItems.length === 0) return null;
-    
-    // El general es el que tiene el nombre igual a la categoría o el primero creado
-    const categoryName = categoryItems[0]?.category_name;
-    const generalItem = categoryItems.find(i => i.name === categoryName) || categoryItems[0];
-    return generalItem;
-  }, []);
-
-  // Recalcular pesos al AGREGAR un subitem
-  const recalculateWeightsOnAdd = useCallback(async (categoryCode, existingItems, newItemWeight) => {
-    if (!existingItems || existingItems.length === 0) return;
-    
-    const applicableItems = existingItems.filter(i => i.status !== 'not_applicable');
-    if (applicableItems.length === 0) return;
-    
-    // Encontrar el item general
-    const generalItem = findGeneralItem(categoryCode, applicableItems);
-    if (!generalItem) return;
-    
-    // Los subitems son todos menos el general
-    const subitems = applicableItems.filter(i => i.id !== generalItem.id);
-    const sumSubitems = subitems.reduce((sum, i) => sum + (i.weight || 0), 0);
-    const generalWeight = generalItem.weight || 100;
-    
-    console.log(`Categoría ${categoryCode}: General=${generalWeight}%, Subitems=${sumSubitems}%, Nuevo=${newItemWeight}%`);
-    
-    // CASO 1: Hay espacio en el general para absorber el nuevo subitem
-    if (generalWeight >= newItemWeight) {
-      const newGeneralWeight = generalWeight - newItemWeight;
-      console.log(`General absorbe: ${generalWeight}% → ${newGeneralWeight}%`);
-      
-      // Solo actualizar el general
-      setUnit(prev => ({
-        ...prev,
-        progress_items: prev.progress_items.map(item =>
-          item.id === generalItem.id ? { ...item, weight: newGeneralWeight } : item
-        )
-      }));
-      
-      try {
-        await api.put(`/units/${unitId}/progress/${generalItem.id}`, { weight: newGeneralWeight });
-        toast.success(`${generalItem.name}: ${generalWeight}% → ${newGeneralWeight}%`);
-      } catch (error) {
-        console.error('Error actualizando peso:', error);
-      }
-    }
-    // CASO 2: No hay suficiente espacio, redistribuir proporcionalmente
-    else {
-      const factor = (100 - newItemWeight) / 100;
-      console.log(`Redistribución proporcional: factor = ${factor.toFixed(2)}`);
-      
-      const updates = [];
-      for (const item of applicableItems) {
-        const currentWeight = item.weight || 100;
-        const newWeight = Math.max(1, Math.round(currentWeight * factor));
-        if (newWeight !== currentWeight) {
-          updates.push({ id: item.id, oldWeight: currentWeight, newWeight });
-        }
-      }
-      
-      if (updates.length > 0) {
-        setUnit(prev => ({
-          ...prev,
-          progress_items: prev.progress_items.map(item => {
-            const update = updates.find(u => u.id === item.id);
-            return update ? { ...item, weight: update.newWeight } : item;
-          })
-        }));
-        
-        for (const update of updates) {
-          try {
-            await api.put(`/units/${unitId}/progress/${update.id}`, { weight: update.newWeight });
-          } catch (error) {
-            console.error('Error actualizando peso:', error);
-          }
-        }
-        
-        toast.success(`Incidencias redistribuidas proporcionalmente`);
-      }
-    }
-  }, [unitId, findGeneralItem]);
-
-  // Recalcular pesos al ELIMINAR un subitem
-  const recalculateWeightsOnDelete = useCallback(async (categoryCode, remainingItems, deletedItemWeight) => {
-    if (!remainingItems || remainingItems.length === 0) return;
-    
-    const applicableItems = remainingItems.filter(i => i.status !== 'not_applicable');
-    if (applicableItems.length === 0) return;
-    
-    // Encontrar el item general
-    const generalItem = findGeneralItem(categoryCode, applicableItems);
-    
-    if (generalItem) {
-      // El peso liberado va al general
-      const newGeneralWeight = Math.min(100, (generalItem.weight || 0) + deletedItemWeight);
-      console.log(`Peso liberado (${deletedItemWeight}%) va al general: ${generalItem.weight}% → ${newGeneralWeight}%`);
-      
-      setUnit(prev => ({
-        ...prev,
-        progress_items: prev.progress_items.map(item =>
-          item.id === generalItem.id ? { ...item, weight: newGeneralWeight } : item
-        )
-      }));
-      
-      try {
-        await api.put(`/units/${unitId}/progress/${generalItem.id}`, { weight: newGeneralWeight });
-        toast.success(`${deletedItemWeight}% devuelto a ${generalItem.name}`);
-      } catch (error) {
-        console.error('Error actualizando peso:', error);
-      }
-    } else {
-      // Si no hay general, redistribuir proporcionalmente
-      const factor = 100 / (100 - deletedItemWeight);
-      console.log(`Sin general, redistribución proporcional: factor = ${factor.toFixed(2)}`);
-      
-      const updates = [];
-      for (const item of applicableItems) {
-        const currentWeight = item.weight || 100;
-        const newWeight = Math.min(100, Math.max(1, Math.round(currentWeight * factor)));
-        if (newWeight !== currentWeight) {
-          updates.push({ id: item.id, oldWeight: currentWeight, newWeight });
-        }
-      }
-      
-      if (updates.length > 0) {
-        setUnit(prev => ({
-          ...prev,
-          progress_items: prev.progress_items.map(item => {
-            const update = updates.find(u => u.id === item.id);
-            return update ? { ...item, weight: update.newWeight } : item;
-          })
-        }));
-        
-        for (const update of updates) {
-          try {
-            await api.put(`/units/${unitId}/progress/${update.id}`, { weight: update.newWeight });
-          } catch (error) {
-            console.error('Error actualizando peso:', error);
-          }
-        }
-        
-        toast.success(`Incidencias redistribuidas`);
-      }
-    }
-  }, [unitId, findGeneralItem]);
-
-  // Eliminar item
-  const handleDeleteItem = async (itemId, itemName) => {
-    if (!window.confirm(`¿Eliminar "${itemName}"? Esta acción no se puede deshacer.`)) {
+    if (available <= 0) {
+      toast.error('No hay porcentaje disponible. Reducí otras subcategorías primero.');
       return;
     }
     
-    try {
-      const itemToDelete = unit.progress_items.find(i => i.id === itemId);
-      const categoryCode = itemToDelete?.category_code;
-      const deletedWeight = itemToDelete?.weight || 100;
-      
-      const response = await api.delete(`/units/${unitId}/progress/${itemId}`);
-      
-      if (response.data.success) {
-        // Eliminar localmente
-        const remainingItems = unit.progress_items.filter(i => i.id !== itemId);
-        setUnit(prev => ({
-          ...prev,
-          progress_items: remainingItems
-        }));
-        
-        toast.success('Item eliminado');
-        
-        // Redistribuir incidencias entre los items restantes de la categoría
-        if (categoryCode) {
-          const categoryItems = remainingItems.filter(i => i.category_code === categoryCode);
-          if (categoryItems.length > 0) {
-            setTimeout(() => recalculateWeightsOnDelete(categoryCode, categoryItems, deletedWeight), 500);
-          }
-        }
-      }
-    } catch (error) {
-      toast.error('Error al eliminar item');
-    }
+    setTargetCategory({ code: categoryCode, name: categoryName });
+    setEditingSubcategory(null);
+    setSubcategoryForm({ name: '', weight: Math.min(20, available) });
+    setShowSubcategoryModal(true);
   };
 
-  const handleSaveItem = async () => {
-    // Validación según modo
-    if (addItemMode === 'category' && !editingItem) {
-      if (!newItemForm.category_code && !newItemForm.new_category_name) {
-        toast.error('Seleccioná o creá una categoría');
-        return;
-      }
-    } else {
-      if (!newItemForm.name.trim()) {
-        toast.error('Ingresá un nombre para el subitem');
-        return;
-      }
+  // Abrir modal para editar subcategoría
+  const openEditSubcategoryModal = (categoryCode, categoryName, item) => {
+    setTargetCategory({ code: categoryCode, name: categoryName });
+    setEditingSubcategory(item);
+    setSubcategoryForm({ name: item.name, weight: item.weight || 0 });
+    setShowSubcategoryModal(true);
+  };
+
+  // Guardar subcategoría
+  const handleSaveSubcategory = async () => {
+    if (!subcategoryForm.name.trim()) {
+      toast.error('Ingresá un nombre');
+      return;
     }
+
+    const categoryCode = targetCategory.code;
+    const items = groupedItems[categoryCode]?.items || [];
+    const regularItems = items.filter(i => !i.name?.toLowerCase().includes('general') && i.id !== editingSubcategory?.id);
+    const usedWeight = regularItems.reduce((sum, i) => sum + (i.weight || 0), 0);
+    const maxAvailable = 100 - usedWeight;
     
+    if (subcategoryForm.weight > maxAvailable) {
+      toast.error(`Máximo disponible: ${maxAvailable}%`);
+      return;
+    }
+
     try {
       setSaving(true);
       
-      // Determinar el category_code y category_name a usar
-      const categoryCodeToUse = newItemForm.category_code || null;
-      const categoryNameToUse = showNewCategoryInput ? newItemForm.new_category_name : null;
-      
-      // Items existentes en la categoría (excluyendo el que estamos editando)
-      const existingCategoryItems = unit?.progress_items?.filter(
-        i => i.category_code === categoryCodeToUse && 
-             i.status !== 'not_applicable' &&
-             (!editingItem || i.id !== editingItem.id)
-      ) || [];
-      
-      const newItemWeight = newItemForm.weight;
-
-      if (editingItem) {
-        // Actualizar item existente
-        const response = await api.put(`/units/${unitId}/progress/${editingItem.id}`, {
-          name: newItemForm.name,
-          category_code: categoryCodeToUse,
-          weight: newItemWeight,
-          notes: newItemForm.notes
+      if (editingSubcategory) {
+        // Actualizar existente
+        await api.put(`/units/${unitId}/progress/${editingSubcategory.id}`, {
+          name: subcategoryForm.name,
+          weight: subcategoryForm.weight
         });
         
-        if (response.data.success) {
-          // Calcular diferencia de peso para ajustar otros items
-          const oldWeight = editingItem.weight || 100;
-          const weightDiff = newItemWeight - oldWeight;
-          
-          setUnit(prev => ({
-            ...prev,
-            progress_items: prev.progress_items.map(item =>
-              item.id === editingItem.id ? { ...item, ...response.data.data.item } : item
-            )
-          }));
-          toast.success('Item actualizado');
-          
-          // Si el peso cambió y hay otros items, recalcular
-          if (weightDiff !== 0 && existingCategoryItems.length > 0) {
-            // Tratar como si eliminamos el viejo y agregamos el nuevo
-            setTimeout(() => recalculateWeightsOnAdd(categoryCodeToUse, existingCategoryItems, newItemWeight), 500);
-          }
-        }
-      } else {
-        // PRIMERO: Si hay items existentes, reducir sus pesos proporcionalmente
-        if (existingCategoryItems.length > 0) {
-          await recalculateWeightsOnAdd(categoryCodeToUse, existingCategoryItems, newItemWeight);
+        // Actualizar "General" para compensar
+        const generalItem = items.find(i => i.name?.toLowerCase().includes('general'));
+        if (generalItem) {
+          const newGeneralWeight = maxAvailable - subcategoryForm.weight;
+          await api.put(`/units/${unitId}/progress/${generalItem.id}`, {
+            weight: newGeneralWeight
+          });
         }
         
-        // DESPUÉS: Crear el nuevo item con su peso original
-        const response = await api.post(`/units/${unitId}/progress`, {
-          name: newItemForm.name,
-          category_code: categoryCodeToUse,
-          category_name: categoryNameToUse,
-          weight: newItemWeight,
-          notes: newItemForm.notes,
+        toast.success('Subcategoría actualizada');
+      } else {
+        // Crear nueva
+        const config = CATEGORY_CONFIG[categoryCode];
+        await api.post(`/units/${unitId}/progress`, {
+          name: subcategoryForm.name,
+          category_code: categoryCode,
+          category_name: config?.name || targetCategory.name,
+          weight: subcategoryForm.weight,
           status: 'pending',
           progress_percentage: 0
         });
         
-        if (response.data.success) {
-          const newItem = response.data.data.item;
-          console.log('Nuevo item creado:', newItem);
-          
-          // Asegurar que el item tenga category_code y category_name
-          const itemToAdd = {
-            ...newItem,
-            category_code: newItem.category_code || categoryCodeToUse || 'other',
-            category_name: newItem.category_name || 
-              categoryNameToUse ||
-              availableCategories.find(c => c.code === categoryCodeToUse)?.name || 
-              'General'
-          };
-          
-          setUnit(prev => ({
-            ...prev,
-            progress_items: [...(prev.progress_items || []), itemToAdd]
-          }));
-          toast.success('Item agregado');
+        // Actualizar "General" para compensar
+        const generalItem = items.find(i => i.name?.toLowerCase().includes('general'));
+        if (generalItem) {
+          const newGeneralWeight = maxAvailable - subcategoryForm.weight;
+          await api.put(`/units/${unitId}/progress/${generalItem.id}`, {
+            weight: Math.max(0, newGeneralWeight)
+          });
         }
+        
+        toast.success('Subcategoría agregada');
       }
       
-      setShowAddItemModal(false);
-      setEditingItem(null);
-      setShowNewCategoryInput(false);
-      setNewItemForm({ name: '', category_code: '', new_category_name: '', weight: 100, notes: '' });
+      await loadUnit();
+      setShowSubcategoryModal(false);
+      
     } catch (error) {
-      toast.error('Error al guardar item');
+      console.error('Error:', error);
+      toast.error('Error al guardar');
     } finally {
       setSaving(false);
     }
   };
 
-  // Marcar como 100% completo
-  const handleMarkComplete = async () => {
-    if (!window.confirm('¿Marcar esta unidad como 100% completada? Todos los items pendientes se marcarán como completados.')) {
+  // Eliminar subcategoría
+  const handleDeleteSubcategory = async (categoryCode, item) => {
+    if (item.name?.toLowerCase().includes('general')) {
+      toast.error('No se puede eliminar la subcategoría General');
+      return;
+    }
+    
+    const config = CATEGORY_CONFIG[categoryCode];
+    if (!window.confirm(`¿Eliminar "${item.name}"?\nEl ${item.weight}% se reasignará a "${config?.name || categoryCode} General".`)) {
       return;
     }
     
     try {
-      setSaving(true);
-      const response = await api.post(`/units/${unitId}/complete`);
-      if (response.data.success) {
-        toast.success('Unidad marcada como completada');
-        loadUnit();
-        onUpdate?.();
+      await api.delete(`/units/${unitId}/progress/${item.id}`);
+      
+      // Actualizar "General" para absorber el peso
+      const items = groupedItems[categoryCode]?.items || [];
+      const generalItem = items.find(i => i.name?.toLowerCase().includes('general'));
+      if (generalItem) {
+        await api.put(`/units/${unitId}/progress/${generalItem.id}`, {
+          weight: (generalItem.weight || 0) + (item.weight || 0)
+        });
       }
+      
+      toast.success(`Subcategoría eliminada. ${item.weight}% reasignado a General.`);
+      await loadUnit();
+      
     } catch (error) {
-      toast.error('Error al completar');
-    } finally {
-      setSaving(false);
+      console.error('Error:', error);
+      toast.error('Error al eliminar');
     }
   };
 
-  // Agregar documento (placeholder - necesita integración con storage)
-  const handleAddDocument = async (file) => {
-    // Por ahora solo simulamos
-    toast.error('Funcionalidad de subida en desarrollo');
-  };
-
-  // Toggle categoría expandida (por defecto están colapsadas)
-  const toggleCategory = (categoryCode) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [categoryCode]: prev[categoryCode] === true ? false : true
-    }));
-  };
-
-  // Agrupar items por categoría
-  const groupedItems = unit?.progress_items?.reduce((acc, item) => {
-    const key = item.category_code || 'other';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {}) || {};
-
   const formatCurrency = (value, currency = 'USD') => {
     if (!value) return '-';
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: currency
-    }).format(value);
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(value);
   };
+
+  // =============================================
+  // RENDER
+  // =============================================
 
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="fixed inset-0 bg-slate-900/50" />
-        <div className="relative bg-white rounded-2xl shadow-xl p-8">
-          <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" />
+        <div className="relative bg-white rounded-2xl shadow-2xl p-8">
+          <Loader2 className="w-10 h-10 animate-spin text-primary-600" />
         </div>
       </div>
     );
@@ -660,71 +753,68 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
 
   if (!unit) return null;
 
+  const hasProgressItems = unit.progress_items && unit.progress_items.length > 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-slate-900/50" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl max-w-5xl w-full max-h-[95vh] overflow-hidden flex flex-col">
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">
-              {unit.unit_name || unit.unit_code || 'Unidad'}
-            </h2>
-            <p className="text-sm text-slate-500">
-              {unit.asset_name} • Piso {unit.floor_number || '-'}
-            </p>
+        <div className="relative flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30">
+              <Building2 className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">
+                {unit.unit_name || unit.unit_code || 'Unidad'}
+              </h2>
+              <p className="text-sm text-slate-500">
+                {unit.asset_name} • Piso {unit.floor_number || '-'}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          
+          <div className="flex items-center gap-4">
             {/* Progreso circular */}
-            <div className="relative w-14 h-14">
-              <svg className="w-14 h-14 transform -rotate-90">
+            <div className="relative w-16 h-16">
+              <svg className="w-16 h-16 transform -rotate-90">
+                <circle cx="32" cy="32" r="28" fill="none" stroke="#e2e8f0" strokeWidth="6" />
                 <circle
-                  cx="28" cy="28" r="24"
+                  cx="32" cy="32" r="28"
                   fill="none"
-                  stroke="#e2e8f0"
-                  strokeWidth="4"
-                />
-                <circle
-                  cx="28" cy="28" r="24"
-                  fill="none"
-                  stroke={unit.overall_progress === 100 ? '#22c55e' : '#3b82f6'}
-                  strokeWidth="4"
-                  strokeDasharray={`${(unit.overall_progress || 0) * 1.51} 151`}
+                  stroke={overallProgress >= 100 ? '#22c55e' : '#3b82f6'}
+                  strokeWidth="6"
+                  strokeDasharray={`${overallProgress * 1.76} 176`}
                   strokeLinecap="round"
+                  className="transition-all duration-700"
                 />
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold">
-                {unit.overall_progress || 0}%
+              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-slate-700">
+                {overallProgress}%
               </span>
             </div>
             
-            <button
-              onClick={handleMarkComplete}
-              disabled={saving || unit.construction_status === 'completed'}
-              className="btn-primary text-sm flex items-center gap-2 disabled:opacity-50"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              100% Completado
-            </button>
-            
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
               <X className="w-6 h-6" />
             </button>
           </div>
+          {/* Versión */}
+          <span className="absolute bottom-2 right-4 text-[10px] text-slate-300 font-mono">v{MODAL_VERSION}</span>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-200 px-6">
+        <div className="flex border-b border-slate-200 px-6 bg-white">
           {[
+            { id: 'checklist', label: 'Checklist Construcción', icon: ClipboardCheck },
             { id: 'info', label: 'Información', icon: Building2 },
-            { id: 'progress', label: 'Checklist', icon: ClipboardCheck },
             { id: 'documents', label: 'Documentos', icon: FileText }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-5 py-4 border-b-2 font-medium transition-colors ${
                 activeTab === tab.id
                   ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -737,61 +827,150 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto">
           
-          {/* Tab: Información */}
-          {activeTab === 'info' && (
-            <div className="space-y-6">
-              {/* Quick stats */}
+          {/* Tab: Checklist */}
+          {activeTab === 'checklist' && (
+            <div className="p-6 space-y-6">
+              {/* Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-xs text-slate-500">Estado Construcción</p>
-                  <span className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${CONSTRUCTION_STATUS[unit.construction_status]?.color || ''}`}>
-                    {CONSTRUCTION_STATUS[unit.construction_status]?.label || unit.construction_status}
-                  </span>
+                <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-xl p-4 border border-green-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center shadow-md">
+                      <CheckCircle2 className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-green-700">{progressStats.completed}</p>
+                      <p className="text-xs text-green-600 font-medium">Completados</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-xs text-slate-500">Estado Venta</p>
-                  <span className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${SALE_STATUS[unit.sale_status]?.color || ''}`}>
-                    {SALE_STATUS[unit.sale_status]?.label || unit.sale_status}
-                  </span>
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-4 border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center shadow-md">
+                      <Clock className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-blue-700">{progressStats.inProgress}</p>
+                      <p className="text-xs text-blue-600 font-medium">En Progreso</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-xs text-slate-500">Superficie Total</p>
-                  <p className="font-semibold text-slate-800">{unit.total_area_m2 || '-'} m²</p>
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-400 rounded-lg flex items-center justify-center shadow-md">
+                      <Circle className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-slate-700">{progressStats.notStarted}</p>
+                      <p className="text-xs text-slate-600 font-medium">Sin Iniciar</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-xs text-slate-500">Precio Lista</p>
-                  <p className="font-semibold text-slate-800">{formatCurrency(unit.list_price, unit.currency)}</p>
+                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-4 border border-primary-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center shadow-md">
+                      <ClipboardCheck className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-primary-700">{overallProgress}%</p>
+                      <p className="text-xs text-primary-600 font-medium">Progreso Total</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Form de edición */}
+              {/* Info box */}
+              <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-semibold mb-1">Sistema de Incidencias</p>
+                  <ul className="space-y-0.5 text-blue-700">
+                    <li>• Cada categoría tiene subcategorías con <strong>porcentaje de incidencia</strong> que suman 100%</li>
+                    <li>• El item "<strong>General</strong>" compensa automáticamente el porcentaje no asignado</li>
+                    <li>• Ajustá el <strong>progreso</strong> de cada subcategoría con el slider (0-100%)</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Categorías */}
+              {!hasProgressItems ? (
+                <div className="text-center py-16 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-2 border-dashed border-slate-300">
+                  <ClipboardCheck className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-slate-700 mb-2">Sin checklist de construcción</h3>
+                  <p className="text-slate-500 mb-6 max-w-md mx-auto">
+                    Inicializá el checklist para hacer seguimiento detallado de todas las etapas de construcción.
+                  </p>
+                  <button
+                    onClick={handleInitializeChecklist}
+                    disabled={saving}
+                    className="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4"
+                  >
+                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                    Inicializar Checklist Completo
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {Object.entries(groupedItems).map(([code, { name, items }]) => (
+                    <ConstructionCategory
+                      key={code}
+                      categoryCode={code}
+                      categoryName={name}
+                      items={items}
+                      isExpanded={expandedCategories[code] || false}
+                      onToggle={() => toggleCategory(code)}
+                      onAddSubcategory={() => openAddSubcategoryModal(code, name)}
+                      onProgressChange={handleProgressChange}
+                      onDeleteSubcategory={(item) => handleDeleteSubcategory(code, item)}
+                      onEditSubcategory={(item) => openEditSubcategoryModal(code, name, item)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab: Información */}
+          {activeTab === 'info' && (
+            <div className="p-6 space-y-6">
+              {/* Quick stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                  <p className="text-xs text-slate-500 mb-1">Estado Construcción</p>
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${CONSTRUCTION_STATUS[unit.construction_status]?.color || ''}`}>
+                    {CONSTRUCTION_STATUS[unit.construction_status]?.label || unit.construction_status}
+                  </span>
+                </div>
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                  <p className="text-xs text-slate-500 mb-1">Estado Venta</p>
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${SALE_STATUS[unit.sale_status]?.color || ''}`}>
+                    {SALE_STATUS[unit.sale_status]?.label || unit.sale_status}
+                  </span>
+                </div>
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                  <p className="text-xs text-slate-500 mb-1">Superficie Total</p>
+                  <p className="font-bold text-slate-800 text-lg">{unit.total_area_m2 || '-'} m²</p>
+                </div>
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                  <p className="text-xs text-slate-500 mb-1">Precio Lista</p>
+                  <p className="font-bold text-slate-800">{formatCurrency(unit.list_price, unit.currency)}</p>
+                </div>
+              </div>
+
+              {/* Form */}
               <div className="bg-white border border-slate-200 rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-slate-800">Datos de la Unidad</h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-slate-800 text-lg">Datos de la Unidad</h3>
                   {!editingInfo ? (
-                    <button 
-                      onClick={() => setEditingInfo(true)}
-                      className="text-sm text-primary-600 hover:text-primary-700"
-                    >
-                      Editar
+                    <button onClick={() => setEditingInfo(true)} className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium">
+                      <Edit2 className="w-4 h-4" /> Editar
                     </button>
                   ) : (
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => setEditingInfo(false)}
-                        className="text-sm text-slate-500 hover:text-slate-700"
-                      >
-                        Cancelar
-                      </button>
-                      <button 
-                        onClick={handleSaveInfo}
-                        disabled={saving}
-                        className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
-                      >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                        Guardar
+                    <div className="flex gap-3">
+                      <button onClick={() => setEditingInfo(false)} className="text-sm text-slate-500 hover:text-slate-700">Cancelar</button>
+                      <button onClick={handleSaveInfo} disabled={saving} className="btn-primary text-sm py-2 flex items-center gap-2">
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
                       </button>
                     </div>
                   )}
@@ -799,918 +978,224 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="form-label">Código (auto-generado)</label>
-                    <input
-                      type="text"
-                      name="unit_code"
-                      value={formData.unit_code}
-                      disabled={true}
-                      className="input-field bg-slate-100 text-slate-600 cursor-not-allowed"
-                      title="El código se genera automáticamente y no puede editarse"
-                    />
+                    <label className="form-label">Código</label>
+                    <input type="text" value={formData.unit_code} disabled className="input-field bg-slate-100" />
                   </div>
                   <div>
                     <label className="form-label">Nombre</label>
-                    <input
-                      type="text"
-                      name="unit_name"
-                      value={formData.unit_name}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      className="input-field disabled:bg-slate-50"
-                    />
+                    <input type="text" name="unit_name" value={formData.unit_name} onChange={handleFormChange} disabled={!editingInfo} className="input-field disabled:bg-slate-50" />
                   </div>
                   <div>
                     <label className="form-label">Piso</label>
-                    <input
-                      type="number"
-                      name="floor_number"
-                      value={formData.floor_number}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      className="input-field disabled:bg-slate-50"
-                    />
+                    <input type="number" name="floor_number" value={formData.floor_number} onChange={handleFormChange} disabled={!editingInfo} className="input-field disabled:bg-slate-50" />
                   </div>
                   <div>
                     <label className="form-label">Orientación</label>
-                    <select
-                      name="orientation"
-                      value={formData.orientation}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      className="input-field disabled:bg-slate-50"
-                    >
+                    <select name="orientation" value={formData.orientation} onChange={handleFormChange} disabled={!editingInfo} className="input-field disabled:bg-slate-50">
                       <option value="">Seleccionar...</option>
-                      <option value="N">Norte</option>
-                      <option value="S">Sur</option>
-                      <option value="E">Este</option>
-                      <option value="O">Oeste</option>
-                      <option value="NE">Noreste</option>
-                      <option value="NO">Noroeste</option>
-                      <option value="SE">Sureste</option>
-                      <option value="SO">Suroeste</option>
+                      <option value="N">Norte</option><option value="S">Sur</option><option value="E">Este</option><option value="O">Oeste</option>
+                      <option value="NE">Noreste</option><option value="NO">Noroeste</option><option value="SE">Sureste</option><option value="SO">Suroeste</option>
                     </select>
                   </div>
-                  
                   <div>
                     <label className="form-label">Sup. Total (m²)</label>
-                    <input
-                      type="number"
-                      name="total_area_m2"
-                      value={formData.total_area_m2}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      step="0.01"
-                      className="input-field disabled:bg-slate-50"
-                    />
+                    <input type="number" name="total_area_m2" value={formData.total_area_m2} onChange={handleFormChange} disabled={!editingInfo} step="0.01" className="input-field disabled:bg-slate-50" />
                   </div>
                   <div>
                     <label className="form-label">Sup. Cubierta (m²)</label>
-                    <input
-                      type="number"
-                      name="covered_area_m2"
-                      value={formData.covered_area_m2}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      step="0.01"
-                      className="input-field disabled:bg-slate-50"
-                    />
+                    <input type="number" name="covered_area_m2" value={formData.covered_area_m2} onChange={handleFormChange} disabled={!editingInfo} step="0.01" className="input-field disabled:bg-slate-50" />
                   </div>
                   <div>
                     <label className="form-label">Ambientes</label>
-                    <input
-                      type="number"
-                      name="rooms"
-                      value={formData.rooms}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      className="input-field disabled:bg-slate-50"
-                    />
+                    <input type="number" name="rooms" value={formData.rooms} onChange={handleFormChange} disabled={!editingInfo} className="input-field disabled:bg-slate-50" />
                   </div>
                   <div>
                     <label className="form-label">Dormitorios</label>
-                    <input
-                      type="number"
-                      name="bedrooms"
-                      value={formData.bedrooms}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      className="input-field disabled:bg-slate-50"
-                    />
+                    <input type="number" name="bedrooms" value={formData.bedrooms} onChange={handleFormChange} disabled={!editingInfo} className="input-field disabled:bg-slate-50" />
                   </div>
                   <div>
                     <label className="form-label">Baños</label>
-                    <input
-                      type="number"
-                      name="bathrooms"
-                      value={formData.bathrooms}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      className="input-field disabled:bg-slate-50"
-                    />
+                    <input type="number" name="bathrooms" value={formData.bathrooms} onChange={handleFormChange} disabled={!editingInfo} className="input-field disabled:bg-slate-50" />
                   </div>
-
-                  <div className="flex items-center gap-4 col-span-2">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        name="has_balcony"
-                        checked={formData.has_balcony}
-                        onChange={handleFormChange}
-                        disabled={!editingInfo}
-                        className="rounded"
-                      />
+                  <div className="flex items-center gap-6 col-span-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" name="has_balcony" checked={formData.has_balcony} onChange={handleFormChange} disabled={!editingInfo} className="w-4 h-4 rounded" />
                       <span className="text-sm text-slate-700">Balcón</span>
                     </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        name="has_terrace"
-                        checked={formData.has_terrace}
-                        onChange={handleFormChange}
-                        disabled={!editingInfo}
-                        className="rounded"
-                      />
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" name="has_terrace" checked={formData.has_terrace} onChange={handleFormChange} disabled={!editingInfo} className="w-4 h-4 rounded" />
                       <span className="text-sm text-slate-700">Terraza</span>
                     </label>
                   </div>
                 </div>
 
-                {/* Precios */}
-                <h4 className="font-medium text-slate-700 mt-6 mb-3">Precios y Venta</h4>
+                <h4 className="font-medium text-slate-700 mt-8 mb-4 pb-2 border-b">Precios y Venta</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <label className="form-label">Moneda</label>
-                    <select
-                      name="currency"
-                      value={formData.currency}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      className="input-field disabled:bg-slate-50"
-                    >
-                      <option value="USD">USD</option>
-                      <option value="ARS">ARS</option>
-                      <option value="EUR">EUR</option>
+                    <select name="currency" value={formData.currency} onChange={handleFormChange} disabled={!editingInfo} className="input-field disabled:bg-slate-50">
+                      <option value="USD">USD</option><option value="ARS">ARS</option><option value="EUR">EUR</option>
                     </select>
                   </div>
                   <div>
                     <label className="form-label">Precio Lista</label>
-                    <input
-                      type="number"
-                      name="list_price"
-                      value={formData.list_price}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      step="0.01"
-                      className="input-field disabled:bg-slate-50"
-                    />
+                    <input type="number" name="list_price" value={formData.list_price} onChange={handleFormChange} disabled={!editingInfo} step="0.01" className="input-field disabled:bg-slate-50" />
                   </div>
                   <div>
                     <label className="form-label">Precio Venta</label>
-                    <input
-                      type="number"
-                      name="sale_price"
-                      value={formData.sale_price}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      step="0.01"
-                      className="input-field disabled:bg-slate-50"
-                    />
+                    <input type="number" name="sale_price" value={formData.sale_price} onChange={handleFormChange} disabled={!editingInfo} step="0.01" className="input-field disabled:bg-slate-50" />
                   </div>
                   <div>
                     <label className="form-label">Precio Alquiler</label>
-                    <input
-                      type="number"
-                      name="rental_price"
-                      value={formData.rental_price}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      step="0.01"
-                      className="input-field disabled:bg-slate-50"
-                    />
+                    <input type="number" name="rental_price" value={formData.rental_price} onChange={handleFormChange} disabled={!editingInfo} step="0.01" className="input-field disabled:bg-slate-50" />
                   </div>
                   <div>
                     <label className="form-label">Estado Construcción</label>
-                    <select
-                      name="construction_status"
-                      value={formData.construction_status}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      className="input-field disabled:bg-slate-50"
-                    >
-                      {Object.entries(CONSTRUCTION_STATUS).map(([key, val]) => (
-                        <option key={key} value={key}>{val.label}</option>
-                      ))}
+                    <select name="construction_status" value={formData.construction_status} onChange={handleFormChange} disabled={!editingInfo} className="input-field disabled:bg-slate-50">
+                      {Object.entries(CONSTRUCTION_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="form-label">Estado Venta</label>
-                    <select
-                      name="sale_status"
-                      value={formData.sale_status}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      className="input-field disabled:bg-slate-50"
-                    >
-                      {Object.entries(SALE_STATUS).map(([key, val]) => (
-                        <option key={key} value={key}>{val.label}</option>
-                      ))}
+                    <select name="sale_status" value={formData.sale_status} onChange={handleFormChange} disabled={!editingInfo} className="input-field disabled:bg-slate-50">
+                      {Object.entries(SALE_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="form-label">Fecha Entrega</label>
-                    <input
-                      type="date"
-                      name="delivery_date"
-                      value={formData.delivery_date}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      className="input-field disabled:bg-slate-50"
-                    />
+                    <input type="date" name="delivery_date" value={formData.delivery_date} onChange={handleFormChange} disabled={!editingInfo} className="input-field disabled:bg-slate-50" />
                   </div>
                 </div>
 
-                {/* Notas */}
-                <div className="mt-4">
+                <div className="mt-6">
                   <label className="form-label">Notas</label>
-                  <textarea
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleFormChange}
-                    disabled={!editingInfo}
-                    rows="3"
-                    className="input-field disabled:bg-slate-50"
-                    placeholder="Notas adicionales..."
-                  />
+                  <textarea name="notes" value={formData.notes} onChange={handleFormChange} disabled={!editingInfo} rows="3" className="input-field disabled:bg-slate-50" placeholder="Notas adicionales..." />
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Tab: Checklist de Progreso */}
-          {activeTab === 'progress' && (
-            <div className="space-y-4">
-              {/* Stats de progreso */}
-              {unit.progress_stats && (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-                  <div className="bg-green-50 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-green-600">{unit.progress_stats.completed}</p>
-                    <p className="text-xs text-green-700">Completados</p>
-                  </div>
-                  <div className="bg-blue-50 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-blue-600">{unit.progress_stats.in_progress}</p>
-                    <p className="text-xs text-blue-700">En Progreso</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-slate-600">{unit.progress_stats.pending}</p>
-                    <p className="text-xs text-slate-700">Pendientes</p>
-                  </div>
-                  <div className="bg-red-50 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-red-600">{unit.progress_stats.blocked}</p>
-                    <p className="text-xs text-red-700">Bloqueados</p>
-                  </div>
-                  <div className="bg-purple-50 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-purple-600">{unit.progress_stats.avg_progress}%</p>
-                    <p className="text-xs text-purple-700">Promedio</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Si no hay items, mostrar botón para inicializar */}
-              {(!unit.progress_items || unit.progress_items.length === 0) ? (
-                <div className="text-center py-12 bg-slate-50 rounded-xl">
-                  <ClipboardCheck className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-800 mb-2">Sin checklist de terminaciones</h3>
-                  <p className="text-slate-500 mb-6 max-w-md mx-auto">
-                    Inicializa el checklist para hacer seguimiento de todas las terminaciones: electricidad, plomería, pintura, etc.
-                  </p>
-                  <div className="flex gap-3 justify-center">
-                    <button
-                      onClick={handleInitializeProgress}
-                      disabled={saving}
-                      className="btn-primary inline-flex items-center gap-2"
-                    >
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                      Inicializar Checklist Completo
-                    </button>
-                    <button
-                      onClick={() => setShowAddItemModal(true)}
-                      className="btn-secondary inline-flex items-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Agregar Item Manual
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {/* Botón para agregar item personalizado - MÁS VISIBLE */}
-                  <div className="flex justify-between items-center mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <span className="text-sm text-blue-700">
-                      ¿Necesitás agregar una categoría? Podés elegir una predeterminada o crear una nueva.
-                    </span>
-                    <button
-                      onClick={() => openAddItemModal()}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2 text-sm font-medium"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Agregar Categoría
-                    </button>
-                  </div>
-                  
-                  {/* Items agrupados por categoría - COLAPSADOS POR DEFECTO */}
-                  {Object.entries(groupedItems).map(([categoryCode, items]) => {
-                    const isExpanded = expandedCategories[categoryCode] === true;
-                    const categoryName = items[0]?.category_name || categoryCode;
-                    
-                    // Identificar el item GENERAL (el que tiene el mismo nombre que la categoría)
-                    const generalItem = items.find(i => i.name === categoryName);
-                    // Los SUBITEMS son todos los demás
-                    const subitems = items.filter(i => i.name !== categoryName);
-                    
-                    // Excluir items "No Aplica" del conteo (solo subitems)
-                    const applicableSubitems = subitems.filter(i => i.status !== 'not_applicable');
-                    const completedCount = applicableSubitems.filter(i => i.status === 'completed').length;
-                    const totalCount = applicableSubitems.length;
-                    const CategoryIcon = CATEGORY_ICONS[categoryCode] || CATEGORY_ICONS.default;
-                    
-                    // Detectar si toda la categoría está suspendida (el general está suspendido)
-                    const allSuspended = generalItem?.status === 'not_applicable' || 
-                                        (items.length > 0 && items.every(i => i.status === 'not_applicable'));
-                    
-                    // Calcular progreso ponderado de la categoría (usando subitems + general si aplica)
-                    const applicableItems = items.filter(i => i.status !== 'not_applicable');
-                    const totalWeight = applicableItems.reduce((sum, i) => sum + (i.weight || 100), 0);
-                    const weightedProgress = totalWeight > 0 
-                      ? applicableItems.reduce((sum, i) => {
-                          const itemWeight = i.weight || 100;
-                          const itemProgress = i.progress_percentage || 0;
-                          return sum + (itemProgress * itemWeight / totalWeight);
-                        }, 0)
-                      : 0;
-                    
-                    // Peso disponible del general
-                    const generalWeight = generalItem?.weight || 0;
-                    const usedBySubitems = applicableSubitems.reduce((sum, i) => sum + (i.weight || 0), 0);
-                    
-                    return (
-                      <div key={categoryCode} className={`border rounded-xl overflow-hidden ${
-                        allSuspended 
-                          ? 'border-slate-200 bg-slate-100 opacity-60' 
-                          : 'border-slate-200'
-                      }`}>
-                        {/* Header de categoría - INCLUYE INFO DEL GENERAL */}
-                        <div className={`p-4 transition-colors ${
-                          allSuspended 
-                            ? 'bg-slate-100' 
-                            : 'bg-slate-50'
-                        }`}>
-                          <button
-                            onClick={() => toggleCategory(categoryCode)}
-                            className="w-full flex items-center justify-between"
-                          >
-                            <div className="flex items-center gap-3">
-                              <CategoryIcon className={`w-5 h-5 ${allSuspended ? 'text-slate-400' : 'text-slate-500'}`} />
-                              <span className={`font-medium ${allSuspended ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
-                                {categoryName}
-                              </span>
-                              {allSuspended ? (
-                                <span className="px-2 py-0.5 bg-slate-200 text-slate-500 text-xs rounded-full flex items-center gap-1">
-                                  <Ban className="w-3 h-3" />
-                                  No Aplica
-                                </span>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  {totalCount > 0 && (
-                                    <span className="text-sm text-slate-500">
-                                      ({completedCount}/{totalCount} subitems)
-                                    </span>
-                                  )}
-                                  <span className="text-sm font-medium text-slate-700">
-                                    {Math.round(weightedProgress)}%
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3">
-                              {/* Botón agregar subitem a esta categoría */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openAddItemModal(categoryCode);
-                                }}
-                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                                title="Agregar subitem a esta categoría"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </button>
-                              {/* Mini barra de progreso ponderado - ocultar si suspendida */}
-                              {!allSuspended && (
-                                <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-green-500 transition-all"
-                                    style={{ width: `${weightedProgress}%` }}
-                                  />
-                                </div>
-                              )}
-                              {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                            </div>
-                          </button>
-                          
-                          {/* Info del GENERAL - Siempre visible en el header */}
-                          {generalItem && !allSuspended && (
-                            <div className="mt-3 pt-3 border-t border-slate-200">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-slate-500 uppercase">General/Resto:</span>
-                                  <span className="text-sm font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
-                                    {generalWeight}% disponible
-                                  </span>
-                                  {usedBySubitems > 0 && (
-                                    <span className="text-xs text-slate-400">
-                                      ({usedBySubitems}% asignado a subitems)
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {/* Slider de progreso del general */}
-                                  <input
-                                    type="range"
-                                    min="0"
-                                    max="100"
-                                    value={generalItem.progress_percentage || 0}
-                                    onChange={(e) => handleUpdateProgressItem(generalItem.id, { 
-                                      progress_percentage: parseInt(e.target.value),
-                                      status: parseInt(e.target.value) === 100 ? 'completed' : 
-                                              parseInt(e.target.value) > 0 ? 'in_progress' : 'pending'
-                                    })}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="w-20 h-1 accent-green-500 cursor-pointer"
-                                  />
-                                  <span className="text-sm font-medium w-10 text-right text-slate-600">
-                                    {generalItem.progress_percentage || 0}%
-                                  </span>
-                                  {/* Botón No Aplica para el general */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (confirm('¿Marcar toda la categoría como "No Aplica"?')) {
-                                        handleUpdateProgressItem(generalItem.id, { status: 'not_applicable', progress_percentage: 0 });
-                                      }
-                                    }}
-                                    className="p-1 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded"
-                                    title="Marcar categoría como No Aplica"
-                                  >
-                                    <Ban className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Botón restaurar si está suspendida */}
-                          {allSuspended && generalItem && (
-                            <div className="mt-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUpdateProgressItem(generalItem.id, { status: 'pending', progress_percentage: 0 });
-                                }}
-                                className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                              >
-                                <RefreshCcw className="w-3 h-3" />
-                                Restaurar categoría
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* SUBITEMS de la categoría (NO incluye el general) */}
-                        {isExpanded && subitems.length > 0 && (
-                          <div className="divide-y divide-slate-100">
-                            {subitems.map(item => {
-                              const statusInfo = ITEM_STATUS[item.status] || ITEM_STATUS.pending;
-                              const StatusIcon = statusInfo.icon;
-                              
-                              return (
-                                <div key={item.id} className={`p-4 flex items-center justify-between hover:bg-slate-50 group ${
-                                  item.status === 'not_applicable' ? 'opacity-50 bg-slate-50' : ''
-                                }`}>
-                                  <div className="flex items-center gap-3">
-                                    <button
-                                      onClick={() => {
-                                        if (item.status === 'not_applicable') return; // No hacer nada si es No Aplica
-                                        const nextStatus = item.status === 'completed' ? 'pending' : 
-                                                          item.status === 'pending' ? 'in_progress' : 
-                                                          item.status === 'in_progress' ? 'completed' : item.status;
-                                        handleUpdateProgressItem(item.id, { status: nextStatus });
-                                      }}
-                                      disabled={item.status === 'not_applicable'}
-                                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                                        item.status === 'completed' 
-                                          ? 'bg-green-500 text-white' 
-                                          : item.status === 'in_progress'
-                                          ? 'bg-blue-500 text-white'
-                                          : item.status === 'not_applicable'
-                                          ? 'bg-slate-200 text-slate-400'
-                                          : 'border-2 border-slate-300 text-slate-400 hover:border-slate-400'
-                                      }`}
-                                    >
-                                      {item.status === 'completed' && <Check className="w-4 h-4" />}
-                                      {item.status === 'in_progress' && <Clock className="w-4 h-4" />}
-                                      {item.status === 'not_applicable' && <Ban className="w-4 h-4" />}
-                                    </button>
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <p className={`font-medium ${
-                                          item.status === 'completed' || item.status === 'not_applicable' 
-                                            ? 'text-slate-400 line-through' 
-                                            : 'text-slate-800'
-                                        }`}>
-                                          {item.name}
-                                        </p>
-                                        {/* Mostrar peso si no es 100% */}
-                                        {item.weight && item.weight !== 100 && (
-                                          <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">
-                                            {item.weight}% incidencia
-                                          </span>
-                                        )}
-                                        {/* Botones editar y eliminar */}
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <button
-                                            onClick={() => openEditItemModal(item)}
-                                            className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                                            title="Editar item"
-                                          >
-                                            <Wrench className="w-3 h-3" />
-                                          </button>
-                                          <button
-                                            onClick={() => handleDeleteItem(item.id, item.name)}
-                                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
-                                            title="Eliminar item"
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                          </button>
-                                        </div>
-                                      </div>
-                                      {item.notes && (
-                                        <p className="text-xs text-slate-500">{item.notes}</p>
-                                      )}
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-2">
-                                    {/* Si está marcado como No Aplica, mostrar botón Restaurar */}
-                                    {item.status === 'not_applicable' ? (
-                                      <button
-                                        onClick={() => handleUpdateProgressItem(item.id, { 
-                                          status: 'pending', 
-                                          progress_percentage: 0 
-                                        })}
-                                        className="px-3 py-1 rounded text-xs font-medium text-green-600 hover:text-white hover:bg-green-500 border border-green-300 hover:border-green-500 transition-colors flex items-center gap-1"
-                                      >
-                                        <Check className="w-3 h-3" />
-                                        Restaurar Item
-                                      </button>
-                                    ) : (
-                                      <>
-                                        {/* Slider de progreso */}
-                                        <div className="flex items-center gap-2">
-                                          <input
-                                            type="range"
-                                            min="0"
-                                            max="100"
-                                            step="10"
-                                            value={item.progress_percentage || 0}
-                                            onChange={(e) => handleUpdateProgressItem(item.id, { 
-                                              progress_percentage: parseInt(e.target.value),
-                                              status: parseInt(e.target.value) === 100 ? 'completed' : 
-                                                      parseInt(e.target.value) > 0 ? 'in_progress' : 'pending'
-                                            })}
-                                            className="w-20 h-2 accent-primary-500"
-                                          />
-                                          <span className="text-sm text-slate-600 w-10 text-right">
-                                            {item.progress_percentage || 0}%
-                                          </span>
-                                        </div>
-                                        
-                                        {/* Botón No Aplica - MÁS VISIBLE */}
-                                        <button
-                                          onClick={() => handleUpdateProgressItem(item.id, { 
-                                            status: 'not_applicable', 
-                                            progress_percentage: 0 
-                                          })}
-                                          title="Marcar como No Aplica (excluir del cálculo)"
-                                          className="px-2 py-1 rounded text-xs font-medium text-red-600 hover:text-white hover:bg-red-500 border border-red-300 hover:border-red-500 transition-colors flex items-center gap-1"
-                                        >
-                                          <Ban className="w-3 h-3" />
-                                          No Aplica
-                                        </button>
-                                      </>
-                                    )}
-                                    
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusInfo.color}`}>
-                                      {statusInfo.label}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           )}
 
           {/* Tab: Documentos */}
           {activeTab === 'documents' && (
-            <div className="space-y-6">
-              {/* Botón para subir */}
+            <div className="p-6 space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="font-medium text-slate-800">Documentos y Fotos</h3>
+                <h3 className="font-bold text-slate-800 text-lg">Documentos y Fotos</h3>
                 <label className="btn-primary inline-flex items-center gap-2 cursor-pointer">
-                  <Upload className="w-4 h-4" />
-                  Subir Archivo
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*,.pdf"
-                    onChange={(e) => handleAddDocument(e.target.files[0])}
-                  />
+                  <Upload className="w-4 h-4" /> Subir Archivo
+                  <input type="file" className="hidden" accept="image/*,.pdf" onChange={() => toast.error('Funcionalidad en desarrollo')} />
                 </label>
               </div>
 
-              {/* Grid de documentos */}
-              {unit.documents && unit.documents.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {unit.documents.map(doc => (
-                    <div key={doc.id} className="border border-slate-200 rounded-xl overflow-hidden group">
-                      {doc.document_type === 'photo' || doc.mime_type?.startsWith('image/') ? (
-                        <div className="aspect-square bg-slate-100 relative">
-                          <img 
-                            src={doc.thumbnail_url || doc.file_url} 
-                            alt={doc.name}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="p-2 bg-white rounded-full">
-                              <Eye className="w-4 h-4" />
-                            </a>
-                            <a href={doc.file_url} download className="p-2 bg-white rounded-full">
-                              <Download className="w-4 h-4" />
-                            </a>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="aspect-square bg-slate-100 flex items-center justify-center">
-                          <FileText className="w-12 h-12 text-slate-400" />
-                        </div>
-                      )}
-                      <div className="p-3">
-                        <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
-                        <p className="text-xs text-slate-500">{doc.document_type}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-slate-50 rounded-xl">
-                  <Image className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-800 mb-2">Sin documentos</h3>
-                  <p className="text-slate-500">
-                    Sube fotos del progreso, planos, facturas y otros documentos
-                  </p>
-                </div>
-              )}
+              <div className="text-center py-16 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-2 border-dashed border-slate-300">
+                <Image className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-slate-700 mb-2">Sin documentos</h3>
+                <p className="text-slate-500">Subí fotos del progreso, planos, facturas y otros documentos</p>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Modal para agregar categoría o subitem */}
-      {showAddItemModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
+      {/* Modal Subcategoría */}
+      {showSubcategoryModal && targetCategory && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+            <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
               <h3 className="text-lg font-bold text-slate-900">
-                {editingItem 
-                  ? 'Editar Item' 
-                  : addItemMode === 'category' 
-                    ? 'Agregar Categoría' 
-                    : `Agregar Subitem en ${availableCategories.find(c => c.code === newItemForm.category_code)?.name || newItemForm.category_code}`
-                }
+                {editingSubcategory ? 'Editar Subcategoría' : 'Nueva Subcategoría'}
               </h3>
-              <button 
-                onClick={() => {
-                  setShowAddItemModal(false);
-                  setEditingItem(null);
-                  setShowNewCategoryInput(false);
-                  setNewItemForm({ name: '', category_code: '', new_category_name: '', weight: 100, notes: '' });
-                }} 
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <p className="text-sm text-slate-500 mt-1">Categoría: {CATEGORY_CONFIG[targetCategory.code]?.name || targetCategory.name}</p>
             </div>
             
-            <div className="space-y-4">
-              {/* MODO CATEGORÍA: Solo seleccionar categoría */}
-              {addItemMode === 'category' && !editingItem && (
-                <div>
-                  <label className="form-label">Categoría *</label>
-                  {!showNewCategoryInput ? (
-                    <>
-                      <select
-                        value={newItemForm.category_code}
-                        onChange={(e) => {
-                          if (e.target.value === '__new__') {
-                            setShowNewCategoryInput(true);
-                            setNewItemForm(prev => ({ ...prev, category_code: '', name: '' }));
-                          } else {
-                            const cat = availableCategories.find(c => c.code === e.target.value);
-                            setNewItemForm(prev => ({ 
-                              ...prev, 
-                              category_code: e.target.value,
-                              name: cat?.name || e.target.value // El nombre es el de la categoría
-                            }));
-                          }
-                        }}
-                        className="input-field"
-                        autoFocus
-                      >
-                        <option value="">— Seleccionar categoría —</option>
-                        <optgroup label="Categorías predeterminadas">
-                          {availableCategories.map(cat => (
-                            <option key={cat.code} value={cat.code}>{cat.name}</option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="Otras opciones">
-                          <option value="__new__">➕ Crear nueva categoría...</option>
-                        </optgroup>
-                      </select>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Seleccioná una categoría predeterminada o creá una nueva
-                      </p>
-                    </>
-                  ) : (
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        value={newItemForm.new_category_name}
-                        onChange={(e) => setNewItemForm(prev => ({ 
-                          ...prev, 
-                          new_category_name: e.target.value,
-                          name: e.target.value, // El nombre es el de la nueva categoría
-                          category_code: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
-                        }))}
-                        placeholder="Nombre de la nueva categoría"
-                        className="input-field"
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowNewCategoryInput(false);
-                          setNewItemForm(prev => ({ ...prev, new_category_name: '', category_code: '', name: '' }));
-                        }}
-                        className="text-sm text-blue-600 hover:text-blue-800"
-                      >
-                        ← Volver a categorías predeterminadas
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="p-6 space-y-5">
+              <div>
+                <label className="form-label">Nombre *</label>
+                <input
+                  type="text"
+                  value={subcategoryForm.name}
+                  onChange={(e) => setSubcategoryForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ej: Cocina, Baño principal..."
+                  className="input-field"
+                  autoFocus
+                />
+              </div>
 
-              {/* MODO SUBITEM: Nombre del subitem (la categoría ya está seleccionada) */}
-              {(addItemMode === 'subitem' || editingItem) && (
-                <div>
-                  <label className="form-label">Nombre del Subitem *</label>
-                  <input
-                    type="text"
-                    value={newItemForm.name}
-                    onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Ej: Cableado balcón, Grifería especial, etc."
-                    className="input-field"
-                    autoFocus
-                  />
-                </div>
-              )}
+              <div>
+                <label className="form-label">Porcentaje de Incidencia</label>
+                {(() => {
+                  const items = groupedItems[targetCategory.code]?.items || [];
+                  const regularItems = items.filter(i => !i.name?.toLowerCase().includes('general') && i.id !== editingSubcategory?.id);
+                  const usedWeight = regularItems.reduce((sum, i) => sum + (i.weight || 0), 0);
+                  const maxAvailable = 100 - usedWeight;
+                  
+                  return (
+                    <div className="space-y-4">
+                      <div className="bg-slate-100 rounded-xl p-4">
+                        <div className="flex justify-between text-xs mb-2">
+                          <span className="text-slate-600">Distribución</span>
+                          <span className="font-semibold text-slate-700">Total: 100%</span>
+                        </div>
+                        <div className="h-6 bg-slate-200 rounded-lg overflow-hidden flex">
+                          {regularItems.map((item, idx) => {
+                            const colors = ['bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-cyan-500'];
+                            return (
+                              <div
+                                key={item.id}
+                                className={`h-full ${colors[idx % colors.length]} flex items-center justify-center text-white text-xs font-medium`}
+                                style={{ width: `${item.weight || 0}%` }}
+                              >
+                                {(item.weight || 0) >= 10 && `${item.weight}%`}
+                              </div>
+                            );
+                          })}
+                          {subcategoryForm.weight > 0 && subcategoryForm.weight <= maxAvailable && (
+                            <div className="h-full bg-green-500 flex items-center justify-center text-white text-xs font-medium" style={{ width: `${subcategoryForm.weight}%` }}>
+                              {subcategoryForm.weight >= 10 && `${subcategoryForm.weight}%`}
+                            </div>
+                          )}
+                          {(maxAvailable - (subcategoryForm.weight <= maxAvailable ? subcategoryForm.weight : 0)) > 0 && (
+                            <div className="h-full bg-slate-400 flex items-center justify-center text-slate-200 text-xs" style={{ width: `${maxAvailable - (subcategoryForm.weight <= maxAvailable ? subcategoryForm.weight : 0)}%` }}>
+                              General
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-              {/* Peso/Incidencia - Solo para SUBITEMS */}
-              {(addItemMode === 'subitem' || editingItem) && (
-                <div>
-                  {(() => {
-                    // Calcular uso actual de la categoría
-                    const categoryItems = unit?.progress_items?.filter(
-                      i => i.category_code === newItemForm.category_code && 
-                           i.status !== 'not_applicable' &&
-                           (!editingItem || i.id !== editingItem.id)
-                    ) || [];
-                    const usedWeight = categoryItems.reduce((sum, i) => sum + (i.weight || 100), 0);
-                    const availableWeight = Math.max(0, 100 - usedWeight);
-                    const willExceed = usedWeight + newItemForm.weight > 100;
-                    
-                    return (
-                      <>
-                        <label className="form-label">
-                          Incidencia sobre la categoría: <span className="font-bold text-primary-600">{newItemForm.weight}%</span>
-                        </label>
-                        
-                        {/* Barra de uso de la categoría */}
-                        {categoryItems.length > 0 && (
-                          <div className="mb-3 p-3 bg-slate-50 rounded-lg">
-                            <div className="flex justify-between text-xs mb-2">
-                              <span className="text-slate-600">Uso de la categoría:</span>
-                              <span className={willExceed ? 'text-amber-600 font-medium' : 'text-slate-600'}>
-                                {usedWeight}% usado · {availableWeight}% disponible
-                              </span>
-                            </div>
-                            <div className="h-3 bg-slate-200 rounded-full overflow-hidden flex">
-                              <div 
-                                className="h-full bg-blue-400"
-                                style={{ width: `${Math.min(usedWeight, 100)}%` }}
-                              />
-                              <div 
-                                className={`h-full ${willExceed ? 'bg-amber-400' : 'bg-green-400'}`}
-                                style={{ width: `${Math.min(newItemForm.weight, 100 - Math.min(usedWeight, 100))}%` }}
-                              />
-                            </div>
-                            <div className="flex gap-4 mt-2 text-xs">
-                              <span className="flex items-center gap-1">
-                                <span className="w-3 h-3 bg-blue-400 rounded"></span> Otros subitems
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <span className="w-3 h-3 bg-green-400 rounded"></span> Este subitem
-                              </span>
-                            </div>
-                            {willExceed && (
-                              <p className="text-xs text-amber-600 mt-2">
-                                ⚠️ El total excede 100%. Se recalculará automáticamente.
-                              </p>
-                            )}
-                          </div>
-                        )}
-                        
+                      <div className="flex items-center gap-4">
                         <input
                           type="range"
                           min="1"
-                          max="100"
-                          value={newItemForm.weight}
-                          onChange={(e) => setNewItemForm(prev => ({ ...prev, weight: parseInt(e.target.value) }))}
-                          className="w-full h-2 accent-primary-500"
+                          max={maxAvailable}
+                          value={Math.min(subcategoryForm.weight, maxAvailable)}
+                          onChange={(e) => setSubcategoryForm(prev => ({ ...prev, weight: parseInt(e.target.value) }))}
+                          className="flex-1 h-2 accent-green-500"
                         />
-                        <div className="flex justify-between text-xs text-slate-500 mt-1">
-                          <span>1% (poco impacto)</span>
-                          <span>100% (impacto total)</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max={maxAvailable}
+                            value={subcategoryForm.weight}
+                            onChange={(e) => setSubcategoryForm(prev => ({ ...prev, weight: Math.min(parseInt(e.target.value) || 1, maxAvailable) }))}
+                            className="w-16 px-2 py-1 text-center border border-slate-200 rounded-lg font-bold"
+                          />
+                          <span className="text-slate-500">%</span>
                         </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {/* Notas */}
-              <div>
-                <label className="form-label">Notas (opcional)</label>
-                <textarea
-                  value={newItemForm.notes}
-                  onChange={(e) => setNewItemForm(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Detalles adicionales..."
-                  className="input-field"
-                  rows="2"
-                />
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Máximo disponible: <span className="font-semibold text-green-600">{maxAvailable}%</span>
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
             
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowAddItemModal(false);
-                  setEditingItem(null);
-                  setShowNewCategoryInput(false);
-                  setNewItemForm({ name: '', category_code: '', new_category_name: '', weight: 100, notes: '' });
-                }}
-                className="btn-secondary"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveItem}
-                disabled={saving || (addItemMode === 'category' && !newItemForm.category_code && !newItemForm.new_category_name) || (addItemMode === 'subitem' && !newItemForm.name.trim())}
-                className="btn-primary inline-flex items-center gap-2"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                {editingItem 
-                  ? 'Guardar Cambios' 
-                  : addItemMode === 'category' 
-                    ? 'Agregar Categoría' 
-                    : 'Agregar Subitem'
-                }
+            <div className="flex justify-end gap-3 p-6 border-t border-slate-200 bg-slate-50">
+              <button onClick={() => setShowSubcategoryModal(false)} className="btn-secondary">Cancelar</button>
+              <button onClick={handleSaveSubcategory} disabled={saving || !subcategoryForm.name.trim()} className="btn-primary inline-flex items-center gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {editingSubcategory ? 'Guardar' : 'Agregar'}
               </button>
             </div>
           </div>
@@ -1721,4 +1206,3 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
 };
 
 export default UnitDetailModal;
-
