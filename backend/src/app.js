@@ -139,50 +139,35 @@ app.post('/api/migrate', async (req, res) => {
   }
   
   try {
-    const { query } = require('./config/database');
+    const { pool } = require('./config/database');
     const fs = require('fs');
     const path = require('path');
     const results = [];
     
-    // Crear función de updated_at primero (necesaria para triggers)
-    await query(`
-      CREATE OR REPLACE FUNCTION update_updated_at_column()
-      RETURNS TRIGGER AS $$
-      BEGIN
-          NEW.updated_at = CURRENT_TIMESTAMP;
-          RETURN NEW;
-      END;
-      $$ language 'plpgsql';
-    `);
-    results.push('Función update_updated_at_column creada');
+    // Ejecutar cada archivo SQL usando pool directamente
+    const executeSQL = async (filePath, name) => {
+      if (fs.existsSync(filePath)) {
+        const sql = fs.readFileSync(filePath, 'utf8');
+        const client = await pool.connect();
+        try {
+          await client.query(sql);
+          results.push(`${name}: OK`);
+        } catch (err) {
+          results.push(`${name}: ${err.message}`);
+        } finally {
+          client.release();
+        }
+      }
+    };
     
-    // Schema principal
-    const schemaPath = path.join(__dirname, 'database', 'schema.sql');
-    if (fs.existsSync(schemaPath)) {
-      const schema = fs.readFileSync(schemaPath, 'utf8');
-      await query(schema);
-      results.push('Schema principal ejecutado');
-    }
+    // Ejecutar en orden
+    await executeSQL(path.join(__dirname, 'database', 'schema.sql'), 'Schema');
+    await executeSQL(path.join(__dirname, 'database', 'migration_clients.sql'), 'Clientes');
+    await executeSQL(path.join(__dirname, 'database', 'migration_suppliers.sql'), 'Proveedores');
     
-    // Migración de clientes
-    const clientsPath = path.join(__dirname, 'database', 'migration_clients.sql');
-    if (fs.existsSync(clientsPath)) {
-      const clientsMigration = fs.readFileSync(clientsPath, 'utf8');
-      await query(clientsMigration);
-      results.push('Migración clientes ejecutada');
-    }
-    
-    // Migración de proveedores
-    const suppliersPath = path.join(__dirname, 'database', 'migration_suppliers.sql');
-    if (fs.existsSync(suppliersPath)) {
-      const suppliersMigration = fs.readFileSync(suppliersPath, 'utf8');
-      await query(suppliersMigration);
-      results.push('Migración proveedores ejecutada');
-    }
-    
-    res.json({ success: true, message: 'Migraciones ejecutadas', results });
+    res.json({ success: true, message: 'Migraciones procesadas', results });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message, stack: error.stack });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
