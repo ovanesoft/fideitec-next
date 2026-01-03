@@ -55,6 +55,7 @@ const corsOptions = {
       'http://localhost:5177',
       'http://localhost:3000',
       'https://fideitec-frontend.onrender.com',
+      'https://app.fideitec.com',
       'https://www.fideitec.com',
       'https://fideitec.com'
     ].filter(Boolean);
@@ -197,6 +198,36 @@ app.post('/api/admin/setup-tenant', async (req, res) => {
     );
     
     res.json({ success: true, tenant, user: userResult.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Endpoint para resetear contraseña (temporal - admin)
+app.post('/api/admin/reset-password', async (req, res) => {
+  const { secret, email, newPassword } = req.body;
+  // Usar un secret fijo temporal para emergencias
+  const ADMIN_SECRET = 'fdt_admin_2026_emergency';
+  if (secret !== ADMIN_SECRET && secret !== process.env.JWT_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  
+  try {
+    const { query } = require('./config/database');
+    const bcrypt = require('bcryptjs');
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    
+    const result = await query(
+      `UPDATE users SET password_hash = $1, password_changed_at = NOW() WHERE LOWER(email) = $2 RETURNING email, first_name`,
+      [hashedPassword, email.toLowerCase()]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+    
+    res.json({ success: true, message: 'Contraseña actualizada', user: result.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
