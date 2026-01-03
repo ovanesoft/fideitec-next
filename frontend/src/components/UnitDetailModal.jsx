@@ -862,6 +862,9 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                     const totalCount = applicableItems.length;
                     const CategoryIcon = CATEGORY_ICONS[categoryCode] || CATEGORY_ICONS.default;
                     
+                    // Detectar si toda la categoría está suspendida
+                    const allSuspended = items.length > 0 && applicableItems.length === 0;
+                    
                     // Calcular progreso ponderado de la categoría
                     const totalWeight = applicableItems.reduce((sum, i) => sum + (i.weight || 100), 0);
                     const weightedProgress = totalWeight > 0 
@@ -873,20 +876,35 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                       : 0;
                     
                     return (
-                      <div key={categoryCode} className="border border-slate-200 rounded-xl overflow-hidden">
+                      <div key={categoryCode} className={`border rounded-xl overflow-hidden ${
+                        allSuspended 
+                          ? 'border-slate-200 bg-slate-100 opacity-60' 
+                          : 'border-slate-200'
+                      }`}>
                         {/* Header de categoría */}
                         <button
                           onClick={() => toggleCategory(categoryCode)}
-                          className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors"
+                          className={`w-full flex items-center justify-between p-4 transition-colors ${
+                            allSuspended 
+                              ? 'bg-slate-100 hover:bg-slate-150' 
+                              : 'bg-slate-50 hover:bg-slate-100'
+                          }`}
                         >
                           <div className="flex items-center gap-3">
-                            <CategoryIcon className="w-5 h-5 text-slate-500" />
-                            <span className="font-medium text-slate-800">
+                            <CategoryIcon className={`w-5 h-5 ${allSuspended ? 'text-slate-400' : 'text-slate-500'}`} />
+                            <span className={`font-medium ${allSuspended ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
                               {items[0]?.category_name || categoryCode}
                             </span>
-                            <span className="text-sm text-slate-500">
-                              ({completedCount}/{totalCount}) · {Math.round(weightedProgress)}%
-                            </span>
+                            {allSuspended ? (
+                              <span className="px-2 py-0.5 bg-slate-200 text-slate-500 text-xs rounded-full flex items-center gap-1">
+                                <Ban className="w-3 h-3" />
+                                No Aplica
+                              </span>
+                            ) : (
+                              <span className="text-sm text-slate-500">
+                                ({completedCount}/{totalCount}) · {Math.round(weightedProgress)}%
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-3">
                             {/* Botón agregar item a esta categoría */}
@@ -900,13 +918,15 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                             >
                               <Plus className="w-4 h-4" />
                             </button>
-                            {/* Mini barra de progreso ponderado */}
-                            <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-green-500 transition-all"
-                                style={{ width: `${weightedProgress}%` }}
-                              />
-                            </div>
+                            {/* Mini barra de progreso ponderado - ocultar si suspendida */}
+                            {!allSuspended && (
+                              <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-green-500 transition-all"
+                                  style={{ width: `${weightedProgress}%` }}
+                                />
+                              </div>
+                            )}
                             {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                           </div>
                         </button>
