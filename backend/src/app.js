@@ -142,12 +142,26 @@ app.post('/api/migrate', async (req, res) => {
     const { query } = require('./config/database');
     const fs = require('fs');
     const path = require('path');
+    const results = [];
+    
+    // Crear función de updated_at primero (necesaria para triggers)
+    await query(`
+      CREATE OR REPLACE FUNCTION update_updated_at_column()
+      RETURNS TRIGGER AS $$
+      BEGIN
+          NEW.updated_at = CURRENT_TIMESTAMP;
+          RETURN NEW;
+      END;
+      $$ language 'plpgsql';
+    `);
+    results.push('Función update_updated_at_column creada');
     
     // Schema principal
     const schemaPath = path.join(__dirname, 'database', 'schema.sql');
     if (fs.existsSync(schemaPath)) {
       const schema = fs.readFileSync(schemaPath, 'utf8');
       await query(schema);
+      results.push('Schema principal ejecutado');
     }
     
     // Migración de clientes
@@ -155,6 +169,7 @@ app.post('/api/migrate', async (req, res) => {
     if (fs.existsSync(clientsPath)) {
       const clientsMigration = fs.readFileSync(clientsPath, 'utf8');
       await query(clientsMigration);
+      results.push('Migración clientes ejecutada');
     }
     
     // Migración de proveedores
@@ -162,11 +177,12 @@ app.post('/api/migrate', async (req, res) => {
     if (fs.existsSync(suppliersPath)) {
       const suppliersMigration = fs.readFileSync(suppliersPath, 'utf8');
       await query(suppliersMigration);
+      results.push('Migración proveedores ejecutada');
     }
     
-    res.json({ success: true, message: 'Migraciones ejecutadas' });
+    res.json({ success: true, message: 'Migraciones ejecutadas', results });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message, stack: error.stack });
   }
 });
 
