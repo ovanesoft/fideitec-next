@@ -250,6 +250,10 @@ app.post('/api/admin/migrate-clients-invite', async (req, res) => {
     await query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS invite_accepted_at TIMESTAMP WITH TIME ZONE`);
     await query(`CREATE INDEX IF NOT EXISTS idx_clients_invite_token ON clients(invite_token) WHERE invite_token IS NOT NULL`);
     
+    // Actualizar constraint para aceptar 'invite'
+    await query(`ALTER TABLE clients DROP CONSTRAINT IF EXISTS clients_registration_source_check`);
+    await query(`ALTER TABLE clients ADD CONSTRAINT clients_registration_source_check CHECK (registration_source IN ('manual', 'portal', 'import', 'invite'))`);
+    
     res.json({ success: true, message: 'Migración de clientes completada' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

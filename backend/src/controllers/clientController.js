@@ -203,7 +203,7 @@ const createClient = async (req, res) => {
         address_state, address_postal_code, notes, tags,
         registration_source, registered_by, 
         invite_token, invite_token_expires
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'invite', $18, $19, $20)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'manual', $18, $19, $20)
       RETURNING id, email, first_name, last_name, created_at`,
       [
         tenantId, email.toLowerCase(), first_name, last_name,
