@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 
-const MODAL_VERSION = '1.9';
+const MODAL_VERSION = '1.10';
 import {
   X, Save, CheckCircle2, Circle, Clock, AlertTriangle,
   Building2, FileText, Image, Upload, Trash2, Plus, 
@@ -221,7 +221,7 @@ const ConstructionCategory = ({
         onClick={onToggle}
       >
         <div className="flex items-center gap-4">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isComplete ? 'bg-green-500' : 'bg-slate-600'}`}>
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isComplete ? 'bg-green-500' : 'bg-primary-500'}`}>
             <Icon className="w-5 h-5 text-white" />
           </div>
           
@@ -757,9 +757,9 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                   <p className="text-2xl font-bold text-slate-400">{progressStats.notStarted}</p>
                   <p className="text-xs text-slate-500">Sin Iniciar</p>
                 </div>
-                <div className="bg-slate-800 rounded-lg p-3 text-center">
+                <div className="bg-primary-500 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-white">{overallProgress}%</p>
-                  <p className="text-xs text-slate-300">Total</p>
+                  <p className="text-xs text-primary-100">Total</p>
                 </div>
               </div>
 
