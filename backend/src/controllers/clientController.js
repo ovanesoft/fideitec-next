@@ -149,16 +149,15 @@ const getClientById = async (req, res) => {
   }
 };
 
-// Crear cliente (registro manual desde panel de empresa)
+// Crear cliente con invitación (registro manual desde panel de empresa)
 const createClient = async (req, res) => {
-  const client = await getClient();
+  const dbClient = await getClient();
   
   try {
     const user = req.user;
     const tenantId = user.tenant_id;
     const {
       email,
-      password,
       first_name,
       last_name,
       phone,
@@ -176,47 +175,57 @@ const createClient = async (req, res) => {
       tags
     } = req.body;
 
-    await client.query('BEGIN');
+    await dbClient.query('BEGIN');
 
     // Verificar email único en el tenant
-    const existingClient = await client.query(
+    const existingClient = await dbClient.query(
       'SELECT id FROM clients WHERE tenant_id = $1 AND LOWER(email) = $2',
       [tenantId, email.toLowerCase()]
     );
 
     if (existingClient.rows.length > 0) {
-      await client.query('ROLLBACK');
+      await dbClient.query('ROLLBACK');
       return res.status(409).json({
         success: false,
         message: 'Ya existe un cliente con este email'
       });
     }
 
-    // Hash de contraseña si se proporciona
-    let passwordHash = null;
-    if (password) {
-      passwordHash = await bcrypt.hash(password, 12);
-    }
+    // Generar token de invitación (el cliente establecerá su contraseña)
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+    const inviteExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 días
 
-    const result = await client.query(
+    const result = await dbClient.query(
       `INSERT INTO clients (
-        tenant_id, email, password_hash, first_name, last_name,
+        tenant_id, email, first_name, last_name,
         phone, mobile, document_type, document_number, birth_date,
         nationality, address_street, address_number, address_city,
         address_state, address_postal_code, notes, tags,
-        registration_source, registered_by, email_verified
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'manual', $19, true)
+        registration_source, registered_by, 
+        invite_token, invite_token_expires
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'invite', $18, $19, $20)
       RETURNING id, email, first_name, last_name, created_at`,
       [
-        tenantId, email.toLowerCase(), passwordHash, first_name, last_name,
+        tenantId, email.toLowerCase(), first_name, last_name,
         phone, mobile, document_type, document_number, birth_date,
         nationality, address_street, address_number, address_city,
         address_state, address_postal_code, notes, JSON.stringify(tags || []),
-        user.id
+        user.id, inviteToken, inviteExpires
       ]
     );
 
-    await client.query('COMMIT');
+    await dbClient.query('COMMIT');
+
+    // Obtener info del tenant para el link
+    const tenantResult = await query(
+      'SELECT client_portal_token FROM tenants WHERE id = $1',
+      [tenantId]
+    );
+    const portalToken = tenantResult.rows[0]?.client_portal_token;
+
+    // Construir URL de invitación
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://app.fideitec.com';
+    const inviteUrl = `${FRONTEND_URL}/portal/${portalToken}/setup/${inviteToken}`;
 
     // Log de auditoría
     await query(
@@ -231,18 +240,75 @@ const createClient = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Cliente creado exitosamente',
-      data: { client: result.rows[0] }
+      data: { 
+        client: result.rows[0],
+        inviteUrl
+      }
     });
 
   } catch (error) {
-    await client.query('ROLLBACK');
+    await dbClient.query('ROLLBACK');
     console.error('Error creando cliente:', error);
     res.status(500).json({
       success: false,
       message: 'Error al crear cliente'
     });
   } finally {
-    client.release();
+    dbClient.release();
+  }
+};
+
+// Reenviar invitación a cliente
+const resendClientInvite = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+    const tenantId = user.tenant_id;
+
+    // Generar nuevo token
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+    const inviteExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const result = await query(
+      `UPDATE clients 
+       SET invite_token = $1, invite_token_expires = $2
+       WHERE id = $3 AND tenant_id = $4 AND password_hash IS NULL
+       RETURNING id, email, first_name`,
+      [inviteToken, inviteExpires, id, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cliente no encontrado o ya tiene contraseña'
+      });
+    }
+
+    // Obtener portal token
+    const tenantResult = await query(
+      'SELECT client_portal_token FROM tenants WHERE id = $1',
+      [tenantId]
+    );
+    const portalToken = tenantResult.rows[0]?.client_portal_token;
+
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://app.fideitec.com';
+    const inviteUrl = `${FRONTEND_URL}/portal/${portalToken}/setup/${inviteToken}`;
+
+    res.json({
+      success: true,
+      message: 'Invitación regenerada',
+      data: {
+        client: result.rows[0],
+        inviteUrl
+      }
+    });
+
+  } catch (error) {
+    console.error('Error reenviando invitación:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al reenviar invitación'
+    });
   }
 };
 
@@ -483,6 +549,7 @@ module.exports = {
   updateClient,
   updateClientKYC,
   updateClientAML,
-  getClientStats
+  getClientStats,
+  resendClientInvite
 };
 

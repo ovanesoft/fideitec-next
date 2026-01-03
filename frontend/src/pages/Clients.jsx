@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import toast from 'react-hot-toast';
 import { 
   Users, Search, Plus, Filter, MoreVertical, 
   CheckCircle2, Clock, AlertCircle, Shield, 
   ChevronLeft, ChevronRight, Eye, Edit, X,
   Building2, Mail, Phone, FileText, Link2, Copy,
-  ExternalLink, Settings, RefreshCw
+  ExternalLink, Settings, RefreshCw, MessageCircle, Send
 } from 'lucide-react';
 
 const Clients = () => {
@@ -20,8 +21,20 @@ const Clients = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPortalModal, setShowPortalModal] = useState(false);
+  const [showInviteLinkModal, setShowInviteLinkModal] = useState(false);
+  const [inviteLink, setInviteLink] = useState('');
   const [portalInfo, setPortalInfo] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [formData, setFormData] = useState({
+    email: '',
+    first_name: '',
+    last_name: '',
+    phone: '',
+    document_type: 'DNI',
+    document_number: '',
+    notes: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   // Cargar clientes
   const loadClients = async () => {
@@ -109,7 +122,68 @@ const Clients = () => {
   // Copiar link del portal
   const copyPortalLink = () => {
     navigator.clipboard.writeText(portalInfo?.url);
-    // Podrías agregar un toast aquí
+    toast.success('Link copiado al portapapeles');
+  };
+
+  // Crear cliente
+  const handleCreateClient = async (e) => {
+    e.preventDefault();
+    if (!formData.email || !formData.first_name || !formData.last_name) {
+      toast.error('Email, nombre y apellido son requeridos');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await api.post('/clients', formData);
+      if (response.data.success) {
+        toast.success('Cliente creado exitosamente');
+        setShowAddModal(false);
+        setInviteLink(response.data.data.inviteUrl);
+        setShowInviteLinkModal(true);
+        setFormData({
+          email: '',
+          first_name: '',
+          last_name: '',
+          phone: '',
+          document_type: 'DNI',
+          document_number: '',
+          notes: ''
+        });
+        loadClients();
+        loadStats();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error al crear cliente');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Reenviar invitación
+  const handleResendInvite = async (clientId) => {
+    try {
+      const response = await api.post(`/clients/${clientId}/resend-invite`);
+      if (response.data.success) {
+        setInviteLink(response.data.data.inviteUrl);
+        setShowInviteLinkModal(true);
+        toast.success('Invitación regenerada');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error al reenviar invitación');
+    }
+  };
+
+  // Copiar link de invitación
+  const copyInviteLink = () => {
+    navigator.clipboard.writeText(inviteLink);
+    toast.success('Link copiado al portapapeles');
+  };
+
+  // Compartir por WhatsApp
+  const shareWhatsApp = () => {
+    const message = encodeURIComponent(`Te invito a registrarte como cliente. Usa este link para crear tu contraseña: ${inviteLink}`);
+    window.open(`https://wa.me/?text=${message}`, '_blank');
   };
 
   const getKYCBadge = (status) => {
@@ -369,6 +443,15 @@ const Clients = () => {
                         </td>
                         <td className="px-4 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {client.registration_source === 'invite' && !client.email_verified && (
+                              <button 
+                                onClick={() => handleResendInvite(client.id)}
+                                className="p-2 text-blue-500 hover:text-blue-700 rounded-lg hover:bg-blue-50"
+                                title="Reenviar invitación"
+                              >
+                                <Send className="w-4 h-4" />
+                              </button>
+                            )}
                             <button 
                               onClick={() => setSelectedClient(client)}
                               className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
@@ -506,7 +589,7 @@ const Clients = () => {
         </div>
       )}
 
-      {/* Add Client Modal - Placeholder */}
+      {/* Add Client Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-slate-900/50" onClick={() => setShowAddModal(false)} />
@@ -518,34 +601,68 @@ const Clients = () => {
               <X className="w-5 h-5" />
             </button>
             
-            <h2 className="text-xl font-bold text-slate-800 mb-6">Nuevo Cliente</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">Nuevo Cliente</h2>
+            <p className="text-sm text-slate-500 mb-6">
+              El cliente recibirá un link para establecer su contraseña y acceder al portal.
+            </p>
             
-            <form className="space-y-4">
+            <form onSubmit={handleCreateClient} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label">Nombre</label>
-                  <input type="text" className="input-field" placeholder="Juan" />
+                  <label className="form-label">Nombre *</label>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="Juan"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                    required
+                  />
                 </div>
                 <div>
-                  <label className="form-label">Apellido</label>
-                  <input type="text" className="input-field" placeholder="Pérez" />
+                  <label className="form-label">Apellido *</label>
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="Pérez"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                    required
+                  />
                 </div>
               </div>
               
               <div>
-                <label className="form-label">Email</label>
-                <input type="email" className="input-field" placeholder="juan@email.com" />
+                <label className="form-label">Email *</label>
+                <input 
+                  type="email" 
+                  className="input-field" 
+                  placeholder="juan@email.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  required
+                />
               </div>
 
               <div>
                 <label className="form-label">Teléfono</label>
-                <input type="tel" className="input-field" placeholder="+54 11 1234 5678" />
+                <input 
+                  type="tel" 
+                  className="input-field" 
+                  placeholder="+54 11 1234 5678"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                />
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="form-label">Tipo Doc.</label>
-                  <select className="input-field">
+                  <select 
+                    className="input-field"
+                    value={formData.document_type}
+                    onChange={(e) => setFormData({...formData, document_type: e.target.value})}
+                  >
                     <option value="DNI">DNI</option>
                     <option value="CUIT">CUIT</option>
                     <option value="CUIL">CUIL</option>
@@ -554,13 +671,25 @@ const Clients = () => {
                 </div>
                 <div className="col-span-2">
                   <label className="form-label">Número de documento</label>
-                  <input type="text" className="input-field" placeholder="12345678" />
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    placeholder="12345678"
+                    value={formData.document_number}
+                    onChange={(e) => setFormData({...formData, document_number: e.target.value})}
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="form-label">Notas</label>
-                <textarea className="input-field" rows="3" placeholder="Notas internas sobre el cliente..."></textarea>
+                <textarea 
+                  className="input-field" 
+                  rows="3" 
+                  placeholder="Notas internas sobre el cliente..."
+                  value={formData.notes}
+                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                />
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
@@ -571,11 +700,92 @@ const Clients = () => {
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn-primary">
-                  Crear Cliente
+                <button 
+                  type="submit" 
+                  className="btn-primary flex items-center gap-2"
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Creando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Crear y Generar Link
+                    </>
+                  )}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Link Modal */}
+      {showInviteLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/50" onClick={() => setShowInviteLinkModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-fade-in">
+            <button 
+              onClick={() => setShowInviteLinkModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-8 h-8 text-green-600" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800">¡Cliente Creado!</h2>
+              <p className="text-sm text-slate-500 mt-2">
+                Compartí este link para que el cliente establezca su contraseña
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="form-label">Link de invitación</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={inviteLink}
+                    readOnly
+                    className="input-field flex-1 text-sm bg-slate-50"
+                  />
+                  <button
+                    onClick={copyInviteLink}
+                    className="btn-secondary px-3"
+                    title="Copiar"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={copyInviteLink}
+                  className="flex-1 btn-primary flex items-center justify-center gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  Copiar Link
+                </button>
+                <button
+                  onClick={shareWhatsApp}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  WhatsApp
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-400 text-center">
+                El link expira en 7 días. Podés regenerarlo desde el listado de clientes.
+              </p>
+            </div>
           </div>
         </div>
       )}

@@ -8,7 +8,8 @@ const {
   updateClient,
   updateClientKYC,
   updateClientAML,
-  getClientStats
+  getClientStats,
+  resendClientInvite
 } = require('../controllers/clientController');
 
 // Todas las rutas requieren autenticación y rol de admin/manager mínimo
@@ -33,6 +34,9 @@ router.post('/', createClient);
 
 // PUT /api/clients/:id - Actualizar cliente
 router.put('/:id', updateClient);
+
+// POST /api/clients/:id/resend-invite - Reenviar invitación
+router.post('/:id/resend-invite', resendClientInvite);
 
 // ===========================================
 // KYC y AML

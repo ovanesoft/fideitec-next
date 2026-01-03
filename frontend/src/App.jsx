@@ -20,6 +20,7 @@ import DataDeletion from './pages/DataDeletion';
 import PortalLogin from './pages/portal/PortalLogin';
 import PortalRegister from './pages/portal/PortalRegister';
 import PortalDashboard from './pages/portal/PortalDashboard';
+import ClientSetup from './pages/client-portal/ClientSetup';
 // Portal de Proveedores
 import SupplierLogin from './pages/supplier-portal/SupplierLogin';
 import SupplierSetup from './pages/supplier-portal/SupplierSetup';
@@ -139,6 +140,7 @@ function PortalRoutes() {
       <Routes>
         <Route path="/:portalToken/login" element={<PortalLogin />} />
         <Route path="/:portalToken/register" element={<PortalRegister />} />
+        <Route path="/:portalToken/setup/:inviteToken" element={<ClientSetup />} />
         <Route path="/:portalToken/dashboard" element={<PortalDashboard />} />
         <Route path="/:portalToken" element={<Navigate to="login" replace />} />
       </Routes>

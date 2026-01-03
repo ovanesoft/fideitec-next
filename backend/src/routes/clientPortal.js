@@ -34,6 +34,175 @@ router.post('/:portal_token/forgot-password', forgotPassword);
 // POST /api/portal/reset-password - Reset de contraseña
 router.post('/reset-password', resetPassword);
 
+// GET /api/portal/:portal_token/verify-invite/:invite_token - Verificar invitación
+router.get('/:portal_token/verify-invite/:invite_token', async (req, res) => {
+  const { query } = require('../config/database');
+  
+  try {
+    const { portal_token, invite_token } = req.params;
+    
+    // Verificar que el portal existe y está habilitado
+    const tenantResult = await query(
+      `SELECT id, name, client_portal_enabled FROM tenants 
+       WHERE client_portal_token = $1`,
+      [portal_token]
+    );
+    
+    if (tenantResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Portal no encontrado' });
+    }
+    
+    const tenant = tenantResult.rows[0];
+    if (!tenant.client_portal_enabled) {
+      return res.status(403).json({ success: false, message: 'Portal deshabilitado' });
+    }
+    
+    // Verificar invitación
+    const clientResult = await query(
+      `SELECT id, email, first_name, last_name, invite_token_expires
+       FROM clients 
+       WHERE tenant_id = $1 AND invite_token = $2 AND password_hash IS NULL`,
+      [tenant.id, invite_token]
+    );
+    
+    if (clientResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Invitación no válida o ya utilizada' });
+    }
+    
+    const client = clientResult.rows[0];
+    
+    // Verificar que no haya expirado
+    if (client.invite_token_expires && new Date(client.invite_token_expires) < new Date()) {
+      return res.status(400).json({ success: false, message: 'La invitación ha expirado' });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        client: {
+          email: client.email,
+          first_name: client.first_name,
+          last_name: client.last_name
+        },
+        tenant: {
+          name: tenant.name
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error verificando invitación:', error);
+    res.status(500).json({ success: false, message: 'Error al verificar invitación' });
+  }
+});
+
+// POST /api/portal/:portal_token/setup/:invite_token - Establecer contraseña (cliente invitado)
+router.post('/:portal_token/setup/:invite_token', async (req, res) => {
+  const { query } = require('../config/database');
+  const bcrypt = require('bcryptjs');
+  const jwt = require('jsonwebtoken');
+  
+  try {
+    const { portal_token, invite_token } = req.params;
+    const { password } = req.body;
+    
+    if (!password || password.length < 8) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'La contraseña debe tener al menos 8 caracteres' 
+      });
+    }
+    
+    // Verificar portal
+    const tenantResult = await query(
+      `SELECT id, name, client_portal_enabled FROM tenants 
+       WHERE client_portal_token = $1`,
+      [portal_token]
+    );
+    
+    if (tenantResult.rows.length === 0 || !tenantResult.rows[0].client_portal_enabled) {
+      return res.status(404).json({ success: false, message: 'Portal no disponible' });
+    }
+    
+    const tenant = tenantResult.rows[0];
+    
+    // Verificar y actualizar cliente
+    const clientResult = await query(
+      `SELECT id, email, first_name, invite_token_expires
+       FROM clients 
+       WHERE tenant_id = $1 AND invite_token = $2 AND password_hash IS NULL`,
+      [tenant.id, invite_token]
+    );
+    
+    if (clientResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Invitación no válida' });
+    }
+    
+    const client = clientResult.rows[0];
+    
+    if (client.invite_token_expires && new Date(client.invite_token_expires) < new Date()) {
+      return res.status(400).json({ success: false, message: 'La invitación ha expirado' });
+    }
+    
+    // Hash de la contraseña
+    const passwordHash = await bcrypt.hash(password, 12);
+    
+    // Actualizar cliente
+    await query(
+      `UPDATE clients SET 
+        password_hash = $1, 
+        invite_token = NULL, 
+        invite_token_expires = NULL,
+        invite_accepted_at = NOW(),
+        email_verified = true,
+        is_active = true
+       WHERE id = $2`,
+      [passwordHash, client.id]
+    );
+    
+    // Generar tokens
+    const accessToken = jwt.sign(
+      { clientId: client.id, tenantId: tenant.id, type: 'client' },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+    
+    const refreshToken = jwt.sign(
+      { clientId: client.id, tenantId: tenant.id, type: 'client_refresh' },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    // Guardar refresh token
+    const crypto = require('crypto');
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    
+    await query(
+      `INSERT INTO client_refresh_tokens (client_id, token_hash, expires_at, ip_address)
+       VALUES ($1, $2, NOW() + INTERVAL '7 days', $3)`,
+      [client.id, tokenHash, req.ip]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Contraseña establecida correctamente',
+      data: {
+        accessToken,
+        refreshToken,
+        client: {
+          id: client.id,
+          email: client.email,
+          first_name: client.first_name
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error estableciendo contraseña:', error);
+    res.status(500).json({ success: false, message: 'Error al establecer contraseña' });
+  }
+});
+
 // ===========================================
 // RUTAS PROTEGIDAS (Requieren autenticación de cliente)
 // ===========================================

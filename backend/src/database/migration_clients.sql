@@ -104,8 +104,13 @@ CREATE TABLE IF NOT EXISTS clients (
     is_locked BOOLEAN DEFAULT false,
     locked_until TIMESTAMP WITH TIME ZONE,
     
+    -- Invitación (para clientes creados manualmente)
+    invite_token VARCHAR(255),
+    invite_token_expires TIMESTAMP WITH TIME ZONE,
+    invite_accepted_at TIMESTAMP WITH TIME ZONE,
+    
     -- Origen del registro
-    registration_source VARCHAR(20) DEFAULT 'manual' CHECK (registration_source IN ('manual', 'portal', 'import')),
+    registration_source VARCHAR(20) DEFAULT 'manual' CHECK (registration_source IN ('manual', 'portal', 'import', 'invite')),
     registered_by UUID REFERENCES users(id),
     
     -- Auditoría
