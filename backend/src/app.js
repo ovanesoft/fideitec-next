@@ -218,6 +218,53 @@ const startServer = async () => {
     await query('SELECT NOW()');
     console.log('✅ Conexión a PostgreSQL establecida');
 
+    // Auto-migración: crear tablas si no existen
+    try {
+      const tablesExist = await query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'tenants'
+        );
+      `);
+      
+      if (!tablesExist.rows[0].exists) {
+        console.log('📦 Tablas no encontradas. Ejecutando migración inicial...');
+        const fs = require('fs');
+        const path = require('path');
+        
+        // Schema principal
+        const schemaPath = path.join(__dirname, 'database', 'schema.sql');
+        if (fs.existsSync(schemaPath)) {
+          const schema = fs.readFileSync(schemaPath, 'utf8');
+          await query(schema);
+          console.log('✅ Schema principal creado');
+        }
+        
+        // Migración de clientes
+        const clientsPath = path.join(__dirname, 'database', 'migration_clients.sql');
+        if (fs.existsSync(clientsPath)) {
+          const clientsMigration = fs.readFileSync(clientsPath, 'utf8');
+          await query(clientsMigration);
+          console.log('✅ Migración de clientes aplicada');
+        }
+        
+        // Migración de proveedores
+        const suppliersPath = path.join(__dirname, 'database', 'migration_suppliers.sql');
+        if (fs.existsSync(suppliersPath)) {
+          const suppliersMigration = fs.readFileSync(suppliersPath, 'utf8');
+          await query(suppliersMigration);
+          console.log('✅ Migración de proveedores aplicada');
+        }
+        
+        console.log('🎉 Base de datos inicializada correctamente');
+      } else {
+        console.log('✅ Tablas ya existen');
+      }
+    } catch (migrationError) {
+      console.error('⚠️ Error en migración (continuando):', migrationError.message);
+    }
+
     app.listen(PORT, () => {
       console.log(`
 🚀 FIDEITEC API iniciada
