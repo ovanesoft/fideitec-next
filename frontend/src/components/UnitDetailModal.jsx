@@ -1,16 +1,17 @@
 /**
  * UnitDetailModal - Modal de Detalle de Unidad con Checklist de Construcción
- * @version 1.8
+ * @version 1.9
  * @date 2026-01-03
  * 
  * Sistema de incidencias con subcategorías y item "General" automático
+ * v1.9: Armonización de colores con el resto del dashboard
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 
-const MODAL_VERSION = '1.8';
+const MODAL_VERSION = '1.9';
 import {
   X, Save, CheckCircle2, Circle, Clock, AlertTriangle,
   Building2, FileText, Image, Upload, Trash2, Plus, 
@@ -25,56 +26,29 @@ import {
 // CONSTANTES - ALINEADAS CON EL BACKEND
 // =============================================
 
-// Mapeo de códigos de categoría del backend a iconos y colores
-const CATEGORY_CONFIG = {
-  // Estructura
-  masonry: { name: 'Mampostería', icon: Layers, color: 'amber' },
-  plastering: { name: 'Revoque y Enlucido', icon: Square, color: 'orange' },
-  // Instalaciones
-  electrical: { name: 'Electricidad', icon: Zap, color: 'yellow' },
-  plumbing: { name: 'Plomería', icon: Droplets, color: 'blue' },
-  gas: { name: 'Gas', icon: Flame, color: 'red' },
-  hvac: { name: 'Climatización', icon: Thermometer, color: 'cyan' },
-  // Terminaciones
-  flooring: { name: 'Pisos', icon: LayoutGrid, color: 'amber' },
-  tiling: { name: 'Revestimientos', icon: Grip, color: 'teal' },
-  painting: { name: 'Pintura', icon: PaintBucket, color: 'purple' },
-  carpentry: { name: 'Carpintería', icon: DoorOpen, color: 'amber' },
-  metalwork: { name: 'Herrería', icon: Hammer, color: 'slate' },
-  // Baño y cocina
-  fixtures: { name: 'Grifería', icon: ShowerHead, color: 'indigo' },
-  sanitary: { name: 'Sanitarios', icon: Bath, color: 'sky' },
-  countertops: { name: 'Mesada y Bachas', icon: Package, color: 'emerald' },
-  // Aberturas
-  windows: { name: 'Ventanas', icon: Square, color: 'blue' },
-  main_door: { name: 'Puerta Principal', icon: DoorOpen, color: 'rose' },
-  // Exteriores
-  balcony: { name: 'Balcón/Terraza', icon: Fence, color: 'green' },
-  // Final
-  final_cleaning: { name: 'Limpieza Final', icon: Sparkles, color: 'violet' },
-  final_inspection: { name: 'Inspección Final', icon: ClipboardCheck, color: 'lime' },
-  documentation: { name: 'Documentación', icon: FileCheck, color: 'fuchsia' }
-};
-
-// Colores para las barras de progreso
-const CATEGORY_COLORS = {
-  amber: { bg: 'bg-amber-100', fill: 'bg-amber-500', text: 'text-amber-700', border: 'border-amber-300', accent: 'accent-amber-500' },
-  orange: { bg: 'bg-orange-100', fill: 'bg-orange-500', text: 'text-orange-700', border: 'border-orange-300', accent: 'accent-orange-500' },
-  yellow: { bg: 'bg-yellow-100', fill: 'bg-yellow-500', text: 'text-yellow-700', border: 'border-yellow-300', accent: 'accent-yellow-500' },
-  blue: { bg: 'bg-blue-100', fill: 'bg-blue-500', text: 'text-blue-700', border: 'border-blue-300', accent: 'accent-blue-500' },
-  red: { bg: 'bg-red-100', fill: 'bg-red-500', text: 'text-red-700', border: 'border-red-300', accent: 'accent-red-500' },
-  cyan: { bg: 'bg-cyan-100', fill: 'bg-cyan-500', text: 'text-cyan-700', border: 'border-cyan-300', accent: 'accent-cyan-500' },
-  teal: { bg: 'bg-teal-100', fill: 'bg-teal-500', text: 'text-teal-700', border: 'border-teal-300', accent: 'accent-teal-500' },
-  purple: { bg: 'bg-purple-100', fill: 'bg-purple-500', text: 'text-purple-700', border: 'border-purple-300', accent: 'accent-purple-500' },
-  slate: { bg: 'bg-slate-100', fill: 'bg-slate-500', text: 'text-slate-700', border: 'border-slate-300', accent: 'accent-slate-500' },
-  indigo: { bg: 'bg-indigo-100', fill: 'bg-indigo-500', text: 'text-indigo-700', border: 'border-indigo-300', accent: 'accent-indigo-500' },
-  sky: { bg: 'bg-sky-100', fill: 'bg-sky-500', text: 'text-sky-700', border: 'border-sky-300', accent: 'accent-sky-500' },
-  emerald: { bg: 'bg-emerald-100', fill: 'bg-emerald-500', text: 'text-emerald-700', border: 'border-emerald-300', accent: 'accent-emerald-500' },
-  rose: { bg: 'bg-rose-100', fill: 'bg-rose-500', text: 'text-rose-700', border: 'border-rose-300', accent: 'accent-rose-500' },
-  green: { bg: 'bg-green-100', fill: 'bg-green-500', text: 'text-green-700', border: 'border-green-300', accent: 'accent-green-500' },
-  violet: { bg: 'bg-violet-100', fill: 'bg-violet-500', text: 'text-violet-700', border: 'border-violet-300', accent: 'accent-violet-500' },
-  lime: { bg: 'bg-lime-100', fill: 'bg-lime-500', text: 'text-lime-700', border: 'border-lime-300', accent: 'accent-lime-500' },
-  fuchsia: { bg: 'bg-fuchsia-100', fill: 'bg-fuchsia-500', text: 'text-fuchsia-700', border: 'border-fuchsia-300', accent: 'accent-fuchsia-500' }
+// Mapeo de códigos de categoría del backend a iconos
+// Todos usan la misma paleta de colores (slate/primary)
+const CATEGORY_ICONS = {
+  masonry: Layers,
+  plastering: Square,
+  electrical: Zap,
+  plumbing: Droplets,
+  gas: Flame,
+  hvac: Thermometer,
+  flooring: LayoutGrid,
+  tiling: Grip,
+  painting: PaintBucket,
+  carpentry: DoorOpen,
+  metalwork: Hammer,
+  fixtures: ShowerHead,
+  sanitary: Bath,
+  countertops: Package,
+  windows: Square,
+  main_door: DoorOpen,
+  balcony: Fence,
+  final_cleaning: Sparkles,
+  final_inspection: ClipboardCheck,
+  documentation: FileCheck
 };
 
 // Estados
@@ -94,22 +68,21 @@ const SALE_STATUS = {
 };
 
 // =============================================
-// COMPONENTE: BARRA DE PROGRESO
+// COMPONENTE: BARRA DE PROGRESO (Colores unificados)
 // =============================================
-const ProgressBar = ({ progress, colorScheme = 'blue', size = 'md' }) => {
-  const colors = CATEGORY_COLORS[colorScheme] || CATEGORY_COLORS.blue;
+const ProgressBar = ({ progress, size = 'md' }) => {
   const isComplete = progress >= 100;
   const height = size === 'sm' ? 'h-2' : size === 'lg' ? 'h-5' : 'h-3';
   
   return (
     <div className="flex items-center gap-3 w-full">
-      <div className={`flex-1 ${colors.bg} rounded-full ${height} overflow-hidden shadow-inner`}>
+      <div className={`flex-1 bg-slate-200 rounded-full ${height} overflow-hidden`}>
         <div 
-          className={`${height} rounded-full transition-all duration-500 ${isComplete ? 'bg-green-500' : colors.fill}`}
+          className={`${height} rounded-full transition-all duration-500 ${isComplete ? 'bg-green-500' : 'bg-primary-500'}`}
           style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
         />
       </div>
-      <span className={`text-sm font-bold min-w-[3.5rem] text-right ${isComplete ? 'text-green-600' : colors.text}`}>
+      <span className={`text-sm font-bold min-w-[3.5rem] text-right ${isComplete ? 'text-green-600' : 'text-slate-700'}`}>
         {Math.round(progress)}%
       </span>
     </div>
@@ -117,30 +90,24 @@ const ProgressBar = ({ progress, colorScheme = 'blue', size = 'md' }) => {
 };
 
 // =============================================
-// COMPONENTE: SUBCATEGORÍA ITEM
+// COMPONENTE: SUBCATEGORÍA ITEM (Colores unificados)
 // =============================================
 const SubcategoryItem = ({ 
   item, 
-  categoryColor, 
   onProgressChange, 
-  onWeightChange,
   onDelete, 
   onEdit,
-  isGeneral,
-  availableWeight
+  isGeneral
 }) => {
-  const colors = CATEGORY_COLORS[categoryColor] || CATEGORY_COLORS.blue;
   const [localProgress, setLocalProgress] = useState(item.progress_percentage || 0);
   const debounceRef = useRef(null);
   
-  // Sincronizar con prop
   useEffect(() => {
     setLocalProgress(item.progress_percentage || 0);
   }, [item.progress_percentage]);
 
   const handleProgressChange = (value) => {
     setLocalProgress(value);
-    // Debounce para no saturar el servidor
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       onProgressChange(item.id, value);
@@ -148,42 +115,37 @@ const SubcategoryItem = ({
   };
 
   return (
-    <div className={`p-4 rounded-xl border-2 transition-all ${
+    <div className={`p-4 rounded-xl border transition-all ${
       isGeneral 
-        ? 'bg-slate-50/50 border-dashed border-slate-300' 
-        : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
+        ? 'bg-slate-50 border-dashed border-slate-300' 
+        : 'bg-white border-slate-200 hover:border-slate-300'
     }`}>
       <div className="flex items-start gap-4">
-        {/* Info principal */}
+        {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`font-semibold ${isGeneral ? 'text-slate-500 italic' : 'text-slate-800'}`}>
+            <span className={`font-medium ${isGeneral ? 'text-slate-400 italic' : 'text-slate-700'}`}>
               {item.name}
             </span>
             {isGeneral && (
-              <span className="text-xs text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full">
-                Auto-compensado
+              <span className="text-xs text-slate-400 bg-slate-200 px-2 py-0.5 rounded">
+                Auto
               </span>
             )}
           </div>
           
-          {/* Incidencia */}
-          <div className="flex items-center gap-3 mt-2">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${colors.bg} ${colors.text}`}>
-              Incidencia: {item.weight || 0}%
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+              {item.weight || 0}% incidencia
             </span>
             <span className="text-xs text-slate-400">
-              Aporta {Math.round(((item.weight || 0) * localProgress) / 100)}% al total
+              → {Math.round(((item.weight || 0) * localProgress) / 100)}% aporte
             </span>
           </div>
-          
-          {item.notes && (
-            <p className="text-xs text-slate-500 mt-1 truncate">{item.notes}</p>
-          )}
         </div>
         
-        {/* Slider de progreso */}
-        <div className="w-52 flex-shrink-0">
+        {/* Slider */}
+        <div className="w-48 flex-shrink-0">
           <div className="flex items-center gap-2">
             <input
               type="range"
@@ -192,32 +154,21 @@ const SubcategoryItem = ({
               step="5"
               value={localProgress}
               onChange={(e) => handleProgressChange(parseInt(e.target.value))}
-              className={`flex-1 h-2 rounded-full appearance-none cursor-pointer bg-slate-200`}
-              style={{
-                background: `linear-gradient(to right, ${localProgress >= 100 ? '#22c55e' : ''} ${localProgress}%, #e2e8f0 ${localProgress}%)`
-              }}
+              className="flex-1 h-2 rounded-full appearance-none cursor-pointer bg-slate-200 accent-primary-500"
             />
-            <span className={`text-sm font-bold w-12 text-right ${localProgress >= 100 ? 'text-green-600' : colors.text}`}>
+            <span className={`text-sm font-bold w-12 text-right ${localProgress >= 100 ? 'text-green-600' : 'text-slate-600'}`}>
               {localProgress}%
             </span>
           </div>
         </div>
         
-        {/* Acciones (solo para items no-general) */}
+        {/* Acciones */}
         {!isGeneral && (
           <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={() => onEdit(item)}
-              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Editar incidencia"
-            >
+            <button onClick={() => onEdit(item)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded" title="Editar">
               <Edit2 className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => onDelete(item)}
-              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              title="Eliminar subcategoría"
-            >
+            <button onClick={() => onDelete(item)} className="p-1.5 text-slate-400 hover:text-red-500 rounded" title="Eliminar">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
@@ -228,7 +179,7 @@ const SubcategoryItem = ({
 };
 
 // =============================================
-// COMPONENTE: CATEGORÍA DE CONSTRUCCIÓN
+// COMPONENTE: CATEGORÍA DE CONSTRUCCIÓN (Colores unificados)
 // =============================================
 const ConstructionCategory = ({
   categoryCode,
@@ -241,139 +192,100 @@ const ConstructionCategory = ({
   onDeleteSubcategory,
   onEditSubcategory
 }) => {
-  const config = CATEGORY_CONFIG[categoryCode] || { name: categoryName, icon: Circle, color: 'slate' };
-  const colors = CATEGORY_COLORS[config.color] || CATEGORY_COLORS.slate;
-  const Icon = config.icon;
+  const Icon = CATEGORY_ICONS[categoryCode] || Circle;
   
-  // Separar items: el "General" y los demás
   const generalItem = items.find(i => i.name?.toLowerCase().includes('general'));
   const regularItems = items.filter(i => !i.name?.toLowerCase().includes('general'));
   
-  // Calcular progreso ponderado de la categoría
   const categoryProgress = useMemo(() => {
     if (items.length === 0) return 0;
     const totalWeight = items.reduce((sum, item) => sum + (item.weight || 0), 0);
     if (totalWeight === 0) return 0;
-    
     return items.reduce((acc, item) => {
       const normalizedWeight = (item.weight || 0) / totalWeight * 100;
       return acc + (normalizedWeight * (item.progress_percentage || 0)) / 100;
     }, 0);
   }, [items]);
   
-  // Calcular peso disponible para nuevas subcategorías
   const usedWeight = regularItems.reduce((sum, item) => sum + (item.weight || 0), 0);
   const availableWeight = Math.max(0, 100 - usedWeight);
-  
   const isComplete = categoryProgress >= 99.5;
   
   return (
-    <div className={`rounded-2xl border-2 overflow-hidden transition-all shadow-sm ${
-      isComplete 
-        ? 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50' 
-        : `${colors.border} bg-white`
+    <div className={`rounded-xl border overflow-hidden transition-all ${
+      isComplete ? 'border-green-300 bg-green-50' : 'border-slate-200 bg-white'
     }`}>
       {/* Header */}
       <div 
-        className={`p-5 cursor-pointer transition-colors ${
-          isComplete ? 'hover:bg-green-100/50' : 'hover:bg-slate-50'
-        }`}
+        className={`p-4 cursor-pointer transition-colors ${isComplete ? 'hover:bg-green-100' : 'hover:bg-slate-50'}`}
         onClick={onToggle}
       >
         <div className="flex items-center gap-4">
-          {/* Icono */}
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md ${
-            isComplete ? 'bg-gradient-to-br from-green-500 to-emerald-600' : colors.fill
-          }`}>
-            <Icon className="w-6 h-6 text-white" />
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isComplete ? 'bg-green-500' : 'bg-slate-600'}`}>
+            <Icon className="w-5 h-5 text-white" />
           </div>
           
-          {/* Info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3">
-              <h3 className={`font-bold text-lg ${isComplete ? 'text-green-800' : 'text-slate-800'}`}>
-                {config.name}
+            <div className="flex items-center gap-2">
+              <h3 className={`font-semibold ${isComplete ? 'text-green-800' : 'text-slate-800'}`}>
+                {categoryName}
               </h3>
               {isComplete && (
-                <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-200 px-2.5 py-1 rounded-full">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Completado
+                <span className="flex items-center gap-1 text-xs text-green-700 bg-green-200 px-2 py-0.5 rounded">
+                  <CheckCircle2 className="w-3 h-3" /> Listo
                 </span>
               )}
             </div>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {items.length} {items.length === 1 ? 'subcategoría' : 'subcategorías'}
-              {availableWeight < 100 && !isComplete && (
-                <span className="ml-2 text-amber-600">• {availableWeight}% disponible</span>
-              )}
+            <p className="text-xs text-slate-500">
+              {items.length} items{availableWeight < 100 && availableWeight > 0 && ` • ${availableWeight}% libre`}
             </p>
           </div>
           
-          {/* Barra de progreso */}
-          <div className="w-64 flex-shrink-0">
-            <ProgressBar 
-              progress={categoryProgress}
-              colorScheme={isComplete ? 'green' : config.color}
-              size="md"
-            />
+          <div className="w-56 flex-shrink-0">
+            <ProgressBar progress={categoryProgress} size="md" />
           </div>
           
-          {/* Chevron */}
-          <div className="p-2 text-slate-400">
+          <div className="text-slate-400">
             {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
           </div>
         </div>
       </div>
       
-      {/* Contenido expandido */}
+      {/* Contenido */}
       {isExpanded && (
-        <div className="border-t border-slate-200 p-5 space-y-3 bg-slate-50/30">
-          {/* Items regulares primero */}
+        <div className="border-t border-slate-200 p-4 space-y-2 bg-slate-50">
           {regularItems.map((item) => (
             <SubcategoryItem
               key={item.id}
               item={item}
-              categoryColor={config.color}
               isGeneral={false}
               onProgressChange={onProgressChange}
               onDelete={onDeleteSubcategory}
               onEdit={onEditSubcategory}
-              availableWeight={availableWeight}
             />
           ))}
           
-          {/* Item "General" al final */}
           {generalItem && (
             <SubcategoryItem
               key={generalItem.id}
               item={generalItem}
-              categoryColor={config.color}
               isGeneral={true}
               onProgressChange={onProgressChange}
               onDelete={() => {}}
               onEdit={() => {}}
-              availableWeight={0}
             />
           )}
           
-          {/* Botón agregar */}
           {availableWeight > 0 && (
             <button
               onClick={onAddSubcategory}
-              className={`w-full p-4 rounded-xl border-2 border-dashed ${colors.border} 
-                text-slate-500 hover:${colors.text} hover:${colors.bg} hover:border-solid
-                transition-all flex items-center justify-center gap-2 font-medium`}
+              className="w-full p-3 rounded-lg border border-dashed border-slate-300 text-slate-500 
+                hover:text-slate-700 hover:bg-white hover:border-slate-400
+                transition-all flex items-center justify-center gap-2 text-sm"
             >
-              <Plus className="w-5 h-5" />
-              Agregar Subcategoría ({availableWeight}% disponible)
+              <Plus className="w-4 h-4" />
+              Agregar ({availableWeight}% disponible)
             </button>
-          )}
-          
-          {availableWeight <= 0 && !generalItem && (
-            <div className="text-center py-3 text-amber-600 text-sm bg-amber-50 rounded-lg">
-              <AlertTriangle className="w-4 h-4 inline mr-2" />
-              100% asignado. Editá los porcentajes existentes para agregar más.
-            </div>
           )}
         </div>
       )}
@@ -401,7 +313,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   
   // Refs
   const debounceTimers = useRef({});
-
+  
   // =============================================
   // CARGA DE DATOS
   // =============================================
@@ -438,7 +350,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     } catch (error) {
       console.error('Error cargando unidad:', error);
       toast.error('Error al cargar unidad');
-      onClose?.();
+        onClose?.();
     } finally {
       setLoading(false);
     }
@@ -548,7 +460,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   const handleProgressChange = useCallback(async (itemId, newProgress) => {
     // Actualizar localmente
     setUnit(prev => ({
-      ...prev,
+        ...prev,
       progress_items: prev.progress_items.map(item =>
         item.id === itemId 
           ? { 
@@ -629,8 +541,8 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   const handleSaveSubcategory = async () => {
     if (!subcategoryForm.name.trim()) {
       toast.error('Ingresá un nombre');
-      return;
-    }
+        return;
+      }
 
     const categoryCode = targetCategory.code;
     const items = groupedItems[categoryCode]?.items || [];
@@ -642,7 +554,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
       toast.error(`Máximo disponible: ${maxAvailable}%`);
       return;
     }
-
+    
     try {
       setSaving(true);
       
@@ -665,11 +577,10 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         toast.success('Subcategoría actualizada');
       } else {
         // Crear nueva
-        const config = CATEGORY_CONFIG[categoryCode];
         await api.post(`/units/${unitId}/progress`, {
           name: subcategoryForm.name,
           category_code: categoryCode,
-          category_name: config?.name || targetCategory.name,
+          category_name: targetCategory.name,
           weight: subcategoryForm.weight,
           status: 'pending',
           progress_percentage: 0
@@ -705,8 +616,8 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
       return;
     }
     
-    const config = CATEGORY_CONFIG[categoryCode];
-    if (!window.confirm(`¿Eliminar "${item.name}"?\nEl ${item.weight}% se reasignará a "${config?.name || categoryCode} General".`)) {
+    const categoryName = groupedItems[categoryCode]?.name || categoryCode;
+    if (!window.confirm(`¿Eliminar "${item.name}"?\nEl ${item.weight}% se reasignará a "${categoryName} General".`)) {
       return;
     }
     
@@ -766,14 +677,14 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
             <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30">
               <Building2 className="w-7 h-7 text-white" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-800">
-                {unit.unit_name || unit.unit_code || 'Unidad'}
-              </h2>
-              <p className="text-sm text-slate-500">
-                {unit.asset_name} • Piso {unit.floor_number || '-'}
-              </p>
-            </div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">
+              {unit.unit_name || unit.unit_code || 'Unidad'}
+            </h2>
+            <p className="text-sm text-slate-500">
+              {unit.asset_name} • Piso {unit.floor_number || '-'}
+            </p>
+          </div>
           </div>
           
           <div className="flex items-center gap-4">
@@ -832,82 +743,50 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
           {/* Tab: Checklist */}
           {activeTab === 'checklist' && (
             <div className="p-6 space-y-6">
-              {/* Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-xl p-4 border border-green-200">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center shadow-md">
-                      <CheckCircle2 className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-green-700">{progressStats.completed}</p>
-                      <p className="text-xs text-green-600 font-medium">Completados</p>
-                    </div>
-                  </div>
+              {/* Stats - Diseño simplificado */}
+              <div className="grid grid-cols-4 gap-3">
+                <div className="bg-white rounded-lg p-3 border border-slate-200 text-center">
+                  <p className="text-2xl font-bold text-green-600">{progressStats.completed}</p>
+                  <p className="text-xs text-slate-500">Completados</p>
                 </div>
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-4 border border-blue-200">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center shadow-md">
-                      <Clock className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-blue-700">{progressStats.inProgress}</p>
-                      <p className="text-xs text-blue-600 font-medium">En Progreso</p>
-                    </div>
-                  </div>
+                <div className="bg-white rounded-lg p-3 border border-slate-200 text-center">
+                  <p className="text-2xl font-bold text-blue-600">{progressStats.inProgress}</p>
+                  <p className="text-xs text-slate-500">En Progreso</p>
                 </div>
-                <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-slate-400 rounded-lg flex items-center justify-center shadow-md">
-                      <Circle className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-slate-700">{progressStats.notStarted}</p>
-                      <p className="text-xs text-slate-600 font-medium">Sin Iniciar</p>
-                    </div>
-                  </div>
+                <div className="bg-white rounded-lg p-3 border border-slate-200 text-center">
+                  <p className="text-2xl font-bold text-slate-400">{progressStats.notStarted}</p>
+                  <p className="text-xs text-slate-500">Sin Iniciar</p>
                 </div>
-                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-4 border border-primary-200">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center shadow-md">
-                      <ClipboardCheck className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-primary-700">{overallProgress}%</p>
-                      <p className="text-xs text-primary-600 font-medium">Progreso Total</p>
-                    </div>
-                  </div>
+                <div className="bg-slate-800 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-white">{overallProgress}%</p>
+                  <p className="text-xs text-slate-300">Total</p>
                 </div>
               </div>
 
-              {/* Info box */}
-              <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-semibold mb-1">Sistema de Incidencias</p>
-                  <ul className="space-y-0.5 text-blue-700">
-                    <li>• Cada categoría tiene subcategorías con <strong>porcentaje de incidencia</strong> que suman 100%</li>
-                    <li>• El item "<strong>General</strong>" compensa automáticamente el porcentaje no asignado</li>
-                    <li>• Ajustá el <strong>progreso</strong> de cada subcategoría con el slider (0-100%)</li>
-                  </ul>
-                </div>
+              {/* Info box - Más sutil */}
+              <div className="flex items-start gap-2 p-3 bg-slate-100 rounded-lg text-xs text-slate-600">
+                <Info className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                <p>
+                  Cada categoría tiene subcategorías con % de incidencia que suman 100%. 
+                  El item "General" compensa el % no asignado. Ajustá el progreso con los sliders.
+                </p>
               </div>
 
               {/* Categorías */}
               {!hasProgressItems ? (
-                <div className="text-center py-16 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-2 border-dashed border-slate-300">
-                  <ClipboardCheck className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-slate-700 mb-2">Sin checklist de construcción</h3>
-                  <p className="text-slate-500 mb-6 max-w-md mx-auto">
-                    Inicializá el checklist para hacer seguimiento detallado de todas las etapas de construcción.
+                <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                  <ClipboardCheck className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-slate-700 mb-1">Sin checklist</h3>
+                  <p className="text-sm text-slate-500 mb-4">
+                    Inicializá el checklist para seguimiento de construcción.
                   </p>
                   <button
                     onClick={handleInitializeChecklist}
                     disabled={saving}
-                    className="btn-primary inline-flex items-center gap-2 text-lg px-8 py-4"
+                    className="btn-primary inline-flex items-center gap-2"
                   >
-                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                    Inicializar Checklist Completo
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    Inicializar Checklist
                   </button>
                 </div>
               ) : (
@@ -930,7 +809,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
               )}
             </div>
           )}
-
+          
           {/* Tab: Información */}
           {activeTab === 'info' && (
             <div className="p-6 space-y-6">
@@ -1090,26 +969,26 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                 <Image className="w-16 h-16 text-slate-300 mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-slate-700 mb-2">Sin documentos</h3>
                 <p className="text-slate-500">Subí fotos del progreso, planos, facturas y otros documentos</p>
-              </div>
+                          </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Modal Subcategoría */}
+      {/* Modal Subcategoría - Simplificado */}
       {showSubcategoryModal && targetCategory && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
-            <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
-              <h3 className="text-lg font-bold text-slate-900">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div className="p-4 border-b border-slate-200">
+              <h3 className="font-semibold text-slate-800">
                 {editingSubcategory ? 'Editar Subcategoría' : 'Nueva Subcategoría'}
               </h3>
-              <p className="text-sm text-slate-500 mt-1">Categoría: {CATEGORY_CONFIG[targetCategory.code]?.name || targetCategory.name}</p>
+              <p className="text-xs text-slate-500">{targetCategory.name}</p>
             </div>
             
-            <div className="p-6 space-y-5">
+            <div className="p-4 space-y-4">
               <div>
-                <label className="form-label">Nombre *</label>
+                <label className="form-label">Nombre</label>
                 <input
                   type="text"
                   value={subcategoryForm.name}
@@ -1121,7 +1000,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
               </div>
 
               <div>
-                <label className="form-label">Porcentaje de Incidencia</label>
+                <label className="form-label">Incidencia</label>
                 {(() => {
                   const items = groupedItems[targetCategory.code]?.items || [];
                   const regularItems = items.filter(i => !i.name?.toLowerCase().includes('general') && i.id !== editingSubcategory?.id);
@@ -1129,61 +1008,39 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                   const maxAvailable = 100 - usedWeight;
                   
                   return (
-                    <div className="space-y-4">
-                      <div className="bg-slate-100 rounded-xl p-4">
-                        <div className="flex justify-between text-xs mb-2">
-                          <span className="text-slate-600">Distribución</span>
-                          <span className="font-semibold text-slate-700">Total: 100%</span>
-                        </div>
-                        <div className="h-6 bg-slate-200 rounded-lg overflow-hidden flex">
-                          {regularItems.map((item, idx) => {
-                            const colors = ['bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-cyan-500'];
-                            return (
-                              <div
-                                key={item.id}
-                                className={`h-full ${colors[idx % colors.length]} flex items-center justify-center text-white text-xs font-medium`}
-                                style={{ width: `${item.weight || 0}%` }}
-                              >
-                                {(item.weight || 0) >= 10 && `${item.weight}%`}
-                              </div>
-                            );
-                          })}
-                          {subcategoryForm.weight > 0 && subcategoryForm.weight <= maxAvailable && (
-                            <div className="h-full bg-green-500 flex items-center justify-center text-white text-xs font-medium" style={{ width: `${subcategoryForm.weight}%` }}>
-                              {subcategoryForm.weight >= 10 && `${subcategoryForm.weight}%`}
-                            </div>
-                          )}
-                          {(maxAvailable - (subcategoryForm.weight <= maxAvailable ? subcategoryForm.weight : 0)) > 0 && (
-                            <div className="h-full bg-slate-400 flex items-center justify-center text-slate-200 text-xs" style={{ width: `${maxAvailable - (subcategoryForm.weight <= maxAvailable ? subcategoryForm.weight : 0)}%` }}>
-                              General
-                            </div>
-                          )}
-                        </div>
+                    <div className="space-y-3">
+                      {/* Barra visual simple */}
+                      <div className="h-4 bg-slate-200 rounded overflow-hidden flex">
+                        {usedWeight > 0 && (
+                          <div className="h-full bg-slate-500" style={{ width: `${usedWeight}%` }} />
+                        )}
+                        {subcategoryForm.weight > 0 && (
+                          <div className="h-full bg-primary-500" style={{ width: `${Math.min(subcategoryForm.weight, maxAvailable)}%` }} />
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         <input
                           type="range"
                           min="1"
-                          max={maxAvailable}
-                          value={Math.min(subcategoryForm.weight, maxAvailable)}
+                          max={maxAvailable || 1}
+                          value={Math.min(subcategoryForm.weight, maxAvailable || 1)}
                           onChange={(e) => setSubcategoryForm(prev => ({ ...prev, weight: parseInt(e.target.value) }))}
-                          className="flex-1 h-2 accent-green-500"
+                          disabled={maxAvailable <= 0}
+                          className="flex-1 h-2 accent-primary-500"
                         />
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="1"
-                            max={maxAvailable}
-                            value={subcategoryForm.weight}
-                            onChange={(e) => setSubcategoryForm(prev => ({ ...prev, weight: Math.min(parseInt(e.target.value) || 1, maxAvailable) }))}
-                            className="w-16 px-2 py-1 text-center border border-slate-200 rounded-lg font-bold"
-                          />
-                          <span className="text-slate-500">%</span>
-                        </div>
+                        <input
+                          type="number"
+                          min="1"
+                          max={maxAvailable}
+                          value={subcategoryForm.weight}
+                          onChange={(e) => setSubcategoryForm(prev => ({ ...prev, weight: Math.min(parseInt(e.target.value) || 1, maxAvailable) }))}
+                          className="w-16 px-2 py-1 text-center border border-slate-200 rounded text-sm font-medium"
+                        />
+                        <span className="text-slate-400 text-sm">%</span>
                       </div>
                       <p className="text-xs text-slate-500">
-                        Máximo disponible: <span className="font-semibold text-green-600">{maxAvailable}%</span>
+                        Disponible: {maxAvailable}% • Usado: {usedWeight}%
                       </p>
                     </div>
                   );
@@ -1191,9 +1048,9 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
               </div>
             </div>
             
-            <div className="flex justify-end gap-3 p-6 border-t border-slate-200 bg-slate-50">
-              <button onClick={() => setShowSubcategoryModal(false)} className="btn-secondary">Cancelar</button>
-              <button onClick={handleSaveSubcategory} disabled={saving || !subcategoryForm.name.trim()} className="btn-primary inline-flex items-center gap-2">
+            <div className="flex justify-end gap-2 p-4 border-t border-slate-200 bg-slate-50">
+              <button onClick={() => setShowSubcategoryModal(false)} className="btn-secondary text-sm py-2">Cancelar</button>
+              <button onClick={handleSaveSubcategory} disabled={saving || !subcategoryForm.name.trim()} className="btn-primary text-sm py-2 inline-flex items-center gap-1">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 {editingSubcategory ? 'Guardar' : 'Agregar'}
               </button>
