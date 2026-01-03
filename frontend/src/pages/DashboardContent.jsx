@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Mail, Calendar, Users, TrendingUp, DollarSign, Activity, Truck, Loader2 } from 'lucide-react';
+import { Shield, Mail, Calendar, Users, TrendingUp, DollarSign, Activity, Truck, Loader2, Building, FileText } from 'lucide-react';
 import axios from '../api/axios';
 
 const DashboardContent = () => {
@@ -8,21 +8,27 @@ const DashboardContent = () => {
   const [stats, setStats] = useState({
     clients: 0,
     suppliers: 0,
-    fideicomisos: 0
+    trusts: 0,
+    assets: 0
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Obtener estadísticas de clientes
-        const clientsRes = await axios.get('/clients/stats').catch(() => ({ data: { success: false } }));
-        const suppliersRes = await axios.get('/suppliers/stats').catch(() => ({ data: { success: false } }));
+        // Obtener todas las estadísticas en paralelo
+        const [clientsRes, suppliersRes, trustsRes, assetsRes] = await Promise.all([
+          axios.get('/clients/stats').catch(() => ({ data: { success: false } })),
+          axios.get('/suppliers/stats').catch(() => ({ data: { success: false } })),
+          axios.get('/trusts/stats').catch(() => ({ data: { success: false } })),
+          axios.get('/assets/stats').catch(() => ({ data: { success: false } }))
+        ]);
         
         setStats({
           clients: clientsRes.data?.data?.stats?.total || 0,
           suppliers: suppliersRes.data?.data?.stats?.total || 0,
-          fideicomisos: 0 // Pendiente de implementar
+          trusts: trustsRes.data?.data?.stats?.total || 0,
+          assets: assetsRes.data?.data?.stats?.total || 0
         });
       } catch (err) {
         console.error('Error cargando estadísticas:', err);
@@ -31,15 +37,16 @@ const DashboardContent = () => {
       }
     };
 
-    if (user?.tenantId) {
+    if (user) {
       fetchStats();
     }
-  }, [user?.tenantId]);
+  }, [user]);
 
   const statsCards = [
+    { label: 'Fideicomisos', value: stats.trusts, icon: FileText, color: 'bg-purple-500' },
+    { label: 'Activos', value: stats.assets, icon: Building, color: 'bg-emerald-500' },
     { label: 'Clientes', value: stats.clients, icon: Users, color: 'bg-blue-500' },
     { label: 'Proveedores', value: stats.suppliers, icon: Truck, color: 'bg-amber-500' },
-    { label: 'Fideicomisos', value: stats.fideicomisos, icon: DollarSign, color: 'bg-purple-500' },
   ];
 
   return (
@@ -72,9 +79,9 @@ const DashboardContent = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {loading ? (
-          <div className="col-span-3 flex justify-center py-8">
+          <div className="col-span-4 flex justify-center py-8">
             <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
           </div>
         ) : (
