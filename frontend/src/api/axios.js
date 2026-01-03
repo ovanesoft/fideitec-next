@@ -1,9 +1,20 @@
 import axios from 'axios';
 
-// En producción, VITE_API_URL será la URL completa del backend (ej: https://api.nicroma.com)
-const API_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/api`
-  : '/api';
+// En producción, VITE_API_URL será la URL del backend
+// Puede ser solo el hostname (fideitec-api.onrender.com) o la URL completa
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl) return '/api';
+  
+  // Si ya tiene protocolo, usarlo directamente
+  if (envUrl.startsWith('http')) {
+    return `${envUrl}/api`;
+  }
+  // Si no tiene protocolo, agregar https
+  return `https://${envUrl}/api`;
+};
+
+const API_URL = getApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,

@@ -126,6 +126,11 @@ app.get('/health', (req, res) => {
 // Rutas de la API
 // ===========================================
 
+// Health check para Render
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/users', userRoutes);

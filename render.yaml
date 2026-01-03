@@ -1,33 +1,24 @@
-# =====================================================
-# FIDEITEC - Render Blueprint
-# Gestión de Fideicomisos Inmobiliarios
-# =====================================================
-
 databases:
   - name: fideitec-db
-    region: oregon
-    plan: basic-256mb
+    plan: free
     databaseName: fideitec
     user: fideitec_user
-    postgresMajorVersion: 16
-    diskSizeGB: 10
+    region: oregon
 
 services:
   # Backend API
   - type: web
-    name: fideitec-backend
+    name: fideitec-api
     runtime: node
+    plan: free
     region: oregon
-    plan: starter
     rootDir: backend
-    buildCommand: npm install && npm run build
+    buildCommand: npm install
     startCommand: npm start
-    healthCheckPath: /health
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
       - key: DATABASE_URL
         fromDatabase:
           name: fideitec-db
@@ -36,43 +27,32 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
-      - key: SESSION_SECRET
-        generateValue: true
-      - key: JWT_EXPIRES_IN
-        value: 7d
-      - key: JWT_REFRESH_EXPIRES_IN
-        value: 30d
       - key: FRONTEND_URL
-        sync: false  # Configure: https://fideitec.com
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false
-      - key: GOOGLE_CALLBACK_URL
-        sync: false  # https://api.fideitec.com/api/auth/google/callback
-      - key: RESEND_API_KEY
-        sync: false
-      - key: EMAIL_FROM
-        value: FIDEITEC <noreply@fideitec.com>
-
-  # Frontend Static Site (React App)
+        fromService:
+          type: web
+          name: fideitec-frontend
+          property: host
+          
+  # Frontend Static Site
   - type: web
     name: fideitec-frontend
     runtime: static
+    plan: free
+    region: oregon
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     headers:
       - path: /*
-        name: X-Frame-Options
-        value: DENY
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff
+        name: Cache-Control
+        value: no-cache
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        sync: false  # https://api.fideitec.com
+        fromService:
+          type: web
+          name: fideitec-api
+          property: host
