@@ -396,14 +396,14 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="form-label">Código</label>
+                    <label className="form-label">Código (auto-generado)</label>
                     <input
                       type="text"
                       name="unit_code"
                       value={formData.unit_code}
-                      onChange={handleFormChange}
-                      disabled={!editingInfo}
-                      className="input-field disabled:bg-slate-50"
+                      disabled={true}
+                      className="input-field bg-slate-100 text-slate-600 cursor-not-allowed"
+                      title="El código se genera automáticamente y no puede editarse"
                     />
                   </div>
                   <div>

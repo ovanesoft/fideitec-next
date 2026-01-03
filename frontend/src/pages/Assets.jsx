@@ -161,9 +161,8 @@ const Assets = () => {
     notes: ''
   });
 
-  // Formulario de unidad
+  // Formulario de unidad (unit_code se genera automáticamente en el backend)
   const [unitForm, setUnitForm] = useState({
-    unit_code: '',
     unit_name: '',
     floor_number: '',
     unit_type: 'apartment',
@@ -317,7 +316,7 @@ const Assets = () => {
   // Crear unidad
   const handleCreateUnit = async (e) => {
     e.preventDefault();
-    if (!selectedAsset || !unitForm.unit_code) {
+    if (!selectedAsset) {
       toast.error('El código de unidad es requerido');
       return;
     }
@@ -351,22 +350,18 @@ const Assets = () => {
     }
   };
 
-  // Clonar unidad
+  // Clonar unidad (el código se genera automáticamente)
   const handleCloneUnit = async (unitId) => {
     const count = window.prompt('¿Cuántas copias desea crear?', '1');
-    if (!count) return;
-    
-    const newCode = window.prompt('Prefijo para códigos de unidad:', 'UNIT');
-    if (!newCode) return;
+    if (!count || isNaN(parseInt(count)) || parseInt(count) < 1) return;
 
     try {
       const response = await api.post(`/assets/${selectedAsset.id}/units/${unitId}/clone`, {
-        unit_code: newCode,
         count: parseInt(count)
       });
       
       if (response.data.success) {
-        toast.success(`${response.data.data.units.length} unidad(es) clonada(s)`);
+        toast.success(`${response.data.data.units.length} unidad(es) clonada(s) con códigos automáticos`);
         loadAssetDetail(selectedAsset.id);
       }
     } catch (error) {
@@ -426,7 +421,6 @@ const Assets = () => {
 
   const resetUnitForm = () => {
     setUnitForm({
-      unit_code: '',
       unit_name: '',
       floor_number: '',
       unit_type: 'apartment',
@@ -1446,17 +1440,6 @@ const Assets = () => {
             
             <form onSubmit={handleCreateUnit} className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="form-label">Código *</label>
-                  <input 
-                    type="text" 
-                    className="input-field"
-                    placeholder="1A, PB-01"
-                    value={unitForm.unit_code}
-                    onChange={(e) => setUnitForm({...unitForm, unit_code: e.target.value})}
-                    required
-                  />
-                </div>
                 <div>
                   <label className="form-label">Piso</label>
                   <input 

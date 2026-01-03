@@ -116,9 +116,9 @@ const updateUnit = async (req, res) => {
       });
     }
 
-    // Campos permitidos para actualización
+    // Campos permitidos para actualización (unit_code NO es editable - es único y auto-generado)
     const allowedFields = [
-      'unit_code', 'unit_name', 'floor_number', 'unit_type',
+      'unit_name', 'floor_number', 'unit_type',
       'total_area_m2', 'covered_area_m2', 'rooms', 'bedrooms', 'bathrooms',
       'has_balcony', 'has_terrace', 'orientation',
       'list_price', 'rental_price', 'sale_price', 'currency',

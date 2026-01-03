@@ -626,6 +626,46 @@ const listAssetUnits = async (req, res) => {
   }
 };
 
+// Función auxiliar para generar código único de unidad
+const generateUnitCode = async (dbClient, assetId, floorNumber) => {
+  // Obtener el código del activo
+  const assetResult = await dbClient.query(
+    'SELECT code, name FROM assets WHERE id = $1',
+    [assetId]
+  );
+  
+  const assetCode = assetResult.rows[0]?.code || 'ACT';
+  const floor = floorNumber ? String(floorNumber).padStart(2, '0') : '00';
+  
+  // Obtener el siguiente número secuencial para este activo
+  const countResult = await dbClient.query(
+    'SELECT COUNT(*) + 1 as next_num FROM asset_units WHERE asset_id = $1',
+    [assetId]
+  );
+  
+  let nextNum = parseInt(countResult.rows[0].next_num);
+  let unitCode;
+  let isUnique = false;
+  
+  // Buscar un código único (por si hay gaps en la numeración)
+  while (!isUnique) {
+    unitCode = `${assetCode}-${floor}${String(nextNum).padStart(2, '0')}`;
+    
+    const existingCheck = await dbClient.query(
+      'SELECT id FROM asset_units WHERE asset_id = $1 AND unit_code = $2',
+      [assetId, unitCode]
+    );
+    
+    if (existingCheck.rows.length === 0) {
+      isUnique = true;
+    } else {
+      nextNum++;
+    }
+  }
+  
+  return unitCode;
+};
+
 // Crear unidad
 const createAssetUnit = async (req, res) => {
   const dbClient = await getClient();
@@ -635,7 +675,6 @@ const createAssetUnit = async (req, res) => {
     const user = req.user;
     const tenantId = user.tenant_id;
     const {
-      unit_code,
       unit_name,
       floor_number,
       unit_type,
@@ -674,19 +713,8 @@ const createAssetUnit = async (req, res) => {
       });
     }
 
-    // Verificar código único
-    const existingUnit = await dbClient.query(
-      'SELECT id FROM asset_units WHERE asset_id = $1 AND unit_code = $2',
-      [assetId, unit_code]
-    );
-
-    if (existingUnit.rows.length > 0) {
-      await dbClient.query('ROLLBACK');
-      return res.status(409).json({
-        success: false,
-        message: 'Ya existe una unidad con este código en el activo'
-      });
-    }
+    // Generar código único automáticamente
+    const unit_code = await generateUnitCode(dbClient, assetId, floor_number);
 
     const result = await dbClient.query(
       `INSERT INTO asset_units (
@@ -737,7 +765,6 @@ const cloneAssetUnit = async (req, res) => {
     const user = req.user;
     const tenantId = user.tenant_id;
     const { 
-      unit_code, 
       unit_name, 
       floor_number,
       list_price,
@@ -764,19 +791,11 @@ const cloneAssetUnit = async (req, res) => {
     const createdUnits = [];
 
     for (let i = 0; i < count; i++) {
-      const newUnitCode = count === 1 ? unit_code : `${unit_code}-${i + 1}`;
       const newFloorNumber = floor_number !== undefined ? floor_number : template.floor_number;
       const newListPrice = list_price !== undefined ? list_price : template.list_price;
-
-      // Verificar que el código no existe
-      const existingCheck = await dbClient.query(
-        'SELECT id FROM asset_units WHERE asset_id = $1 AND unit_code = $2',
-        [assetId, newUnitCode]
-      );
-
-      if (existingCheck.rows.length > 0) {
-        continue; // Saltar si ya existe
-      }
+      
+      // Generar código único automáticamente para cada unidad clonada
+      const newUnitCode = await generateUnitCode(dbClient, assetId, newFloorNumber);
 
       const result = await dbClient.query(
         `INSERT INTO asset_units (
@@ -829,8 +848,9 @@ const updateAssetUnit = async (req, res) => {
     const tenantId = user.tenant_id;
     const updates = req.body;
 
+    // unit_code NO es editable - se genera automáticamente y es único
     const allowedFields = [
-      'unit_code', 'unit_name', 'floor_number', 'unit_type',
+      'unit_name', 'floor_number', 'unit_type',
       'total_area_m2', 'covered_area_m2', 'uncovered_area_m2',
       'rooms', 'bedrooms', 'bathrooms', 'has_balcony', 'has_terrace', 'orientation',
       'status', 'list_price', 'sale_price', 'rental_price', 'currency',
