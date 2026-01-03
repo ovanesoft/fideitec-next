@@ -235,6 +235,37 @@ app.post('/api/admin/reset-password', async (req, res) => {
   }
 });
 
+// Endpoint para desbloquear cuenta de usuario (emergencia)
+app.post('/api/admin/unlock-account', async (req, res) => {
+  const { secret, email } = req.body;
+  const ADMIN_SECRET = 'fdt_admin_2026_emergency';
+  if (secret !== ADMIN_SECRET && secret !== process.env.JWT_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  
+  try {
+    const { query } = require('./config/database');
+    
+    const result = await query(
+      `UPDATE users SET 
+        failed_login_attempts = 0, 
+        is_locked = false, 
+        locked_until = NULL 
+      WHERE LOWER(email) = $1 
+      RETURNING email, first_name, is_locked`,
+      [email.toLowerCase()]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+    
+    res.json({ success: true, message: 'Cuenta desbloqueada', user: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Endpoint para agregar campos de invitación a clients (temporal)
 app.post('/api/admin/migrate-clients-invite', async (req, res) => {
   const { secret } = req.body;
