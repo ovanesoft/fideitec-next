@@ -83,6 +83,31 @@ CREATE TABLE IF NOT EXISTS unit_documents (
 );
 
 -- =============================================
+-- Agregar campo weight a unit_progress_items
+-- =============================================
+DO $$ 
+BEGIN
+    -- Peso/incidencia del item sobre su categoría (1-100%)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'unit_progress_items' AND column_name = 'weight') THEN
+        ALTER TABLE unit_progress_items ADD COLUMN weight INTEGER DEFAULT 100 
+            CHECK (weight >= 1 AND weight <= 100);
+    END IF;
+
+    -- category_code para agrupar sin depender del category_id
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'unit_progress_items' AND column_name = 'category_code') THEN
+        ALTER TABLE unit_progress_items ADD COLUMN category_code VARCHAR(50);
+    END IF;
+
+    -- category_name para mostrar nombre sin join
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'unit_progress_items' AND column_name = 'category_name') THEN
+        ALTER TABLE unit_progress_items ADD COLUMN category_name VARCHAR(100);
+    END IF;
+END $$;
+
+-- =============================================
 -- Agregar campos a asset_units si no existen
 -- =============================================
 DO $$ 

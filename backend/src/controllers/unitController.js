@@ -377,8 +377,9 @@ const addProgressItem = async (req, res) => {
     const { unitId } = req.params;
     const tenantId = req.user.tenant_id;
     const {
-      category_id, name, description, status,
-      estimated_cost, currency, priority, assigned_to, supplier_id
+      category_id, category_code, name, description, status,
+      estimated_cost, currency, priority, assigned_to, supplier_id,
+      weight, notes, progress_percentage
     } = req.body;
 
     // Verificar pertenencia al tenant
@@ -396,6 +397,16 @@ const addProgressItem = async (req, res) => {
       });
     }
 
+    // Obtener el nombre de la categoría si se proporciona category_code
+    let categoryName = null;
+    if (category_code) {
+      const catResult = await query(
+        `SELECT name FROM unit_progress_categories WHERE code = $1 AND tenant_id = $2`,
+        [category_code, tenantId]
+      );
+      categoryName = catResult.rows[0]?.name || category_code;
+    }
+
     // Obtener el máximo display_order
     const maxOrderResult = await query(
       `SELECT COALESCE(MAX(display_order), 0) + 1 as next_order 
@@ -405,14 +416,18 @@ const addProgressItem = async (req, res) => {
 
     const result = await query(
       `INSERT INTO unit_progress_items 
-       (unit_id, category_id, name, description, status, estimated_cost, currency, priority, assigned_to, supplier_id, display_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       (unit_id, category_id, category_code, category_name, name, description, status, 
+        estimated_cost, currency, priority, assigned_to, supplier_id, display_order,
+        weight, notes, progress_percentage)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
-        unitId, category_id || null, name, description || null,
-        status || 'pending', estimated_cost || null, currency || 'USD',
+        unitId, category_id || null, category_code || null, categoryName,
+        name, description || null, status || 'pending', 
+        estimated_cost || null, currency || 'USD',
         priority || 0, assigned_to || null, supplier_id || null,
-        maxOrderResult.rows[0].next_order
+        maxOrderResult.rows[0].next_order,
+        weight || 100, notes || null, progress_percentage || 0
       ]
     );
 
@@ -460,8 +475,18 @@ const updateProgressItem = async (req, res) => {
       'name', 'description', 'status', 'progress_percentage',
       'estimated_cost', 'actual_cost', 'currency',
       'start_date', 'end_date', 'assigned_to', 'supplier_id',
-      'priority', 'display_order', 'notes'
+      'priority', 'display_order', 'notes', 'weight', 'category_code'
     ];
+    
+    // Si se actualiza category_code, buscar el nombre
+    if (updates.category_code !== undefined) {
+      const catResult = await query(
+        `SELECT name FROM unit_progress_categories WHERE code = $1 AND tenant_id = $2`,
+        [updates.category_code, tenantId]
+      );
+      updates.category_name = catResult.rows[0]?.name || updates.category_code;
+      allowedFields.push('category_name');
+    }
 
     const setClauses = [];
     const values = [itemId];
@@ -563,22 +588,28 @@ const deleteProgressItem = async (req, res) => {
 // Función auxiliar para actualizar progreso general de unidad
 const updateUnitOverallProgress = async (unitId) => {
   try {
+    // Calcular progreso ponderado por peso de cada item
     const result = await query(
       `SELECT 
-        COUNT(*) FILTER (WHERE status != 'not_applicable') as total,
-        COUNT(*) FILTER (WHERE status = 'completed') as completed,
-        AVG(progress_percentage) FILTER (WHERE status != 'not_applicable') as avg_progress
+        COALESCE(SUM(CASE WHEN status != 'not_applicable' THEN COALESCE(weight, 100) ELSE 0 END), 0) as total_weight,
+        COALESCE(SUM(CASE WHEN status != 'not_applicable' 
+          THEN (COALESCE(progress_percentage, 0) * COALESCE(weight, 100) / 100.0) 
+          ELSE 0 END), 0) as weighted_progress,
+        COUNT(*) FILTER (WHERE status != 'not_applicable') as total_items,
+        COUNT(*) FILTER (WHERE status = 'completed') as completed_items
        FROM unit_progress_items WHERE unit_id = $1`,
       [unitId]
     );
 
-    const { total, completed, avg_progress } = result.rows[0];
-    const overallProgress = total > 0 
-      ? Math.round((completed / total) * 100) 
+    const { total_weight, weighted_progress, total_items, completed_items } = result.rows[0];
+    
+    // Progreso ponderado: suma de (progress * weight) / suma de weights
+    const overallProgress = parseFloat(total_weight) > 0 
+      ? Math.round((parseFloat(weighted_progress) / parseFloat(total_weight)) * 100) 
       : 0;
 
     let constructionStatus = 'not_started';
-    if (overallProgress === 100) {
+    if (overallProgress === 100 || (parseInt(total_items) > 0 && parseInt(completed_items) === parseInt(total_items))) {
       constructionStatus = 'completed';
     } else if (overallProgress > 0) {
       constructionStatus = 'in_progress';

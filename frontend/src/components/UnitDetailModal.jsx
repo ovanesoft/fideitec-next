@@ -233,36 +233,99 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     }, 500);
   }, [unitId]);
 
-  // Agregar nuevo item personalizado
+  // Agregar/Editar item personalizado
   const [showAddItemModal, setShowAddItemModal] = useState(false);
-  const [newItemName, setNewItemName] = useState('');
+  const [editingItem, setEditingItem] = useState(null); // Para editar items existentes
+  const [newItemForm, setNewItemForm] = useState({
+    name: '',
+    category_code: '',
+    weight: 100, // Peso/incidencia sobre la categoría (1-100)
+    notes: ''
+  });
   
-  const handleAddCustomItem = async () => {
-    if (!newItemName.trim()) {
+  // Obtener categorías únicas de los items existentes
+  const availableCategories = unit?.progress_items 
+    ? [...new Set(unit.progress_items.map(i => i.category_code).filter(Boolean))]
+        .map(code => ({
+          code,
+          name: unit.progress_items.find(i => i.category_code === code)?.category_name || code
+        }))
+    : [];
+
+  const openAddItemModal = (categoryCode = '') => {
+    setEditingItem(null);
+    setNewItemForm({
+      name: '',
+      category_code: categoryCode,
+      weight: 100,
+      notes: ''
+    });
+    setShowAddItemModal(true);
+  };
+
+  const openEditItemModal = (item) => {
+    setEditingItem(item);
+    setNewItemForm({
+      name: item.name,
+      category_code: item.category_code || '',
+      weight: item.weight || 100,
+      notes: item.notes || ''
+    });
+    setShowAddItemModal(true);
+  };
+  
+  const handleSaveItem = async () => {
+    if (!newItemForm.name.trim()) {
       toast.error('Ingresá un nombre para el item');
       return;
     }
     
     try {
       setSaving(true);
-      const response = await api.post(`/units/${unitId}/progress`, {
-        name: newItemName,
-        status: 'pending',
-        progress_percentage: 0
-      });
       
-      if (response.data.success) {
-        // Agregar localmente
-        setUnit(prev => ({
-          ...prev,
-          progress_items: [...(prev.progress_items || []), response.data.data.item]
-        }));
-        setNewItemName('');
-        setShowAddItemModal(false);
-        toast.success('Item agregado');
+      if (editingItem) {
+        // Actualizar item existente
+        const response = await api.put(`/units/${unitId}/progress/${editingItem.id}`, {
+          name: newItemForm.name,
+          category_code: newItemForm.category_code,
+          weight: newItemForm.weight,
+          notes: newItemForm.notes
+        });
+        
+        if (response.data.success) {
+          setUnit(prev => ({
+            ...prev,
+            progress_items: prev.progress_items.map(item =>
+              item.id === editingItem.id ? { ...item, ...response.data.data.item } : item
+            )
+          }));
+          toast.success('Item actualizado');
+        }
+      } else {
+        // Crear nuevo item
+        const response = await api.post(`/units/${unitId}/progress`, {
+          name: newItemForm.name,
+          category_code: newItemForm.category_code,
+          weight: newItemForm.weight,
+          notes: newItemForm.notes,
+          status: 'pending',
+          progress_percentage: 0
+        });
+        
+        if (response.data.success) {
+          setUnit(prev => ({
+            ...prev,
+            progress_items: [...(prev.progress_items || []), response.data.data.item]
+          }));
+          toast.success('Item agregado');
+        }
       }
+      
+      setShowAddItemModal(false);
+      setEditingItem(null);
+      setNewItemForm({ name: '', category_code: '', weight: 100, notes: '' });
     } catch (error) {
-      toast.error('Error al agregar item');
+      toast.error('Error al guardar item');
     } finally {
       setSaving(false);
     }
@@ -779,10 +842,10 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                   {/* Botón para agregar item personalizado - MÁS VISIBLE */}
                   <div className="flex justify-between items-center mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <span className="text-sm text-blue-700">
-                      ¿Necesitás agregar un item especial que no está en la lista?
+                      ¿Necesitás agregar un item especial? Podés configurar su incidencia sobre la categoría.
                     </span>
                     <button
-                      onClick={() => setShowAddItemModal(true)}
+                      onClick={() => openAddItemModal()}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2 text-sm font-medium"
                     >
                       <Plus className="w-4 h-4" />
@@ -799,6 +862,16 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                     const totalCount = applicableItems.length;
                     const CategoryIcon = CATEGORY_ICONS[categoryCode] || CATEGORY_ICONS.default;
                     
+                    // Calcular progreso ponderado de la categoría
+                    const totalWeight = applicableItems.reduce((sum, i) => sum + (i.weight || 100), 0);
+                    const weightedProgress = totalWeight > 0 
+                      ? applicableItems.reduce((sum, i) => {
+                          const itemWeight = i.weight || 100;
+                          const itemProgress = i.progress_percentage || 0;
+                          return sum + (itemProgress * itemWeight / totalWeight);
+                        }, 0)
+                      : 0;
+                    
                     return (
                       <div key={categoryCode} className="border border-slate-200 rounded-xl overflow-hidden">
                         {/* Header de categoría */}
@@ -812,15 +885,26 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                               {items[0]?.category_name || categoryCode}
                             </span>
                             <span className="text-sm text-slate-500">
-                              ({completedCount}/{totalCount})
+                              ({completedCount}/{totalCount}) · {Math.round(weightedProgress)}%
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
-                            {/* Mini barra de progreso */}
-                            <div className="w-20 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            {/* Botón agregar item a esta categoría */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAddItemModal(categoryCode);
+                              }}
+                              className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                              title="Agregar item a esta categoría"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                            {/* Mini barra de progreso ponderado */}
+                            <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
                               <div 
                                 className="h-full bg-green-500 transition-all"
-                                style={{ width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%` }}
+                                style={{ width: `${weightedProgress}%` }}
                               />
                             </div>
                             {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
@@ -835,7 +919,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                               const StatusIcon = statusInfo.icon;
                               
                               return (
-                                <div key={item.id} className={`p-4 flex items-center justify-between hover:bg-slate-50 ${
+                                <div key={item.id} className={`p-4 flex items-center justify-between hover:bg-slate-50 group ${
                                   item.status === 'not_applicable' ? 'opacity-50 bg-slate-50' : ''
                                 }`}>
                                   <div className="flex items-center gap-3">
@@ -862,14 +946,30 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                                       {item.status === 'in_progress' && <Clock className="w-4 h-4" />}
                                       {item.status === 'not_applicable' && <Ban className="w-4 h-4" />}
                                     </button>
-                                    <div>
-                                      <p className={`font-medium ${
-                                        item.status === 'completed' || item.status === 'not_applicable' 
-                                          ? 'text-slate-400 line-through' 
-                                          : 'text-slate-800'
-                                      }`}>
-                                        {item.name}
-                                      </p>
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <p className={`font-medium ${
+                                          item.status === 'completed' || item.status === 'not_applicable' 
+                                            ? 'text-slate-400 line-through' 
+                                            : 'text-slate-800'
+                                        }`}>
+                                          {item.name}
+                                        </p>
+                                        {/* Mostrar peso si no es 100% */}
+                                        {item.weight && item.weight !== 100 && (
+                                          <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">
+                                            {item.weight}% incidencia
+                                          </span>
+                                        )}
+                                        {/* Botón editar */}
+                                        <button
+                                          onClick={() => openEditItemModal(item)}
+                                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                          title="Editar item"
+                                        >
+                                          <Wrench className="w-3 h-3" />
+                                        </button>
+                                      </div>
                                       {item.notes && (
                                         <p className="text-xs text-slate-500">{item.notes}</p>
                                       )}
@@ -1008,52 +1108,111 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         </div>
       </div>
 
-      {/* Modal para agregar item personalizado */}
+      {/* Modal para agregar/editar item */}
       {showAddItemModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-slate-900">Agregar Item Personalizado</h3>
-              <button onClick={() => setShowAddItemModal(false)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="text-lg font-bold text-slate-900">
+                {editingItem ? 'Editar Item' : 'Agregar Item'}
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowAddItemModal(false);
+                  setEditingItem(null);
+                }} 
+                className="text-slate-400 hover:text-slate-600"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
             
             <div className="space-y-4">
+              {/* Nombre del Item */}
               <div>
                 <label className="form-label">Nombre del Item *</label>
                 <input
                   type="text"
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  placeholder="Ej: Instalación de split, Jacuzzi, etc."
+                  value={newItemForm.name}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ej: Cableado balcón, Instalación jacuzzi, etc."
                   className="input-field"
                   autoFocus
                 />
               </div>
-              
-              <p className="text-sm text-slate-500">
-                Usá este formulario para agregar tareas especiales que no están en el checklist estándar.
-              </p>
+
+              {/* Categoría */}
+              <div>
+                <label className="form-label">Categoría</label>
+                <select
+                  value={newItemForm.category_code}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, category_code: e.target.value }))}
+                  className="input-field"
+                >
+                  <option value="">Sin categoría (item general)</option>
+                  {availableCategories.map(cat => (
+                    <option key={cat.code} value={cat.code}>{cat.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-1">
+                  El item se agrupará con otros de la misma categoría
+                </p>
+              </div>
+
+              {/* Peso/Incidencia */}
+              <div>
+                <label className="form-label">
+                  Incidencia sobre la categoría: <span className="font-bold text-primary-600">{newItemForm.weight}%</span>
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="100"
+                  value={newItemForm.weight}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, weight: parseInt(e.target.value) }))}
+                  className="w-full h-2 accent-primary-500"
+                />
+                <div className="flex justify-between text-xs text-slate-500 mt-1">
+                  <span>1% (poco impacto)</span>
+                  <span>100% (impacto total)</span>
+                </div>
+                <p className="text-xs text-amber-600 mt-2 bg-amber-50 p-2 rounded">
+                  💡 Ejemplo: Si "Cableado balcón" tiene 10% de incidencia en Electricidad, 
+                  al completarlo solo sumará un 10% al progreso de Electricidad.
+                </p>
+              </div>
+
+              {/* Notas */}
+              <div>
+                <label className="form-label">Notas (opcional)</label>
+                <textarea
+                  value={newItemForm.notes}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Detalles adicionales..."
+                  className="input-field"
+                  rows="2"
+                />
+              </div>
             </div>
             
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => {
                   setShowAddItemModal(false);
-                  setNewItemName('');
+                  setEditingItem(null);
+                  setNewItemForm({ name: '', category_code: '', weight: 100, notes: '' });
                 }}
                 className="btn-secondary"
               >
                 Cancelar
               </button>
               <button
-                onClick={handleAddCustomItem}
-                disabled={saving || !newItemName.trim()}
+                onClick={handleSaveItem}
+                disabled={saving || !newItemForm.name.trim()}
                 className="btn-primary inline-flex items-center gap-2"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Agregar
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {editingItem ? 'Guardar Cambios' : 'Agregar Item'}
               </button>
             </div>
           </div>
