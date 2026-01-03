@@ -104,11 +104,15 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
       }
     } catch (error) {
       console.error('Error cargando unidad:', error);
-      toast.error('Error al cargar unidad');
+      // Solo mostrar error si no es 401 (que ya maneja el interceptor)
+      if (error.response?.status !== 401) {
+        toast.error('Error al cargar unidad. Intentá de nuevo.');
+        onClose?.(); // Cerrar modal si hay error
+      }
     } finally {
       setLoading(false);
     }
-  }, [unitId]);
+  }, [unitId, onClose]);
 
   // Cargar categorías de progreso
   const loadCategories = useCallback(async () => {
@@ -118,6 +122,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         setCategories(response.data.data.categories);
       }
     } catch (error) {
+      // Ignorar errores de categorías - no es crítico
       console.error('Error cargando categorías:', error);
     }
   }, []);

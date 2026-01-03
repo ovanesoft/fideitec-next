@@ -52,6 +52,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Si no hay respuesta (error de red), no hacer nada especial
+    if (!error.response) {
+      console.error('Error de red:', error.message);
+      return Promise.reject(error);
+    }
+
     // Si el error es 401 y no hemos intentado refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -83,6 +89,7 @@ api.interceptors.response.use(
       }
     }
 
+    // Para errores 403, 404, 500, etc. - NO redirigir, solo propagar el error
     return Promise.reject(error);
   }
 );
