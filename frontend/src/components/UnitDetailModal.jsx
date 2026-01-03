@@ -790,7 +790,10 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                   {/* Items agrupados por categoría */}
                   {Object.entries(groupedItems).map(([categoryCode, items]) => {
                     const isExpanded = expandedCategories[categoryCode] !== false;
-                    const completedCount = items.filter(i => i.status === 'completed').length;
+                    // Excluir items "No Aplica" del conteo
+                    const applicableItems = items.filter(i => i.status !== 'not_applicable');
+                    const completedCount = applicableItems.filter(i => i.status === 'completed').length;
+                    const totalCount = applicableItems.length;
                     const CategoryIcon = CATEGORY_ICONS[categoryCode] || CATEGORY_ICONS.default;
                     
                     return (
@@ -806,7 +809,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                               {items[0]?.category_name || categoryCode}
                             </span>
                             <span className="text-sm text-slate-500">
-                              ({completedCount}/{items.length})
+                              ({completedCount}/{totalCount})
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
@@ -814,7 +817,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                             <div className="w-20 h-2 bg-slate-200 rounded-full overflow-hidden">
                               <div 
                                 className="h-full bg-green-500 transition-all"
-                                style={{ width: `${(completedCount / items.length) * 100}%` }}
+                                style={{ width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%` }}
                               />
                             </div>
                             {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
@@ -829,28 +832,39 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                               const StatusIcon = statusInfo.icon;
                               
                               return (
-                                <div key={item.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
+                                <div key={item.id} className={`p-4 flex items-center justify-between hover:bg-slate-50 ${
+                                  item.status === 'not_applicable' ? 'opacity-50 bg-slate-50' : ''
+                                }`}>
                                   <div className="flex items-center gap-3">
                                     <button
                                       onClick={() => {
+                                        if (item.status === 'not_applicable') return; // No hacer nada si es No Aplica
                                         const nextStatus = item.status === 'completed' ? 'pending' : 
                                                           item.status === 'pending' ? 'in_progress' : 
                                                           item.status === 'in_progress' ? 'completed' : item.status;
                                         handleUpdateProgressItem(item.id, { status: nextStatus });
                                       }}
+                                      disabled={item.status === 'not_applicable'}
                                       className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                                         item.status === 'completed' 
                                           ? 'bg-green-500 text-white' 
                                           : item.status === 'in_progress'
                                           ? 'bg-blue-500 text-white'
+                                          : item.status === 'not_applicable'
+                                          ? 'bg-slate-200 text-slate-400'
                                           : 'border-2 border-slate-300 text-slate-400 hover:border-slate-400'
                                       }`}
                                     >
                                       {item.status === 'completed' && <Check className="w-4 h-4" />}
                                       {item.status === 'in_progress' && <Clock className="w-4 h-4" />}
+                                      {item.status === 'not_applicable' && <Ban className="w-4 h-4" />}
                                     </button>
                                     <div>
-                                      <p className={`font-medium ${item.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                                      <p className={`font-medium ${
+                                        item.status === 'completed' || item.status === 'not_applicable' 
+                                          ? 'text-slate-400 line-through' 
+                                          : 'text-slate-800'
+                                      }`}>
                                         {item.name}
                                       </p>
                                       {item.notes && (
