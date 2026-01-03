@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import {
@@ -7,7 +7,7 @@ import {
   Image, Upload, Trash2, Plus, ChevronDown, ChevronUp,
   Zap, Droplets, Flame, PaintBucket, DoorOpen, Bath,
   Wrench, Sparkles, ClipboardCheck, Check, Loader2,
-  Eye, Download, ExternalLink, Home, Layers
+  Eye, Download, ExternalLink, Home, Layers, Ban
 } from 'lucide-react';
 
 // Iconos para categorías
@@ -72,6 +72,9 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   
   // Form data para edición
   const [formData, setFormData] = useState({});
+  
+  // Refs para debounce de sliders
+  const debounceTimers = useRef({});
   
   // Cargar detalle de unidad
   const loadUnit = useCallback(async () => {
@@ -177,24 +180,91 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     }
   };
 
-  // Actualizar item de progreso
-  const handleUpdateProgressItem = async (itemId, updates) => {
+  // Actualizar item de progreso (sin recargar toda la página)
+  const handleUpdateProgressItem = useCallback((itemId, updates) => {
+    // Actualizar localmente INMEDIATAMENTE para evitar parpadeo
+    setUnit(prev => {
+      if (!prev) return prev;
+      const updatedItems = prev.progress_items.map(item =>
+        item.id === itemId ? { ...item, ...updates } : item
+      );
+      
+      // Recalcular stats localmente
+      const total = updatedItems.filter(i => i.status !== 'not_applicable').length;
+      const completed = updatedItems.filter(i => i.status === 'completed').length;
+      const inProgress = updatedItems.filter(i => i.status === 'in_progress').length;
+      const pending = updatedItems.filter(i => i.status === 'pending').length;
+      const blocked = updatedItems.filter(i => i.status === 'blocked').length;
+      const avgProgress = total > 0 
+        ? Math.round(updatedItems.filter(i => i.status !== 'not_applicable')
+            .reduce((sum, i) => sum + (i.progress_percentage || 0), 0) / total)
+        : 0;
+      const overallProgress = total > 0 ? Math.round((completed * 100) / total) : 0;
+
+      return {
+        ...prev,
+        progress_items: updatedItems,
+        overall_progress: overallProgress,
+        progress_stats: {
+          ...prev.progress_stats,
+          total_items: total,
+          completed,
+          in_progress: inProgress,
+          pending,
+          blocked,
+          avg_progress: avgProgress
+        }
+      };
+    });
+
+    // Cancelar timer anterior para este item
+    if (debounceTimers.current[itemId]) {
+      clearTimeout(debounceTimers.current[itemId]);
+    }
+
+    // Guardar en el servidor con debounce de 500ms
+    debounceTimers.current[itemId] = setTimeout(async () => {
+      try {
+        await api.put(`/units/${unitId}/progress/${itemId}`, updates);
+      } catch (error) {
+        console.error('Error guardando progreso:', error);
+        toast.error('Error al guardar cambio');
+      }
+    }, 500);
+  }, [unitId]);
+
+  // Agregar nuevo item personalizado
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  
+  const handleAddCustomItem = async () => {
+    if (!newItemName.trim()) {
+      toast.error('Ingresá un nombre para el item');
+      return;
+    }
+    
     try {
-      const response = await api.put(`/units/${unitId}/progress/${itemId}`, updates);
+      setSaving(true);
+      const response = await api.post(`/units/${unitId}/progress`, {
+        name: newItemName,
+        status: 'pending',
+        progress_percentage: 0
+      });
+      
       if (response.data.success) {
-        // Actualizar localmente
+        // Agregar localmente
         setUnit(prev => ({
           ...prev,
-          progress_items: prev.progress_items.map(item =>
-            item.id === itemId ? { ...item, ...response.data.data.item } : item
-          )
+          progress_items: [...(prev.progress_items || []), response.data.data.item]
         }));
-        
-        // Recalcular stats
-        loadUnit();
+        setNewItemName('');
+        setShowAddItemModal(false);
+        toast.success('Item agregado');
       }
     } catch (error) {
-      toast.error('Error al actualizar');
+      toast.error('Error al agregar item');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -686,17 +756,37 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                   <p className="text-slate-500 mb-6 max-w-md mx-auto">
                     Inicializa el checklist para hacer seguimiento de todas las terminaciones: electricidad, plomería, pintura, etc.
                   </p>
-                  <button
-                    onClick={handleInitializeProgress}
-                    disabled={saving}
-                    className="btn-primary inline-flex items-center gap-2"
-                  >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                    Inicializar Checklist
-                  </button>
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={handleInitializeProgress}
+                      disabled={saving}
+                      className="btn-primary inline-flex items-center gap-2"
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      Inicializar Checklist Completo
+                    </button>
+                    <button
+                      onClick={() => setShowAddItemModal(true)}
+                      className="btn-secondary inline-flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Agregar Item Manual
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {/* Botón para agregar item personalizado */}
+                  <div className="flex justify-end mb-4">
+                    <button
+                      onClick={() => setShowAddItemModal(true)}
+                      className="btn-secondary inline-flex items-center gap-2 text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Agregar Item Personalizado
+                    </button>
+                  </div>
+                  
                   {/* Items agrupados por categoría */}
                   {Object.entries(groupedItems).map(([categoryCode, items]) => {
                     const isExpanded = expandedCategories[categoryCode] !== false;
@@ -769,28 +859,55 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                                     </div>
                                   </div>
                                   
-                                  <div className="flex items-center gap-3">
-                                    {/* Slider de progreso */}
-                                    <div className="flex items-center gap-2">
-                                      <input
-                                        type="range"
-                                        min="0"
-                                        max="100"
-                                        step="10"
-                                        value={item.progress_percentage || 0}
-                                        onChange={(e) => handleUpdateProgressItem(item.id, { 
-                                          progress_percentage: parseInt(e.target.value),
-                                          status: parseInt(e.target.value) === 100 ? 'completed' : 
-                                                  parseInt(e.target.value) > 0 ? 'in_progress' : 'pending'
+                                  <div className="flex items-center gap-2">
+                                    {/* Si está marcado como No Aplica, mostrar diferente */}
+                                    {item.status === 'not_applicable' ? (
+                                      <button
+                                        onClick={() => handleUpdateProgressItem(item.id, { 
+                                          status: 'pending', 
+                                          progress_percentage: 0 
                                         })}
-                                        className="w-20 h-2 accent-primary-500"
-                                      />
-                                      <span className="text-sm text-slate-600 w-10 text-right">
-                                        {item.progress_percentage || 0}%
-                                      </span>
-                                    </div>
+                                        className="text-xs text-slate-500 hover:text-slate-700 underline"
+                                      >
+                                        Restaurar
+                                      </button>
+                                    ) : (
+                                      <>
+                                        {/* Slider de progreso */}
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            step="10"
+                                            value={item.progress_percentage || 0}
+                                            onChange={(e) => handleUpdateProgressItem(item.id, { 
+                                              progress_percentage: parseInt(e.target.value),
+                                              status: parseInt(e.target.value) === 100 ? 'completed' : 
+                                                      parseInt(e.target.value) > 0 ? 'in_progress' : 'pending'
+                                            })}
+                                            className="w-20 h-2 accent-primary-500"
+                                          />
+                                          <span className="text-sm text-slate-600 w-10 text-right">
+                                            {item.progress_percentage || 0}%
+                                          </span>
+                                        </div>
+                                        
+                                        {/* Botón No Aplica */}
+                                        <button
+                                          onClick={() => handleUpdateProgressItem(item.id, { 
+                                            status: 'not_applicable', 
+                                            progress_percentage: 0 
+                                          })}
+                                          title="Marcar como No Aplica"
+                                          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                        >
+                                          <Ban className="w-4 h-4" />
+                                        </button>
+                                      </>
+                                    )}
                                     
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusInfo.color}`}>
                                       {statusInfo.label}
                                     </span>
                                   </div>
@@ -871,6 +988,58 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
           )}
         </div>
       </div>
+
+      {/* Modal para agregar item personalizado */}
+      {showAddItemModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-slate-900">Agregar Item Personalizado</h3>
+              <button onClick={() => setShowAddItemModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="form-label">Nombre del Item *</label>
+                <input
+                  type="text"
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  placeholder="Ej: Instalación de split, Jacuzzi, etc."
+                  className="input-field"
+                  autoFocus
+                />
+              </div>
+              
+              <p className="text-sm text-slate-500">
+                Usá este formulario para agregar tareas especiales que no están en el checklist estándar.
+              </p>
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowAddItemModal(false);
+                  setNewItemName('');
+                }}
+                className="btn-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAddCustomItem}
+                disabled={saving || !newItemName.trim()}
+                className="btn-primary inline-flex items-center gap-2"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Agregar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
