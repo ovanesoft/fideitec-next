@@ -3,21 +3,11 @@ const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
 
 // Configuración de Helmet para headers de seguridad
+// CSP deshabilitado porque es una API REST (el frontend maneja su propio CSP)
 const helmetConfig = helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'"],
-      connectSrc: ["'self'", process.env.FRONTEND_URL],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
-    }
-  },
+  contentSecurityPolicy: false, // API REST no necesita CSP
   crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
