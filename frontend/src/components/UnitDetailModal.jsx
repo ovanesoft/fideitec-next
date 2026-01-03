@@ -274,6 +274,69 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     setShowAddItemModal(true);
   };
   
+  // Función para recalcular pesos dentro de una categoría
+  // Cuando el total de pesos excede 100%, normaliza proporcionalmente
+  const recalculateWeights = useCallback(async (categoryCode, itemsInCategory) => {
+    const applicableItems = itemsInCategory.filter(i => i.status !== 'not_applicable');
+    const totalWeight = applicableItems.reduce((sum, i) => sum + (i.weight || 100), 0);
+    
+    // Si el total es exactamente 100%, no hacer nada
+    if (totalWeight === 100) return;
+    
+    // Normalizar pesos proporcionalmente
+    const factor = 100 / totalWeight;
+    
+    // Actualizar cada item con su nuevo peso normalizado
+    for (const item of applicableItems) {
+      const newWeight = Math.round((item.weight || 100) * factor);
+      if (newWeight !== item.weight) {
+        try {
+          await api.put(`/units/${unitId}/progress/${item.id}`, { weight: newWeight });
+        } catch (error) {
+          console.error('Error actualizando peso:', error);
+        }
+      }
+    }
+    
+    // Recargar la unidad para reflejar cambios
+    loadUnit();
+  }, [unitId, loadUnit]);
+
+  // Eliminar item
+  const handleDeleteItem = async (itemId, itemName) => {
+    if (!window.confirm(`¿Eliminar "${itemName}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    
+    try {
+      const itemToDelete = unit.progress_items.find(i => i.id === itemId);
+      const categoryCode = itemToDelete?.category_code;
+      
+      const response = await api.delete(`/units/${unitId}/progress/${itemId}`);
+      
+      if (response.data.success) {
+        // Eliminar localmente
+        const remainingItems = unit.progress_items.filter(i => i.id !== itemId);
+        setUnit(prev => ({
+          ...prev,
+          progress_items: remainingItems
+        }));
+        
+        toast.success('Item eliminado');
+        
+        // Recalcular pesos de la categoría si había más items
+        if (categoryCode) {
+          const categoryItems = remainingItems.filter(i => i.category_code === categoryCode);
+          if (categoryItems.length > 0) {
+            setTimeout(() => recalculateWeights(categoryCode, categoryItems), 500);
+          }
+        }
+      }
+    } catch (error) {
+      toast.error('Error al eliminar item');
+    }
+  };
+
   const handleSaveItem = async () => {
     if (!newItemForm.name.trim()) {
       toast.error('Ingresá un nombre para el item');
@@ -283,12 +346,32 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     try {
       setSaving(true);
       
+      const categoryCode = newItemForm.category_code;
+      const currentCategoryItems = unit?.progress_items?.filter(
+        i => i.category_code === categoryCode && i.status !== 'not_applicable'
+      ) || [];
+      
+      // Calcular peso disponible en la categoría
+      const currentTotalWeight = currentCategoryItems.reduce((sum, i) => {
+        // Si estamos editando, no contar el item actual
+        if (editingItem && i.id === editingItem.id) return sum;
+        return sum + (i.weight || 100);
+      }, 0);
+      
+      let finalWeight = newItemForm.weight;
+      let shouldRecalculate = false;
+      
+      // Si el nuevo peso haría exceder el 100%, normalizar
+      if (currentTotalWeight + finalWeight > 100 && currentCategoryItems.length > 0) {
+        shouldRecalculate = true;
+      }
+      
       if (editingItem) {
         // Actualizar item existente
         const response = await api.put(`/units/${unitId}/progress/${editingItem.id}`, {
           name: newItemForm.name,
           category_code: newItemForm.category_code,
-          weight: newItemForm.weight,
+          weight: finalWeight,
           notes: newItemForm.notes
         });
         
@@ -300,24 +383,38 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
             )
           }));
           toast.success('Item actualizado');
+          
+          if (shouldRecalculate && categoryCode) {
+            const updatedItems = unit.progress_items.map(item =>
+              item.id === editingItem.id ? { ...item, weight: finalWeight } : item
+            ).filter(i => i.category_code === categoryCode);
+            setTimeout(() => recalculateWeights(categoryCode, updatedItems), 500);
+          }
         }
       } else {
         // Crear nuevo item
         const response = await api.post(`/units/${unitId}/progress`, {
           name: newItemForm.name,
           category_code: newItemForm.category_code,
-          weight: newItemForm.weight,
+          weight: finalWeight,
           notes: newItemForm.notes,
           status: 'pending',
           progress_percentage: 0
         });
         
         if (response.data.success) {
+          const newItem = response.data.data.item;
           setUnit(prev => ({
             ...prev,
-            progress_items: [...(prev.progress_items || []), response.data.data.item]
+            progress_items: [...(prev.progress_items || []), newItem]
           }));
           toast.success('Item agregado');
+          
+          // Recalcular pesos si excede 100%
+          if (shouldRecalculate && categoryCode) {
+            const allCategoryItems = [...currentCategoryItems, newItem];
+            setTimeout(() => recalculateWeights(categoryCode, allCategoryItems), 500);
+          }
         }
       }
       
@@ -901,9 +998,21 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                                 No Aplica
                               </span>
                             ) : (
-                              <span className="text-sm text-slate-500">
-                                ({completedCount}/{totalCount}) · {Math.round(weightedProgress)}%
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-slate-500">
+                                  ({completedCount}/{totalCount}) · {Math.round(weightedProgress)}%
+                                </span>
+                                {/* Mostrar suma de pesos si hay items con peso != 100 */}
+                                {totalWeight !== applicableItems.length * 100 && totalWeight > 0 && (
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                    totalWeight > 100 
+                                      ? 'bg-amber-100 text-amber-700' 
+                                      : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    Σ{totalWeight}%
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
                           <div className="flex items-center gap-3">
@@ -981,14 +1090,23 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                                             {item.weight}% incidencia
                                           </span>
                                         )}
-                                        {/* Botón editar */}
-                                        <button
-                                          onClick={() => openEditItemModal(item)}
-                                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                          title="Editar item"
-                                        >
-                                          <Wrench className="w-3 h-3" />
-                                        </button>
+                                        {/* Botones editar y eliminar */}
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <button
+                                            onClick={() => openEditItemModal(item)}
+                                            className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                            title="Editar item"
+                                          >
+                                            <Wrench className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteItem(item.id, item.name)}
+                                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                            title="Eliminar item"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
                                       </div>
                                       {item.notes && (
                                         <p className="text-xs text-slate-500">{item.notes}</p>
@@ -1181,25 +1299,79 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
 
               {/* Peso/Incidencia */}
               <div>
-                <label className="form-label">
-                  Incidencia sobre la categoría: <span className="font-bold text-primary-600">{newItemForm.weight}%</span>
-                </label>
-                <input
-                  type="range"
-                  min="1"
-                  max="100"
-                  value={newItemForm.weight}
-                  onChange={(e) => setNewItemForm(prev => ({ ...prev, weight: parseInt(e.target.value) }))}
-                  className="w-full h-2 accent-primary-500"
-                />
-                <div className="flex justify-between text-xs text-slate-500 mt-1">
-                  <span>1% (poco impacto)</span>
-                  <span>100% (impacto total)</span>
-                </div>
-                <p className="text-xs text-amber-600 mt-2 bg-amber-50 p-2 rounded">
-                  💡 Ejemplo: Si "Cableado balcón" tiene 10% de incidencia en Electricidad, 
-                  al completarlo solo sumará un 10% al progreso de Electricidad.
-                </p>
+                {(() => {
+                  // Calcular uso actual de la categoría
+                  const categoryItems = unit?.progress_items?.filter(
+                    i => i.category_code === newItemForm.category_code && 
+                         i.status !== 'not_applicable' &&
+                         (!editingItem || i.id !== editingItem.id)
+                  ) || [];
+                  const usedWeight = categoryItems.reduce((sum, i) => sum + (i.weight || 100), 0);
+                  const availableWeight = Math.max(0, 100 - usedWeight);
+                  const willExceed = usedWeight + newItemForm.weight > 100;
+                  
+                  return (
+                    <>
+                      <label className="form-label">
+                        Incidencia sobre la categoría: <span className="font-bold text-primary-600">{newItemForm.weight}%</span>
+                      </label>
+                      
+                      {/* Barra de uso de la categoría */}
+                      {newItemForm.category_code && categoryItems.length > 0 && (
+                        <div className="mb-3 p-3 bg-slate-50 rounded-lg">
+                          <div className="flex justify-between text-xs mb-2">
+                            <span className="text-slate-600">Uso de la categoría:</span>
+                            <span className={willExceed ? 'text-amber-600 font-medium' : 'text-slate-600'}>
+                              {usedWeight}% usado · {availableWeight}% disponible
+                            </span>
+                          </div>
+                          <div className="h-3 bg-slate-200 rounded-full overflow-hidden flex">
+                            {/* Peso usado por otros items */}
+                            <div 
+                              className="h-full bg-blue-400"
+                              style={{ width: `${Math.min(usedWeight, 100)}%` }}
+                            />
+                            {/* Peso de este item */}
+                            <div 
+                              className={`h-full ${willExceed ? 'bg-amber-400' : 'bg-green-400'}`}
+                              style={{ width: `${Math.min(newItemForm.weight, 100 - Math.min(usedWeight, 100))}%` }}
+                            />
+                          </div>
+                          <div className="flex gap-4 mt-2 text-xs">
+                            <span className="flex items-center gap-1">
+                              <span className="w-3 h-3 bg-blue-400 rounded"></span> Otros items
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-3 h-3 bg-green-400 rounded"></span> Este item
+                            </span>
+                          </div>
+                          {willExceed && (
+                            <p className="text-xs text-amber-600 mt-2">
+                              ⚠️ El total excede 100%. Los pesos se normalizarán automáticamente.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      
+                      <input
+                        type="range"
+                        min="1"
+                        max="100"
+                        value={newItemForm.weight}
+                        onChange={(e) => setNewItemForm(prev => ({ ...prev, weight: parseInt(e.target.value) }))}
+                        className="w-full h-2 accent-primary-500"
+                      />
+                      <div className="flex justify-between text-xs text-slate-500 mt-1">
+                        <span>1% (poco impacto)</span>
+                        <span>100% (impacto total)</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2 bg-slate-50 p-2 rounded">
+                        💡 Si el total de incidencias supera 100%, el sistema recalcula automáticamente 
+                        los porcentajes de forma proporcional.
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Notas */}
