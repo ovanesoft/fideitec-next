@@ -177,69 +177,94 @@
             padding: 0 var(--spacing-md);
         }
 
-        /* Theme Switcher */
+        /* Theme Switcher - In Navbar */
         .theme-switcher {
-            position: fixed;
-            top: 100px;
-            right: 20px;
-            z-index: var(--z-fixed);
-            background: var(--white);
-            border-radius: var(--radius-xl);
-            padding: var(--spacing-sm);
-            box-shadow: var(--shadow-2xl);
-            animation: slideInRight 0.5s ease-out;
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin-left: var(--spacing-sm);
         }
 
         .theme-toggle-btn {
-            width: 50px;
-            height: 50px;
+            width: 38px;
+            height: 38px;
             border-radius: var(--radius-full);
             background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-            border: none;
+            border: 2px solid rgba(255,255,255,0.3);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
+            font-size: 1rem;
             transition: all var(--transition-normal);
-            box-shadow: var(--shadow-md);
+            box-shadow: var(--shadow-sm);
         }
 
         .theme-toggle-btn:hover {
-            transform: scale(1.1) rotate(15deg);
-            box-shadow: var(--shadow-xl);
+            transform: scale(1.1);
+            box-shadow: var(--shadow-md);
+            border-color: rgba(255,255,255,0.6);
         }
 
         .theme-options {
             display: none;
-            margin-top: var(--spacing-sm);
-            gap: var(--spacing-xs);
-            flex-direction: column;
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            padding: 12px;
+            background: var(--white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            gap: 8px;
+            flex-wrap: wrap;
+            width: 156px;
+            justify-content: center;
+            z-index: var(--z-dropdown);
+            border: 1px solid var(--gray-200);
+        }
+
+        .theme-options::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            right: 12px;
+            width: 12px;
+            height: 12px;
+            background: var(--white);
+            border-left: 1px solid var(--gray-200);
+            border-top: 1px solid var(--gray-200);
+            transform: rotate(45deg);
         }
 
         .theme-options.active {
             display: flex;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .theme-option {
-            width: 50px;
-            height: 50px;
+            width: 32px;
+            height: 32px;
             border-radius: var(--radius-full);
-            border: 3px solid transparent;
+            border: 2px solid transparent;
             cursor: pointer;
-            transition: all var(--transition-normal);
+            transition: all var(--transition-fast);
             position: relative;
             overflow: hidden;
         }
 
         .theme-option:hover {
-            transform: scale(1.1);
-            border-color: var(--white);
+            transform: scale(1.15);
+            border-color: var(--gray-400);
         }
 
         .theme-option.active {
-            border-color: var(--white);
-            box-shadow: 0 0 0 3px var(--gray-900);
+            border-color: var(--gray-800);
+            box-shadow: 0 0 0 2px var(--white), 0 0 0 4px var(--primary-color);
         }
 
         .theme-option::before {
@@ -1143,11 +1168,6 @@
                 grid-template-columns: 1fr;
             }
 
-            .theme-switcher {
-                top: 80px;
-                right: 10px;
-            }
-
             .stats-grid {
                 grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             }
@@ -1240,24 +1260,6 @@
     </style>
 </head>
 <body>
-    <!-- Theme Switcher -->
-    <div class="theme-switcher">
-        <button class="theme-toggle-btn" onclick="toggleThemeOptions()" aria-label="Toggle theme options">
-            🎨
-        </button>
-        <div class="theme-options" id="themeOptions">
-            <button class="theme-option" style="background: linear-gradient(135deg, #667eea, #764ba2);" onclick="changeTheme('purple')" title="Purple"></button>
-            <button class="theme-option active" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);" onclick="changeTheme('default')" title="Blue"></button>
-            <button class="theme-option" style="background: linear-gradient(135deg, #10b981, #047857);" onclick="changeTheme('green')" title="Green"></button>
-            <button class="theme-option" style="background: linear-gradient(135deg, #f97316, #c2410c);" onclick="changeTheme('orange')" title="Orange"></button>
-            <button class="theme-option" style="background: linear-gradient(135deg, #ec4899, #be185d);" onclick="changeTheme('pink')" title="Pink"></button>
-            <button class="theme-option" style="background: linear-gradient(135deg, #14b8a6, #0f766e);" onclick="changeTheme('teal')" title="Teal"></button>
-            <button class="theme-option" style="background: linear-gradient(135deg, #6366f1, #4338ca);" onclick="changeTheme('indigo')" title="Indigo"></button>
-            <button class="theme-option" style="background: linear-gradient(135deg, #ef4444, #b91c1c);" onclick="changeTheme('red')" title="Red"></button>
-            <button class="theme-option" style="background: linear-gradient(135deg, #06b6d4, #0e7490);" onclick="changeTheme('cyan')" title="Cyan"></button>
-        </div>
-    </div>
-
     <!-- Header -->
     <header id="header">
         <div class="container">
@@ -1276,6 +1278,23 @@
                 <div class="auth-buttons">
                     <a href="https://app.fideitec.com/login" class="auth-btn login">Iniciar Sesión</a>
                     <a href="https://app.fideitec.com/register" class="auth-btn register">Registrarse</a>
+                </div>
+                <!-- Theme Switcher -->
+                <div class="theme-switcher">
+                    <button class="theme-toggle-btn" onclick="toggleThemeOptions(event)" aria-label="Cambiar tema">
+                        🎨
+                    </button>
+                    <div class="theme-options" id="themeOptions">
+                        <button class="theme-option" style="background: linear-gradient(135deg, #667eea, #764ba2);" onclick="changeTheme('purple')" title="Violeta"></button>
+                        <button class="theme-option active" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);" onclick="changeTheme('default')" title="Azul"></button>
+                        <button class="theme-option" style="background: linear-gradient(135deg, #10b981, #047857);" onclick="changeTheme('green')" title="Verde"></button>
+                        <button class="theme-option" style="background: linear-gradient(135deg, #f97316, #c2410c);" onclick="changeTheme('orange')" title="Naranja"></button>
+                        <button class="theme-option" style="background: linear-gradient(135deg, #ec4899, #be185d);" onclick="changeTheme('pink')" title="Rosa"></button>
+                        <button class="theme-option" style="background: linear-gradient(135deg, #14b8a6, #0f766e);" onclick="changeTheme('teal')" title="Turquesa"></button>
+                        <button class="theme-option" style="background: linear-gradient(135deg, #6366f1, #4338ca);" onclick="changeTheme('indigo')" title="Índigo"></button>
+                        <button class="theme-option" style="background: linear-gradient(135deg, #ef4444, #b91c1c);" onclick="changeTheme('red')" title="Rojo"></button>
+                        <button class="theme-option" style="background: linear-gradient(135deg, #06b6d4, #0e7490);" onclick="changeTheme('cyan')" title="Cian"></button>
+                    </div>
                 </div>
                 <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Toggle menu">
                     <span></span>
@@ -1569,10 +1588,20 @@
             localStorage.setItem('fideitec-theme', theme);
         }
 
-        function toggleThemeOptions() {
+        function toggleThemeOptions(event) {
+            event.stopPropagation();
             const options = document.getElementById('themeOptions');
             options.classList.toggle('active');
         }
+
+        // Cerrar theme options al hacer click afuera
+        document.addEventListener('click', function(event) {
+            const themeSwitcher = document.querySelector('.theme-switcher');
+            const themeOptions = document.getElementById('themeOptions');
+            if (themeSwitcher && !themeSwitcher.contains(event.target)) {
+                themeOptions.classList.remove('active');
+            }
+        });
 
         // Load saved theme
         document.addEventListener('DOMContentLoaded', function() {
