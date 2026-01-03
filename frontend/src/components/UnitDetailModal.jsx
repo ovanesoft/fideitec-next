@@ -252,16 +252,34 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     name: cat.name
   }));
 
+  // Modo del modal: 'category' = agregar categoría, 'subitem' = agregar subitem
+  const [addItemMode, setAddItemMode] = useState('category');
+
   const openAddItemModal = (categoryCode = '') => {
     setEditingItem(null);
     setShowNewCategoryInput(false);
-    setNewItemForm({
-      name: '',
-      category_code: categoryCode,
-      new_category_name: '',
-      weight: 100,
-      notes: ''
-    });
+    
+    if (categoryCode) {
+      // Agregar subitem a una categoría existente
+      setAddItemMode('subitem');
+      setNewItemForm({
+        name: '',
+        category_code: categoryCode,
+        new_category_name: '',
+        weight: 100,
+        notes: ''
+      });
+    } else {
+      // Agregar categoría nueva
+      setAddItemMode('category');
+      setNewItemForm({
+        name: '',
+        category_code: '',
+        new_category_name: '',
+        weight: 100,
+        notes: ''
+      });
+    }
     setShowAddItemModal(true);
   };
 
@@ -372,9 +390,17 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   };
 
   const handleSaveItem = async () => {
-    if (!newItemForm.name.trim()) {
-      toast.error('Ingresá un nombre para el item');
-      return;
+    // Validación según modo
+    if (addItemMode === 'category' && !editingItem) {
+      if (!newItemForm.category_code && !newItemForm.new_category_name) {
+        toast.error('Seleccioná o creá una categoría');
+        return;
+      }
+    } else {
+      if (!newItemForm.name.trim()) {
+        toast.error('Ingresá un nombre para el subitem');
+        return;
+      }
     }
     
     try {
@@ -991,14 +1017,14 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                   {/* Botón para agregar item personalizado - MÁS VISIBLE */}
                   <div className="flex justify-between items-center mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <span className="text-sm text-blue-700">
-                      ¿Necesitás agregar un item especial? Podés configurar su incidencia sobre la categoría.
+                      ¿Necesitás agregar una categoría? Podés elegir una predeterminada o crear una nueva.
                     </span>
                     <button
                       onClick={() => openAddItemModal()}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2 text-sm font-medium"
                     >
                       <Plus className="w-4 h-4" />
-                      Agregar Item
+                      Agregar Categoría
                     </button>
                   </div>
                   
@@ -1298,13 +1324,18 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         </div>
       </div>
 
-      {/* Modal para agregar/editar item */}
+      {/* Modal para agregar categoría o subitem */}
       {showAddItemModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-slate-900">
-                {editingItem ? 'Editar Item' : 'Agregar Item'}
+                {editingItem 
+                  ? 'Editar Item' 
+                  : addItemMode === 'category' 
+                    ? 'Agregar Categoría' 
+                    : `Agregar Subitem en ${availableCategories.find(c => c.code === newItemForm.category_code)?.name || newItemForm.category_code}`
+                }
               </h3>
               <button 
                 onClick={() => {
@@ -1320,153 +1351,161 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
             </div>
             
             <div className="space-y-4">
-              {/* Nombre del Item */}
-              <div>
-                <label className="form-label">Nombre del Item *</label>
-                <input
-                  type="text"
-                  value={newItemForm.name}
-                  onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ej: Cableado balcón, Instalación jacuzzi, etc."
-                  className="input-field"
-                  autoFocus
-                />
-              </div>
-
-              {/* Categoría */}
-              <div>
-                <label className="form-label">Categoría</label>
-                {!showNewCategoryInput ? (
-                  <>
-                    <select
-                      value={newItemForm.category_code}
-                      onChange={(e) => {
-                        if (e.target.value === '__new__') {
-                          setShowNewCategoryInput(true);
-                          setNewItemForm(prev => ({ ...prev, category_code: '' }));
-                        } else {
-                          setNewItemForm(prev => ({ ...prev, category_code: e.target.value }));
-                        }
-                      }}
-                      className="input-field"
-                    >
-                      <option value="">— Seleccionar categoría —</option>
-                      <optgroup label="Categorías predeterminadas">
-                        {availableCategories.map(cat => (
-                          <option key={cat.code} value={cat.code}>{cat.name}</option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="Otras opciones">
-                        <option value="__new__">➕ Crear nueva categoría...</option>
-                      </optgroup>
-                    </select>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Seleccioná una categoría predeterminada o creá una nueva
-                    </p>
-                  </>
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={newItemForm.new_category_name}
-                      onChange={(e) => setNewItemForm(prev => ({ 
-                        ...prev, 
-                        new_category_name: e.target.value,
-                        category_code: e.target.value.toLowerCase().replace(/\s+/g, '_')
-                      }))}
-                      placeholder="Nombre de la nueva categoría"
-                      className="input-field"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowNewCategoryInput(false);
-                        setNewItemForm(prev => ({ ...prev, new_category_name: '', category_code: '' }));
-                      }}
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      ← Volver a categorías predeterminadas
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Peso/Incidencia */}
-              <div>
-                {(() => {
-                  // Calcular uso actual de la categoría
-                  const categoryItems = unit?.progress_items?.filter(
-                    i => i.category_code === newItemForm.category_code && 
-                         i.status !== 'not_applicable' &&
-                         (!editingItem || i.id !== editingItem.id)
-                  ) || [];
-                  const usedWeight = categoryItems.reduce((sum, i) => sum + (i.weight || 100), 0);
-                  const availableWeight = Math.max(0, 100 - usedWeight);
-                  const willExceed = usedWeight + newItemForm.weight > 100;
-                  
-                  return (
+              {/* MODO CATEGORÍA: Solo seleccionar categoría */}
+              {addItemMode === 'category' && !editingItem && (
+                <div>
+                  <label className="form-label">Categoría *</label>
+                  {!showNewCategoryInput ? (
                     <>
-                      <label className="form-label">
-                        Incidencia sobre la categoría: <span className="font-bold text-primary-600">{newItemForm.weight}%</span>
-                      </label>
-                      
-                      {/* Barra de uso de la categoría */}
-                      {newItemForm.category_code && categoryItems.length > 0 && (
-                        <div className="mb-3 p-3 bg-slate-50 rounded-lg">
-                          <div className="flex justify-between text-xs mb-2">
-                            <span className="text-slate-600">Uso de la categoría:</span>
-                            <span className={willExceed ? 'text-amber-600 font-medium' : 'text-slate-600'}>
-                              {usedWeight}% usado · {availableWeight}% disponible
-                            </span>
-                          </div>
-                          <div className="h-3 bg-slate-200 rounded-full overflow-hidden flex">
-                            {/* Peso usado por otros items */}
-                            <div 
-                              className="h-full bg-blue-400"
-                              style={{ width: `${Math.min(usedWeight, 100)}%` }}
-                            />
-                            {/* Peso de este item */}
-                            <div 
-                              className={`h-full ${willExceed ? 'bg-amber-400' : 'bg-green-400'}`}
-                              style={{ width: `${Math.min(newItemForm.weight, 100 - Math.min(usedWeight, 100))}%` }}
-                            />
-                          </div>
-                          <div className="flex gap-4 mt-2 text-xs">
-                            <span className="flex items-center gap-1">
-                              <span className="w-3 h-3 bg-blue-400 rounded"></span> Otros items
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <span className="w-3 h-3 bg-green-400 rounded"></span> Este item
-                            </span>
-                          </div>
-                          {willExceed && (
-                            <p className="text-xs text-amber-600 mt-2">
-                              ⚠️ El total excede 100%. Los pesos se normalizarán automáticamente.
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      
-                      <input
-                        type="range"
-                        min="1"
-                        max="100"
-                        value={newItemForm.weight}
-                        onChange={(e) => setNewItemForm(prev => ({ ...prev, weight: parseInt(e.target.value) }))}
-                        className="w-full h-2 accent-primary-500"
-                      />
-                      <div className="flex justify-between text-xs text-slate-500 mt-1">
-                        <span>1% (poco impacto)</span>
-                        <span>100% (impacto total)</span>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-2 bg-slate-50 p-2 rounded">
-                        💡 Si el total de incidencias supera 100%, el sistema recalcula automáticamente 
-                        los porcentajes de forma proporcional.
+                      <select
+                        value={newItemForm.category_code}
+                        onChange={(e) => {
+                          if (e.target.value === '__new__') {
+                            setShowNewCategoryInput(true);
+                            setNewItemForm(prev => ({ ...prev, category_code: '', name: '' }));
+                          } else {
+                            const cat = availableCategories.find(c => c.code === e.target.value);
+                            setNewItemForm(prev => ({ 
+                              ...prev, 
+                              category_code: e.target.value,
+                              name: cat?.name || e.target.value // El nombre es el de la categoría
+                            }));
+                          }
+                        }}
+                        className="input-field"
+                        autoFocus
+                      >
+                        <option value="">— Seleccionar categoría —</option>
+                        <optgroup label="Categorías predeterminadas">
+                          {availableCategories.map(cat => (
+                            <option key={cat.code} value={cat.code}>{cat.name}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Otras opciones">
+                          <option value="__new__">➕ Crear nueva categoría...</option>
+                        </optgroup>
+                      </select>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Seleccioná una categoría predeterminada o creá una nueva
                       </p>
                     </>
-                  );
-                })()}
-              </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={newItemForm.new_category_name}
+                        onChange={(e) => setNewItemForm(prev => ({ 
+                          ...prev, 
+                          new_category_name: e.target.value,
+                          name: e.target.value, // El nombre es el de la nueva categoría
+                          category_code: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+                        }))}
+                        placeholder="Nombre de la nueva categoría"
+                        className="input-field"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewCategoryInput(false);
+                          setNewItemForm(prev => ({ ...prev, new_category_name: '', category_code: '', name: '' }));
+                        }}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        ← Volver a categorías predeterminadas
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* MODO SUBITEM: Nombre del subitem (la categoría ya está seleccionada) */}
+              {(addItemMode === 'subitem' || editingItem) && (
+                <div>
+                  <label className="form-label">Nombre del Subitem *</label>
+                  <input
+                    type="text"
+                    value={newItemForm.name}
+                    onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Ej: Cableado balcón, Grifería especial, etc."
+                    className="input-field"
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {/* Peso/Incidencia - Solo para SUBITEMS */}
+              {(addItemMode === 'subitem' || editingItem) && (
+                <div>
+                  {(() => {
+                    // Calcular uso actual de la categoría
+                    const categoryItems = unit?.progress_items?.filter(
+                      i => i.category_code === newItemForm.category_code && 
+                           i.status !== 'not_applicable' &&
+                           (!editingItem || i.id !== editingItem.id)
+                    ) || [];
+                    const usedWeight = categoryItems.reduce((sum, i) => sum + (i.weight || 100), 0);
+                    const availableWeight = Math.max(0, 100 - usedWeight);
+                    const willExceed = usedWeight + newItemForm.weight > 100;
+                    
+                    return (
+                      <>
+                        <label className="form-label">
+                          Incidencia sobre la categoría: <span className="font-bold text-primary-600">{newItemForm.weight}%</span>
+                        </label>
+                        
+                        {/* Barra de uso de la categoría */}
+                        {categoryItems.length > 0 && (
+                          <div className="mb-3 p-3 bg-slate-50 rounded-lg">
+                            <div className="flex justify-between text-xs mb-2">
+                              <span className="text-slate-600">Uso de la categoría:</span>
+                              <span className={willExceed ? 'text-amber-600 font-medium' : 'text-slate-600'}>
+                                {usedWeight}% usado · {availableWeight}% disponible
+                              </span>
+                            </div>
+                            <div className="h-3 bg-slate-200 rounded-full overflow-hidden flex">
+                              <div 
+                                className="h-full bg-blue-400"
+                                style={{ width: `${Math.min(usedWeight, 100)}%` }}
+                              />
+                              <div 
+                                className={`h-full ${willExceed ? 'bg-amber-400' : 'bg-green-400'}`}
+                                style={{ width: `${Math.min(newItemForm.weight, 100 - Math.min(usedWeight, 100))}%` }}
+                              />
+                            </div>
+                            <div className="flex gap-4 mt-2 text-xs">
+                              <span className="flex items-center gap-1">
+                                <span className="w-3 h-3 bg-blue-400 rounded"></span> Otros subitems
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span className="w-3 h-3 bg-green-400 rounded"></span> Este subitem
+                              </span>
+                            </div>
+                            {willExceed && (
+                              <p className="text-xs text-amber-600 mt-2">
+                                ⚠️ El total excede 100%. Se recalculará automáticamente.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        
+                        <input
+                          type="range"
+                          min="1"
+                          max="100"
+                          value={newItemForm.weight}
+                          onChange={(e) => setNewItemForm(prev => ({ ...prev, weight: parseInt(e.target.value) }))}
+                          className="w-full h-2 accent-primary-500"
+                        />
+                        <div className="flex justify-between text-xs text-slate-500 mt-1">
+                          <span>1% (poco impacto)</span>
+                          <span>100% (impacto total)</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
 
               {/* Notas */}
               <div>
@@ -1495,11 +1534,16 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
               </button>
               <button
                 onClick={handleSaveItem}
-                disabled={saving || !newItemForm.name.trim()}
+                disabled={saving || (addItemMode === 'category' && !newItemForm.category_code && !newItemForm.new_category_name) || (addItemMode === 'subitem' && !newItemForm.name.trim())}
                 className="btn-primary inline-flex items-center gap-2"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {editingItem ? 'Guardar Cambios' : 'Agregar Item'}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                {editingItem 
+                  ? 'Guardar Cambios' 
+                  : addItemMode === 'category' 
+                    ? 'Agregar Categoría' 
+                    : 'Agregar Subitem'
+                }
               </button>
             </div>
           </div>
