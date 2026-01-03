@@ -131,6 +131,27 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Endpoint para verificar emails (temporal - admin)
+app.post('/api/admin/verify-emails', async (req, res) => {
+  const { secret } = req.body;
+  if (secret !== process.env.JWT_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  
+  try {
+    const { query } = require('./config/database');
+    const result = await query(`
+      UPDATE users 
+      SET email_verified = true, email_verification_token = NULL 
+      WHERE email_verified = false 
+      RETURNING email, first_name
+    `);
+    res.json({ success: true, verified: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Endpoint para ejecutar migraciones (protegido por secret)
 app.post('/api/migrate', async (req, res) => {
   const { secret } = req.body;
