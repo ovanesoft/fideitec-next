@@ -233,6 +233,29 @@ app.post('/api/admin/reset-password', async (req, res) => {
   }
 });
 
+// Endpoint para agregar campos de invitación a clients (temporal)
+app.post('/api/admin/migrate-clients-invite', async (req, res) => {
+  const { secret } = req.body;
+  const ADMIN_SECRET = 'fdt_admin_2026_emergency';
+  if (secret !== ADMIN_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  
+  try {
+    const { query } = require('./config/database');
+    
+    // Agregar campos de invitación
+    await query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS invite_token VARCHAR(255)`);
+    await query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS invite_token_expires TIMESTAMP WITH TIME ZONE`);
+    await query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS invite_accepted_at TIMESTAMP WITH TIME ZONE`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_clients_invite_token ON clients(invite_token) WHERE invite_token IS NOT NULL`);
+    
+    res.json({ success: true, message: 'Migración de clientes completada' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Endpoint para ejecutar migraciones (protegido por secret)
 app.post('/api/migrate', async (req, res) => {
   const { secret } = req.body;
