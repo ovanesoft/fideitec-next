@@ -275,8 +275,8 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   };
   
   // Función para recalcular pesos dentro de una categoría
-  // Cuando el total de pesos excede 100%, normaliza proporcionalmente
-  const recalculateWeights = useCallback(async (categoryCode, itemsInCategory) => {
+  // El item nuevo/editado MANTIENE su peso, los demás se ajustan
+  const recalculateWeights = useCallback(async (categoryCode, itemsInCategory, newItemId = null) => {
     if (!itemsInCategory || itemsInCategory.length === 0) return;
     
     const applicableItems = itemsInCategory.filter(i => i.status !== 'not_applicable');
@@ -285,14 +285,26 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     // Si el total es exactamente 100% o menos, no hacer nada
     if (totalWeight <= 100) return;
     
-    // Normalizar pesos proporcionalmente
-    const factor = 100 / totalWeight;
+    // El item nuevo/editado mantiene su peso, los demás se ajustan
+    const newItem = newItemId ? applicableItems.find(i => i.id === newItemId) : null;
+    const newItemWeight = newItem?.weight || 0;
+    const otherItems = applicableItems.filter(i => i.id !== newItemId);
+    const otherTotalWeight = otherItems.reduce((sum, i) => sum + (i.weight || 100), 0);
     
-    console.log(`Recalculando pesos para ${categoryCode}: total=${totalWeight}, factor=${factor}`);
+    // El espacio disponible para los otros items es 100 - peso del nuevo
+    const availableForOthers = 100 - newItemWeight;
     
-    // Actualizar cada item con su nuevo peso normalizado
+    // Si no hay otros items o el peso disponible es 0, no recalcular
+    if (otherItems.length === 0 || availableForOthers <= 0) return;
+    
+    // Factor para ajustar los otros items
+    const factor = availableForOthers / otherTotalWeight;
+    
+    console.log(`Recalculando: nuevo=${newItemWeight}%, otros=${otherTotalWeight}%, factor=${factor.toFixed(2)}`);
+    
+    // Actualizar cada item (excepto el nuevo) con su peso ajustado
     const updates = [];
-    for (const item of applicableItems) {
+    for (const item of otherItems) {
       const newWeight = Math.max(1, Math.round((item.weight || 100) * factor));
       if (newWeight !== item.weight) {
         updates.push({ id: item.id, newWeight });
@@ -318,7 +330,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         }
       }
       
-      toast.success('Pesos recalculados automáticamente');
+      toast.success(`Pesos ajustados: nuevo item ${newItemWeight}%, resto ${availableForOthers}%`);
     }
   }, [unitId]);
 
@@ -408,7 +420,7 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
             const updatedItems = unit.progress_items.map(item =>
               item.id === editingItem.id ? { ...item, weight: finalWeight } : item
             ).filter(i => i.category_code === categoryCode);
-            setTimeout(() => recalculateWeights(categoryCode, updatedItems), 500);
+            setTimeout(() => recalculateWeights(categoryCode, updatedItems, editingItem.id), 500);
           }
         }
       } else {
@@ -441,10 +453,10 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
           }));
           toast.success('Item agregado');
           
-          // Recalcular pesos si excede 100%
+          // Recalcular pesos si excede 100% - el nuevo item MANTIENE su peso
           if (shouldRecalculate && categoryCode) {
             const allCategoryItems = [...currentCategoryItems, itemToAdd];
-            setTimeout(() => recalculateWeights(categoryCode, allCategoryItems), 500);
+            setTimeout(() => recalculateWeights(categoryCode, allCategoryItems, itemToAdd.id), 500);
           }
         }
       }
