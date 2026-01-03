@@ -131,6 +131,45 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Endpoint para ejecutar migraciones (protegido por secret)
+app.post('/api/migrate', async (req, res) => {
+  const { secret } = req.body;
+  if (secret !== process.env.JWT_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  
+  try {
+    const { query } = require('./config/database');
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Schema principal
+    const schemaPath = path.join(__dirname, 'database', 'schema.sql');
+    if (fs.existsSync(schemaPath)) {
+      const schema = fs.readFileSync(schemaPath, 'utf8');
+      await query(schema);
+    }
+    
+    // Migración de clientes
+    const clientsPath = path.join(__dirname, 'database', 'migration_clients.sql');
+    if (fs.existsSync(clientsPath)) {
+      const clientsMigration = fs.readFileSync(clientsPath, 'utf8');
+      await query(clientsMigration);
+    }
+    
+    // Migración de proveedores
+    const suppliersPath = path.join(__dirname, 'database', 'migration_suppliers.sql');
+    if (fs.existsSync(suppliersPath)) {
+      const suppliersMigration = fs.readFileSync(suppliersPath, 'utf8');
+      await query(suppliersMigration);
+    }
+    
+    res.json({ success: true, message: 'Migraciones ejecutadas' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/users', userRoutes);
