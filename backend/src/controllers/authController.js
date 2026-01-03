@@ -113,6 +113,22 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    // Debug log (remover en producción estable)
+    console.log('🔐 Login attempt:', { 
+      email, 
+      passwordLength: password?.length,
+      hasPassword: !!password,
+      bodyKeys: Object.keys(req.body)
+    });
+    
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email y contraseña son requeridos'
+      });
+    }
+    
     const normalizedEmail = email.toLowerCase().trim();
 
     // Buscar usuario
