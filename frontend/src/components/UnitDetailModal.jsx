@@ -776,14 +776,17 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Botón para agregar item personalizado */}
-                  <div className="flex justify-end mb-4">
+                  {/* Botón para agregar item personalizado - MÁS VISIBLE */}
+                  <div className="flex justify-between items-center mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <span className="text-sm text-blue-700">
+                      ¿Necesitás agregar un item especial que no está en la lista?
+                    </span>
                     <button
                       onClick={() => setShowAddItemModal(true)}
-                      className="btn-secondary inline-flex items-center gap-2 text-sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2 text-sm font-medium"
                     >
                       <Plus className="w-4 h-4" />
-                      Agregar Item Personalizado
+                      Agregar Item
                     </button>
                   </div>
                   
@@ -874,16 +877,17 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                                   </div>
                                   
                                   <div className="flex items-center gap-2">
-                                    {/* Si está marcado como No Aplica, mostrar diferente */}
+                                    {/* Si está marcado como No Aplica, mostrar botón Restaurar */}
                                     {item.status === 'not_applicable' ? (
                                       <button
                                         onClick={() => handleUpdateProgressItem(item.id, { 
                                           status: 'pending', 
                                           progress_percentage: 0 
                                         })}
-                                        className="text-xs text-slate-500 hover:text-slate-700 underline"
+                                        className="px-3 py-1 rounded text-xs font-medium text-green-600 hover:text-white hover:bg-green-500 border border-green-300 hover:border-green-500 transition-colors flex items-center gap-1"
                                       >
-                                        Restaurar
+                                        <Check className="w-3 h-3" />
+                                        Restaurar Item
                                       </button>
                                     ) : (
                                       <>
@@ -907,16 +911,17 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                                           </span>
                                         </div>
                                         
-                                        {/* Botón No Aplica */}
+                                        {/* Botón No Aplica - MÁS VISIBLE */}
                                         <button
                                           onClick={() => handleUpdateProgressItem(item.id, { 
                                             status: 'not_applicable', 
                                             progress_percentage: 0 
                                           })}
-                                          title="Marcar como No Aplica"
-                                          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                          title="Marcar como No Aplica (excluir del cálculo)"
+                                          className="px-2 py-1 rounded text-xs font-medium text-red-600 hover:text-white hover:bg-red-500 border border-red-300 hover:border-red-500 transition-colors flex items-center gap-1"
                                         >
-                                          <Ban className="w-4 h-4" />
+                                          <Ban className="w-3 h-3" />
+                                          No Aplica
                                         </button>
                                       </>
                                     )}
