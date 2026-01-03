@@ -140,13 +140,27 @@ app.post('/api/admin/verify-emails', async (req, res) => {
   
   try {
     const { query } = require('./config/database');
-    const result = await query(`
+    
+    // Verificar usuarios
+    const users = await query(`
       UPDATE users 
       SET email_verified = true, email_verification_token = NULL 
       WHERE email_verified = false 
-      RETURNING email, first_name
+      RETURNING email, first_name, 'user' as type
     `);
-    res.json({ success: true, verified: result.rows });
+    
+    // Verificar clientes
+    const clients = await query(`
+      UPDATE clients 
+      SET email_verified = true, email_verification_token = NULL 
+      WHERE email_verified = false 
+      RETURNING email, first_name, 'client' as type
+    `);
+    
+    res.json({ 
+      success: true, 
+      verified: [...users.rows, ...clients.rows]
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
