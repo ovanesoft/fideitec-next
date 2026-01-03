@@ -133,34 +133,36 @@ app.get('/api/health', (req, res) => {
 
 // Endpoint para verificar emails (temporal - admin)
 app.post('/api/admin/verify-emails', async (req, res) => {
-  const { secret } = req.body;
+  const { secret, email } = req.body;
   if (secret !== process.env.JWT_SECRET) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
   
   try {
     const { query } = require('./config/database');
+    const results = { users: [], clients: [] };
     
-    // Verificar usuarios
-    const users = await query(`
-      UPDATE users 
-      SET email_verified = true, email_verification_token = NULL 
-      WHERE email_verified = false 
-      RETURNING email, first_name, 'user' as type
-    `);
+    if (email) {
+      // Verificar email específico
+      const userResult = await query(
+        `UPDATE users SET email_verified = true, email_verification_token = NULL WHERE LOWER(email) = $1 RETURNING email`,
+        [email.toLowerCase()]
+      );
+      const clientResult = await query(
+        `UPDATE clients SET email_verified = true, email_verification_token = NULL WHERE LOWER(email) = $1 RETURNING email`,
+        [email.toLowerCase()]
+      );
+      results.users = userResult.rows;
+      results.clients = clientResult.rows;
+    } else {
+      // Verificar todos los no verificados
+      const userResult = await query(`UPDATE users SET email_verified = true WHERE email_verified = false OR email_verified IS NULL RETURNING email`);
+      const clientResult = await query(`UPDATE clients SET email_verified = true WHERE email_verified = false OR email_verified IS NULL RETURNING email`);
+      results.users = userResult.rows;
+      results.clients = clientResult.rows;
+    }
     
-    // Verificar clientes
-    const clients = await query(`
-      UPDATE clients 
-      SET email_verified = true, email_verification_token = NULL 
-      WHERE email_verified = false 
-      RETURNING email, first_name, 'client' as type
-    `);
-    
-    res.json({ 
-      success: true, 
-      verified: [...users.rows, ...clients.rows]
-    });
+    res.json({ success: true, verified: results });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
