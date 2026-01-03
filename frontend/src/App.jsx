@@ -1,14 +1,51 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ClientAuthProvider } from './context/ClientAuthContext';
+import { SupplierAuthProvider } from './context/SupplierAuthContext';
+import DashboardLayout from './components/DashboardLayout';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
+import DashboardContent from './pages/DashboardContent';
+import Clients from './pages/Clients';
+import Suppliers from './pages/Suppliers';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import DataDeletion from './pages/DataDeletion';
+// Portal de Clientes
+import PortalLogin from './pages/portal/PortalLogin';
+import PortalRegister from './pages/portal/PortalRegister';
+import PortalDashboard from './pages/portal/PortalDashboard';
+// Portal de Proveedores
+import SupplierLogin from './pages/supplier-portal/SupplierLogin';
+import SupplierSetup from './pages/supplier-portal/SupplierSetup';
+import SupplierDashboard from './pages/supplier-portal/SupplierDashboard';
+
+// Apply theme from localStorage (shared with landing page)
+const useTheme = () => {
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('fideitec-theme');
+    if (savedTheme && savedTheme !== 'default') {
+      document.body.className = `theme-${savedTheme}`;
+    }
+    
+    // Listen for theme changes from other tabs/windows
+    const handleStorage = (e) => {
+      if (e.key === 'fideitec-theme') {
+        document.body.className = e.newValue && e.newValue !== 'default' 
+          ? `theme-${e.newValue}` 
+          : '';
+      }
+    };
+    
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+};
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -57,7 +94,7 @@ const PublicRoute = ({ children }) => {
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public Routes */}
+      {/* Public Routes - Portal de Empresa */}
       <Route path="/login" element={
         <PublicRoute>
           <Login />
@@ -75,12 +112,16 @@ function AppRoutes() {
       <Route path="/terms" element={<Terms />} />
       <Route path="/data-deletion" element={<DataDeletion />} />
 
-      {/* Protected Routes */}
-      <Route path="/dashboard" element={
+      {/* Protected Routes - Portal de Empresa con Layout compartido */}
+      <Route element={
         <ProtectedRoute>
-          <Dashboard />
+          <DashboardLayout />
         </ProtectedRoute>
-      } />
+      }>
+        <Route path="/dashboard" element={<DashboardContent />} />
+        <Route path="/clients" element={<Clients />} />
+        <Route path="/suppliers" element={<Suppliers />} />
+      </Route>
 
       {/* Redirect root to login or dashboard */}
       <Route path="/" element={<Navigate to="/login" replace />} />
@@ -91,12 +132,70 @@ function AppRoutes() {
   );
 }
 
+// Rutas del Portal de Clientes (separadas del portal de empresa)
+function PortalRoutes() {
+  return (
+    <ClientAuthProvider>
+      <Routes>
+        <Route path="/:portalToken/login" element={<PortalLogin />} />
+        <Route path="/:portalToken/register" element={<PortalRegister />} />
+        <Route path="/:portalToken/dashboard" element={<PortalDashboard />} />
+        <Route path="/:portalToken" element={<Navigate to="login" replace />} />
+      </Routes>
+    </ClientAuthProvider>
+  );
+}
+
+// Rutas del Portal de Proveedores
+function SupplierPortalRoutes() {
+  return (
+    <SupplierAuthProvider>
+      <Routes>
+        <Route path="/:portalToken/login" element={<SupplierLogin />} />
+        <Route path="/:portalToken/setup/:inviteToken" element={<SupplierSetup />} />
+        <Route path="/:portalToken/dashboard" element={<SupplierDashboard />} />
+        <Route path="/:portalToken" element={<Navigate to="login" replace />} />
+      </Routes>
+    </SupplierAuthProvider>
+  );
+}
+
 function App() {
+  useTheme();
+  
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#1e293b',
+            color: '#f8fafc',
+            borderRadius: '12px',
+          },
+          success: {
+            iconTheme: { primary: '#22c55e', secondary: '#f8fafc' }
+          },
+          error: {
+            iconTheme: { primary: '#ef4444', secondary: '#f8fafc' }
+          }
+        }}
+      />
+      <Routes>
+        {/* Portal de Clientes - rutas con /portal/* */}
+        <Route path="/portal/*" element={<PortalRoutes />} />
+        
+        {/* Portal de Proveedores - rutas con /supplier-portal/* */}
+        <Route path="/supplier-portal/*" element={<SupplierPortalRoutes />} />
+        
+        {/* Portal de Empresa - todas las demás rutas */}
+        <Route path="/*" element={
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        } />
+      </Routes>
     </BrowserRouter>
   );
 }

@@ -84,5 +84,79 @@ router.delete('/invitations/:invitationId',
   tenantController.cancelInvitation
 );
 
+// ===========================================
+// Portal de Clientes
+// ===========================================
+
+// Obtener info del portal del tenant actual
+router.get('/my/portal',
+  requireTenantAdmin,
+  tenantController.getClientPortalInfo
+);
+
+// Obtener info del portal de un tenant específico
+router.get('/:id/portal',
+  uuidValidation('id'),
+  tenantController.getClientPortalInfo
+);
+
+// Habilitar/deshabilitar portal
+router.put('/my/portal/toggle',
+  requireTenantAdmin,
+  tenantController.toggleClientPortal
+);
+
+router.put('/:id/portal/toggle',
+  requireTenantAdmin,
+  uuidValidation('id'),
+  tenantController.toggleClientPortal
+);
+
+// Regenerar token del portal
+router.post('/my/portal/regenerate-token',
+  requireTenantAdmin,
+  tenantController.regeneratePortalToken
+);
+
+router.post('/:id/portal/regenerate-token',
+  requireTenantAdmin,
+  uuidValidation('id'),
+  tenantController.regeneratePortalToken
+);
+
+// Actualizar configuración del portal
+router.put('/my/portal/settings',
+  requireTenantAdmin,
+  tenantController.updatePortalSettings
+);
+
+router.put('/:id/portal/settings',
+  requireTenantAdmin,
+  uuidValidation('id'),
+  tenantController.updatePortalSettings
+);
+
+// ===========================================
+// Portal de Proveedores
+// ===========================================
+
+// Obtener info del portal de proveedores del tenant actual
+router.get('/my/supplier-portal',
+  requireTenantAdmin,
+  tenantController.getSupplierPortalInfo
+);
+
+// Habilitar/deshabilitar portal de proveedores
+router.put('/my/supplier-portal/toggle',
+  requireTenantAdmin,
+  tenantController.toggleSupplierPortal
+);
+
+// Regenerar token del portal de proveedores
+router.post('/my/supplier-portal/regenerate-token',
+  requireTenantAdmin,
+  tenantController.regenerateSupplierPortalToken
+);
+
 module.exports = router;
 

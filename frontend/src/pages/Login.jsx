@@ -41,12 +41,12 @@ const Login = () => {
         
         <div className="relative z-10 text-center">
             <div className="mb-8">
-            <div className="w-48 h-48 mx-auto mb-6 animate-float">
-              <img src="/logo.png" alt="FIDEITEC" className="w-full h-full object-contain drop-shadow-2xl" />
-            </div>
-            <h1 className="text-5xl text-white mb-4 font-script">
+            <h1 className="logo-text-lg mb-2">
               FIDEITEC
             </h1>
+            <div className="inline-block px-4 py-1 rounded-full bg-white/10 border border-white/20 mb-4">
+              <span className="text-sm font-semibold text-white/80">Portal de Empresa</span>
+            </div>
             <p className="text-xl text-white/60 max-w-md">
               Gestión Integral de Fideicomisos Inmobiliarios
             </p>
@@ -67,10 +67,10 @@ const Login = () => {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
-            <div className="w-28 h-28 mx-auto mb-4">
-              <img src="/logo.png" alt="FIDEITEC" className="w-full h-full object-contain drop-shadow-xl" />
+            <h1 className="logo-text-lg">FIDEITEC</h1>
+            <div className="inline-block px-3 py-1 rounded-full bg-white/10 border border-white/20 mt-2">
+              <span className="text-xs font-semibold text-white/80">Portal de Empresa</span>
             </div>
-            <h1 className="text-2xl text-white font-script">FIDEITEC</h1>
           </div>
 
           <div className="card animate-slide-up">

@@ -1,0 +1,176 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { Shield, Mail, Calendar, Users, TrendingUp, DollarSign, Activity, Truck, Loader2 } from 'lucide-react';
+import axios from '../api/axios';
+
+const DashboardContent = () => {
+  const { user } = useAuth();
+  const [stats, setStats] = useState({
+    clients: 0,
+    suppliers: 0,
+    fideicomisos: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        // Obtener estadísticas de clientes
+        const clientsRes = await axios.get('/clients/stats').catch(() => ({ data: { success: false } }));
+        const suppliersRes = await axios.get('/suppliers/stats').catch(() => ({ data: { success: false } }));
+        
+        setStats({
+          clients: clientsRes.data?.data?.stats?.total || 0,
+          suppliers: suppliersRes.data?.data?.stats?.total || 0,
+          fideicomisos: 0 // Pendiente de implementar
+        });
+      } catch (err) {
+        console.error('Error cargando estadísticas:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?.tenantId) {
+      fetchStats();
+    }
+  }, [user?.tenantId]);
+
+  const statsCards = [
+    { label: 'Clientes', value: stats.clients, icon: Users, color: 'bg-blue-500' },
+    { label: 'Proveedores', value: stats.suppliers, icon: Truck, color: 'bg-amber-500' },
+    { label: 'Fideicomisos', value: stats.fideicomisos, icon: DollarSign, color: 'bg-purple-500' },
+  ];
+
+  return (
+    <div className="p-4 lg:p-8">
+      {/* Welcome card */}
+      <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-purple-700 rounded-3xl p-8 text-white mb-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+        
+        <div className="relative">
+          <h2 className="text-2xl font-bold mb-2">¡Bienvenido de vuelta, {user?.first_name}! 👋</h2>
+          <p className="text-white/80 mb-6 max-w-xl">
+            Aquí tienes un resumen de tu actividad reciente. Tu organización está creciendo constantemente.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
+              <p className="text-white/70 text-sm">Rol</p>
+              <p className="font-semibold">{user?.role === 'admin' ? 'Administrador' : user?.role}</p>
+            </div>
+            <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
+              <p className="text-white/70 text-sm">Organización</p>
+              <p className="font-semibold">{user?.tenant_name || 'Mi Empresa'}</p>
+            </div>
+            <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
+              <p className="text-white/70 text-sm">Email verificado</p>
+              <p className="font-semibold">{user?.email_verified ? 'Sí ✓' : 'Pendiente'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {loading ? (
+          <div className="col-span-3 flex justify-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
+          </div>
+        ) : (
+          statsCards.map((stat, i) => (
+            <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`w-12 h-12 ${stat.color} rounded-xl flex items-center justify-center text-white`}>
+                  <stat.icon className="w-6 h-6" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-slate-800">{stat.value}</p>
+              <p className="text-sm text-slate-500">{stat.label}</p>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Info cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Account Info */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h3 className="text-lg font-semibold text-slate-800 mb-4">Información de la cuenta</h3>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <Mail className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Email</p>
+                <p className="font-medium text-slate-800">{user?.email}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                <Shield className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Cuenta verificada</p>
+                <p className="font-medium text-slate-800">
+                  {user?.email_verified ? 'Email verificado' : 'Pendiente de verificación'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Último acceso</p>
+                <p className="font-medium text-slate-800">
+                  {user?.last_login 
+                    ? new Date(user.last_login).toLocaleDateString('es-AR', { 
+                        day: 'numeric', 
+                        month: 'long', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                    : 'Primera sesión'
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <h3 className="text-lg font-semibold text-slate-800 mb-4">Acciones rápidas</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
+              <Users className="w-6 h-6 text-primary-600 mb-2" />
+              <p className="font-medium text-slate-800">Nuevo Cliente</p>
+              <p className="text-xs text-slate-500">Agregar cliente</p>
+            </button>
+            <button className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
+              <Activity className="w-6 h-6 text-primary-600 mb-2" />
+              <p className="font-medium text-slate-800">Nuevo Proveedor</p>
+              <p className="text-xs text-slate-500">Invitar proveedor</p>
+            </button>
+            <button className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
+              <DollarSign className="w-6 h-6 text-primary-600 mb-2" />
+              <p className="font-medium text-slate-800">Fideicomiso</p>
+              <p className="text-xs text-slate-500">Crear nuevo</p>
+            </button>
+            <button className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
+              <TrendingUp className="w-6 h-6 text-primary-600 mb-2" />
+              <p className="font-medium text-slate-800">Reportes</p>
+              <p className="text-xs text-slate-500">Ver estadísticas</p>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DashboardContent;
+

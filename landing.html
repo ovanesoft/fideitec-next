@@ -10,13 +10,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Color Schemes - Default: Purple */
-            --primary-color: #667eea;
-            --primary-dark: #5568d3;
-            --secondary-color: #764ba2;
-            --accent-color: #f093fb;
-            --gradient-start: #667eea;
-            --gradient-end: #764ba2;
+            /* Color Schemes - Default: Blue */
+            --primary-color: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary-color: #1d4ed8;
+            --accent-color: #60a5fa;
+            --gradient-start: #3b82f6;
+            --gradient-end: #1d4ed8;
 
             /* Neutral Colors */
             --white: #ffffff;
@@ -75,12 +75,12 @@
         }
 
         /* Color Themes */
-        .theme-blue {
-            --gradient-start: #3b82f6;
-            --gradient-end: #1d4ed8;
-            --primary-color: #3b82f6;
-            --primary-dark: #2563eb;
-            --secondary-color: #1d4ed8;
+        .theme-purple {
+            --gradient-start: #667eea;
+            --gradient-end: #764ba2;
+            --primary-color: #667eea;
+            --primary-dark: #5568d3;
+            --secondary-color: #764ba2;
         }
 
         .theme-green {
@@ -1246,8 +1246,8 @@
             🎨
         </button>
         <div class="theme-options" id="themeOptions">
-            <button class="theme-option active" style="background: linear-gradient(135deg, #667eea, #764ba2);" onclick="changeTheme('default')" title="Purple"></button>
-            <button class="theme-option" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);" onclick="changeTheme('blue')" title="Blue"></button>
+            <button class="theme-option" style="background: linear-gradient(135deg, #667eea, #764ba2);" onclick="changeTheme('purple')" title="Purple"></button>
+            <button class="theme-option active" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);" onclick="changeTheme('default')" title="Blue"></button>
             <button class="theme-option" style="background: linear-gradient(135deg, #10b981, #047857);" onclick="changeTheme('green')" title="Green"></button>
             <button class="theme-option" style="background: linear-gradient(135deg, #f97316, #c2410c);" onclick="changeTheme('orange')" title="Orange"></button>
             <button class="theme-option" style="background: linear-gradient(135deg, #ec4899, #be185d);" onclick="changeTheme('pink')" title="Pink"></button>

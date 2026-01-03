@@ -20,6 +20,10 @@ const authRoutes = require('./routes/auth');
 const tenantRoutes = require('./routes/tenants');
 const userRoutes = require('./routes/users');
 const invitationRoutes = require('./routes/invitations');
+const clientRoutes = require('./routes/clients');
+const clientPortalRoutes = require('./routes/clientPortal');
+const supplierRoutes = require('./routes/suppliers');
+const supplierPortalRoutes = require('./routes/supplierPortal');
 
 const app = express();
 
@@ -45,10 +49,14 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.FRONTEND_URL,
       'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
+      'http://localhost:5176',
+      'http://localhost:5177',
       'http://localhost:3000',
-      'https://nicroma-frontend.onrender.com',
-      'https://www.nicroma.com',
-      'https://nicroma.com'
+      'https://fideitec-frontend.onrender.com',
+      'https://www.fideitec.com',
+      'https://fideitec.com'
     ].filter(Boolean);
 
     // También permitir cualquier subdominio de onrender.com en desarrollo
@@ -122,6 +130,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/portal', clientPortalRoutes);
+app.use('/api/suppliers', supplierRoutes);
+app.use('/api/supplier-portal', supplierPortalRoutes);
 
 // ===========================================
 // Ruta raíz
@@ -129,7 +141,7 @@ app.use('/api/invitations', invitationRoutes);
 
 app.get('/', (req, res) => {
   res.json({
-    name: 'Nicroma API',
+    name: 'FIDEITEC API',
     version: '1.0.0',
     documentation: '/api/docs'
   });
@@ -203,7 +215,7 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       console.log(`
-🚀 Nicroma API iniciada
+🚀 FIDEITEC API iniciada
 📍 Puerto: ${PORT}
 🌍 Entorno: ${process.env.NODE_ENV || 'development'}
 🔗 URL: http://localhost:${PORT}

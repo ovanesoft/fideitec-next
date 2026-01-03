@@ -609,6 +609,434 @@ const listTenantUsers = async (req, res) => {
   }
 };
 
+// ===========================================
+// Portal de Clientes
+// ===========================================
+
+// Obtener información del portal de clientes
+const getClientPortalInfo = async (req, res) => {
+  try {
+    const user = req.user;
+    const tenantId = req.params.id || user.tenant_id;
+
+    // Verificar acceso
+    if (user.role !== 'root' && user.tenant_id !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene acceso a esta organización'
+      });
+    }
+
+    const result = await query(
+      `SELECT client_portal_token, client_portal_enabled, client_portal_settings
+       FROM tenants WHERE id = $1`,
+      [tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organización no encontrada'
+      });
+    }
+
+    const tenant = result.rows[0];
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/portal/${tenant.client_portal_token}`;
+
+    res.json({
+      success: true,
+      data: {
+        portal: {
+          enabled: tenant.client_portal_enabled,
+          token: tenant.client_portal_token,
+          url: portalUrl,
+          settings: tenant.client_portal_settings
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo info del portal:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener información del portal'
+    });
+  }
+};
+
+// Habilitar/deshabilitar portal de clientes
+const toggleClientPortal = async (req, res) => {
+  try {
+    const user = req.user;
+    const tenantId = req.params.id || user.tenant_id;
+    const { enabled } = req.body;
+
+    // Verificar acceso (solo admin del tenant o root)
+    if (user.role !== 'root' && (user.tenant_id !== tenantId || !['admin'].includes(user.role))) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para modificar esta configuración'
+      });
+    }
+
+    const result = await query(
+      `UPDATE tenants 
+       SET client_portal_enabled = $1
+       WHERE id = $2
+       RETURNING client_portal_enabled, client_portal_token`,
+      [enabled, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organización no encontrada'
+      });
+    }
+
+    const tenant = result.rows[0];
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/portal/${tenant.client_portal_token}`;
+
+    // Log de auditoría
+    await query(
+      `SELECT log_audit($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        tenantId, user.id, 'CLIENT_PORTAL_TOGGLED', 'tenants', tenantId,
+        null, JSON.stringify({ enabled }),
+        req.ip, req.headers['user-agent']
+      ]
+    ).catch(err => console.error('Error en auditoría:', err));
+
+    res.json({
+      success: true,
+      message: `Portal de clientes ${enabled ? 'habilitado' : 'deshabilitado'}`,
+      data: {
+        portal: {
+          enabled: tenant.client_portal_enabled,
+          url: portalUrl
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error toggling portal:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al modificar el portal'
+    });
+  }
+};
+
+// Regenerar token del portal
+const regeneratePortalToken = async (req, res) => {
+  try {
+    const user = req.user;
+    const tenantId = req.params.id || user.tenant_id;
+
+    // Verificar acceso (solo admin del tenant o root)
+    if (user.role !== 'root' && (user.tenant_id !== tenantId || !['admin'].includes(user.role))) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para modificar esta configuración'
+      });
+    }
+
+    const newToken = crypto.randomBytes(32).toString('hex');
+
+    const result = await query(
+      `UPDATE tenants 
+       SET client_portal_token = $1
+       WHERE id = $2
+       RETURNING client_portal_token, client_portal_enabled`,
+      [newToken, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organización no encontrada'
+      });
+    }
+
+    const tenant = result.rows[0];
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/portal/${tenant.client_portal_token}`;
+
+    // Log de auditoría
+    await query(
+      `SELECT log_audit($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        tenantId, user.id, 'PORTAL_TOKEN_REGENERATED', 'tenants', tenantId,
+        null, JSON.stringify({ action: 'regenerate' }),
+        req.ip, req.headers['user-agent']
+      ]
+    ).catch(err => console.error('Error en auditoría:', err));
+
+    res.json({
+      success: true,
+      message: 'Token regenerado. Los links anteriores ya no funcionarán.',
+      data: {
+        portal: {
+          token: tenant.client_portal_token,
+          url: portalUrl
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error regenerando token:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al regenerar token'
+    });
+  }
+};
+
+// Actualizar configuración del portal
+const updatePortalSettings = async (req, res) => {
+  try {
+    const user = req.user;
+    const tenantId = req.params.id || user.tenant_id;
+    const { settings } = req.body;
+
+    // Verificar acceso (solo admin del tenant o root)
+    if (user.role !== 'root' && (user.tenant_id !== tenantId || !['admin'].includes(user.role))) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para modificar esta configuración'
+      });
+    }
+
+    // Validar settings permitidos
+    const allowedSettings = [
+      'allow_self_registration',
+      'require_kyc',
+      'auto_approve_kyc_level_1',
+      'welcome_message',
+      'terms_url',
+      'privacy_url'
+    ];
+
+    const filteredSettings = {};
+    for (const [key, value] of Object.entries(settings || {})) {
+      if (allowedSettings.includes(key)) {
+        filteredSettings[key] = value;
+      }
+    }
+
+    const result = await query(
+      `UPDATE tenants 
+       SET client_portal_settings = client_portal_settings || $1::jsonb
+       WHERE id = $2
+       RETURNING client_portal_settings`,
+      [JSON.stringify(filteredSettings), tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organización no encontrada'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Configuración actualizada',
+      data: {
+        settings: result.rows[0].client_portal_settings
+      }
+    });
+
+  } catch (error) {
+    console.error('Error actualizando settings del portal:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar configuración'
+    });
+  }
+};
+
+// ===========================================
+// Portal de Proveedores
+// ===========================================
+
+// Obtener información del portal de proveedores
+const getSupplierPortalInfo = async (req, res) => {
+  try {
+    const user = req.user;
+    const tenantId = req.params.id || user.tenant_id;
+
+    // Verificar acceso
+    if (user.role !== 'root' && user.tenant_id !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene acceso a esta organización'
+      });
+    }
+
+    const result = await query(
+      `SELECT supplier_portal_token, supplier_portal_enabled
+       FROM tenants WHERE id = $1`,
+      [tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organización no encontrada'
+      });
+    }
+
+    const tenant = result.rows[0];
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/supplier-portal/${tenant.supplier_portal_token}`;
+
+    res.json({
+      success: true,
+      data: {
+        supplierPortalEnabled: tenant.supplier_portal_enabled,
+        supplierPortalToken: tenant.supplier_portal_token,
+        supplierPortalUrl: portalUrl
+      }
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo info del portal de proveedores:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener información del portal'
+    });
+  }
+};
+
+// Habilitar/deshabilitar portal de proveedores
+const toggleSupplierPortal = async (req, res) => {
+  try {
+    const user = req.user;
+    const tenantId = req.params.id || user.tenant_id;
+
+    // Verificar acceso (solo admin del tenant o root)
+    if (user.role !== 'root' && (user.tenant_id !== tenantId || !['admin'].includes(user.role))) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para modificar esta configuración'
+      });
+    }
+
+    // Obtener estado actual
+    const currentResult = await query(
+      'SELECT supplier_portal_enabled FROM tenants WHERE id = $1',
+      [tenantId]
+    );
+
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organización no encontrada'
+      });
+    }
+
+    const newEnabled = !currentResult.rows[0].supplier_portal_enabled;
+
+    const result = await query(
+      `UPDATE tenants 
+       SET supplier_portal_enabled = $1
+       WHERE id = $2
+       RETURNING supplier_portal_enabled, supplier_portal_token`,
+      [newEnabled, tenantId]
+    );
+
+    const tenant = result.rows[0];
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/supplier-portal/${tenant.supplier_portal_token}`;
+
+    // Log de auditoría
+    await query(
+      `SELECT log_audit($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        tenantId, user.id, 'SUPPLIER_PORTAL_TOGGLED', 'tenants', tenantId,
+        null, JSON.stringify({ enabled: newEnabled }),
+        req.ip, req.headers['user-agent']
+      ]
+    ).catch(err => console.error('Error en auditoría:', err));
+
+    res.json({
+      success: true,
+      message: `Portal de proveedores ${newEnabled ? 'habilitado' : 'deshabilitado'}`,
+      data: {
+        supplierPortalEnabled: tenant.supplier_portal_enabled,
+        supplierPortalUrl: portalUrl
+      }
+    });
+
+  } catch (error) {
+    console.error('Error toggling portal de proveedores:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al modificar el portal'
+    });
+  }
+};
+
+// Regenerar token del portal de proveedores
+const regenerateSupplierPortalToken = async (req, res) => {
+  try {
+    const user = req.user;
+    const tenantId = req.params.id || user.tenant_id;
+
+    // Verificar acceso (solo admin del tenant o root)
+    if (user.role !== 'root' && (user.tenant_id !== tenantId || !['admin'].includes(user.role))) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para modificar esta configuración'
+      });
+    }
+
+    const newToken = crypto.randomBytes(32).toString('hex');
+
+    const result = await query(
+      `UPDATE tenants 
+       SET supplier_portal_token = $1
+       WHERE id = $2
+       RETURNING supplier_portal_token, supplier_portal_enabled`,
+      [newToken, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organización no encontrada'
+      });
+    }
+
+    const tenant = result.rows[0];
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/supplier-portal/${tenant.supplier_portal_token}`;
+
+    // Log de auditoría
+    await query(
+      `SELECT log_audit($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        tenantId, user.id, 'SUPPLIER_PORTAL_TOKEN_REGENERATED', 'tenants', tenantId,
+        null, JSON.stringify({ action: 'regenerate' }),
+        req.ip, req.headers['user-agent']
+      ]
+    ).catch(err => console.error('Error en auditoría:', err));
+
+    res.json({
+      success: true,
+      message: 'Token regenerado. Los links anteriores ya no funcionarán.',
+      data: {
+        supplierPortalToken: tenant.supplier_portal_token,
+        supplierPortalUrl: portalUrl
+      }
+    });
+
+  } catch (error) {
+    console.error('Error regenerando token de proveedores:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al regenerar token'
+    });
+  }
+};
+
 module.exports = {
   createTenant,
   listTenants,
@@ -618,6 +1046,15 @@ module.exports = {
   acceptInvitation,
   listInvitations,
   cancelInvitation,
-  listTenantUsers
+  listTenantUsers,
+  // Portal de clientes
+  getClientPortalInfo,
+  toggleClientPortal,
+  regeneratePortalToken,
+  updatePortalSettings,
+  // Portal de proveedores
+  getSupplierPortalInfo,
+  toggleSupplierPortal,
+  regenerateSupplierPortalToken
 };
 

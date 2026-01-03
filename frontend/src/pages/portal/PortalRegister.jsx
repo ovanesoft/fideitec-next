@@ -1,13 +1,17 @@
-import { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useClientAuth } from '../../context/ClientAuthContext';
+import { Eye, EyeOff, AlertCircle, Loader2, CheckCircle2, Building2 } from 'lucide-react';
 
-const Register = () => {
+const PortalRegister = () => {
+  const { portalToken } = useParams();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
+    phone: '',
+    documentType: 'DNI',
+    documentNumber: '',
     password: '',
     confirmPassword: ''
   });
@@ -16,9 +20,37 @@ const Register = () => {
   const [localError, setLocalError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [success, setSuccess] = useState(false);
+  const [tenantInfo, setTenantInfo] = useState(null);
+  const [loadingTenant, setLoadingTenant] = useState(true);
   
-  const { register, googleLogin, error } = useAuth();
+  const { register, getTenantInfo, error, isAuthenticated } = useClientAuth();
   const navigate = useNavigate();
+
+  // Cargar información del tenant
+  useEffect(() => {
+    const loadTenant = async () => {
+      const result = await getTenantInfo(portalToken);
+      if (result.success) {
+        setTenantInfo(result.tenant);
+        // Verificar si permite auto-registro
+        if (!result.tenant.settings?.allow_self_registration) {
+          setLocalError('El auto-registro no está habilitado para este portal');
+        }
+      } else {
+        setLocalError(result.message);
+      }
+      setLoadingTenant(false);
+    };
+    
+    loadTenant();
+  }, [portalToken, getTenantInfo]);
+
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(`/portal/${portalToken}/dashboard`);
+    }
+  }, [isAuthenticated, navigate, portalToken]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -64,10 +96,13 @@ const Register = () => {
 
     setIsLoading(true);
 
-    const result = await register({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
+    const result = await register(portalToken, {
+      first_name: formData.firstName,
+      last_name: formData.lastName,
       email: formData.email,
+      phone: formData.phone,
+      document_type: formData.documentType,
+      document_number: formData.documentNumber,
       password: formData.password
     });
     
@@ -75,19 +110,42 @@ const Register = () => {
       setSuccess(true);
     } else {
       setLocalError(result.message);
-      if (result.errors) {
-        const errors = {};
-        result.errors.forEach(err => {
-          errors[err.field] = err.message;
-        });
-        setFieldErrors(errors);
-      }
     }
     
     setIsLoading(false);
   };
 
   const displayError = localError || error;
+
+  if (loadingTenant) {
+    return (
+      <div className="min-h-screen bg-pattern flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-white animate-spin mx-auto mb-4" />
+          <p className="text-white/60">Cargando portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!tenantInfo || !tenantInfo.settings?.allow_self_registration) {
+    return (
+      <div className="min-h-screen bg-pattern flex items-center justify-center p-8">
+        <div className="card max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-4">Registro no disponible</h2>
+          <p className="text-slate-600 mb-6">
+            {displayError || 'El auto-registro no está habilitado. Contacta a la empresa para solicitar acceso.'}
+          </p>
+          <Link to={`/portal/${portalToken}/login`} className="btn-primary inline-block">
+            Ir al Login
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (
@@ -101,7 +159,7 @@ const Register = () => {
             Hemos enviado un email de verificación a <span className="font-semibold">{formData.email}</span>. 
             Por favor revisa tu bandeja de entrada y verifica tu cuenta.
           </p>
-          <Link to="/login" className="btn-primary inline-block">
+          <Link to={`/portal/${portalToken}/login`} className="btn-primary inline-block">
             Ir al Login
           </Link>
         </div>
@@ -118,20 +176,33 @@ const Register = () => {
         
         <div className="relative z-10 text-center">
           <div className="mb-8">
-            <h1 className="logo-text-lg mb-2">FIDEITEC</h1>
+            {tenantInfo.logo_url ? (
+              <img 
+                src={tenantInfo.logo_url} 
+                alt={tenantInfo.name} 
+                className="h-20 mx-auto mb-4"
+              />
+            ) : (
+              <div className="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Building2 className="w-10 h-10 text-white" />
+              </div>
+            )}
+            <h1 className="text-4xl font-bold text-white mb-2">
+              {tenantInfo.name}
+            </h1>
             <div className="inline-block px-4 py-1 rounded-full bg-white/10 border border-white/20 mb-4">
-              <span className="text-sm font-semibold text-white/80">Portal de Empresa</span>
+              <span className="text-sm font-semibold text-white/80">Portal de Clientes</span>
             </div>
             <p className="text-xl text-white/60 max-w-md">
-              Gestión Integral de Fideicomisos Inmobiliarios
+              Crea tu cuenta y accede a tus inversiones
             </p>
           </div>
           
           <div className="mt-12 space-y-4">
             {[
-              'Gestión de fideicomisos',
-              'Tokenización de activos',
-              'Seguridad blockchain'
+              'Seguimiento de inversiones',
+              'Documentos digitales',
+              'Verificación KYC segura'
             ].map((feature, i) => (
               <div key={i} className="glass rounded-xl p-4 flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-primary-400" />
@@ -143,20 +214,31 @@ const Register = () => {
       </div>
 
       {/* Right side - Register Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 overflow-y-auto">
+        <div className="w-full max-w-md py-8">
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
-            <h1 className="logo-text-lg">FIDEITEC</h1>
+            {tenantInfo.logo_url ? (
+              <img 
+                src={tenantInfo.logo_url} 
+                alt={tenantInfo.name} 
+                className="h-12 mx-auto mb-2"
+              />
+            ) : (
+              <div className="w-16 h-16 bg-white/10 rounded-xl flex items-center justify-center mx-auto mb-2">
+                <Building2 className="w-8 h-8 text-white" />
+              </div>
+            )}
+            <h1 className="text-2xl font-bold text-white">{tenantInfo.name}</h1>
             <div className="inline-block px-3 py-1 rounded-full bg-white/10 border border-white/20 mt-2">
-              <span className="text-xs font-semibold text-white/80">Portal de Empresa</span>
+              <span className="text-xs font-semibold text-white/80">Portal de Clientes</span>
             </div>
           </div>
 
           <div className="card animate-slide-up">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-slate-800">Crear cuenta</h2>
-              <p className="text-slate-500 mt-2">Comienza tu prueba gratuita hoy</p>
+              <p className="text-slate-500 mt-2">Regístrate como cliente de {tenantInfo.name}</p>
             </div>
 
             {/* Error message */}
@@ -166,27 +248,6 @@ const Register = () => {
                 <p className="text-red-600 text-sm">{displayError}</p>
               </div>
             )}
-
-            {/* Social Register */}
-            <div className="space-y-3 mb-6">
-              <button 
-                type="button"
-                onClick={googleLogin}
-                className="btn-social"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Registrarse con Google
-              </button>
-            </div>
-
-            <div className="divider">
-              <span className="text-slate-400 text-sm">o usa tu email</span>
-            </div>
 
             {/* Register Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -203,7 +264,6 @@ const Register = () => {
                     placeholder="Juan"
                     required
                   />
-                  {fieldErrors.firstName && <p className="error-text">{fieldErrors.firstName}</p>}
                 </div>
                 <div>
                   <label htmlFor="lastName" className="form-label">Apellido</label>
@@ -217,7 +277,6 @@ const Register = () => {
                     placeholder="Pérez"
                     required
                   />
-                  {fieldErrors.lastName && <p className="error-text">{fieldErrors.lastName}</p>}
                 </div>
               </div>
 
@@ -229,12 +288,54 @@ const Register = () => {
                   type="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className={`input-field ${fieldErrors.email ? 'border-red-500' : ''}`}
+                  className="input-field"
                   placeholder="tu@email.com"
                   required
                   autoComplete="email"
                 />
-                {fieldErrors.email && <p className="error-text">{fieldErrors.email}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="phone" className="form-label">Teléfono</label>
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="input-field"
+                  placeholder="+54 11 1234 5678"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="documentType" className="form-label">Tipo Doc.</label>
+                  <select
+                    id="documentType"
+                    name="documentType"
+                    value={formData.documentType}
+                    onChange={handleChange}
+                    className="input-field"
+                  >
+                    <option value="DNI">DNI</option>
+                    <option value="CUIT">CUIT</option>
+                    <option value="CUIL">CUIL</option>
+                    <option value="PASSPORT">Pasaporte</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label htmlFor="documentNumber" className="form-label">Número</label>
+                  <input
+                    id="documentNumber"
+                    name="documentNumber"
+                    type="text"
+                    value={formData.documentNumber}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="12345678"
+                  />
+                </div>
               </div>
 
               <div>
@@ -246,7 +347,7 @@ const Register = () => {
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={handleChange}
-                    className={`input-field pr-12 ${fieldErrors.password ? 'border-red-500' : ''}`}
+                    className="input-field pr-12"
                     placeholder="••••••••"
                     required
                     autoComplete="new-password"
@@ -306,17 +407,9 @@ const Register = () => {
                     required
                     autoComplete="new-password"
                   />
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
                 </div>
                 {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                  <p className="error-text">Las contraseñas no coinciden</p>
+                  <p className="text-red-500 text-sm mt-1">Las contraseñas no coinciden</p>
                 )}
               </div>
 
@@ -337,15 +430,12 @@ const Register = () => {
             </form>
 
             <p className="text-center mt-6 text-slate-500 text-sm">
-              Al registrarte, aceptas nuestros{' '}
-              <Link to="/terms" className="link">Términos de servicio</Link>
-              {' '}y{' '}
-              <Link to="/privacy" className="link">Política de privacidad</Link>
+              Al registrarte, aceptas los términos y condiciones de {tenantInfo.name}
             </p>
 
             <p className="text-center mt-4 text-slate-500">
               ¿Ya tienes una cuenta?{' '}
-              <Link to="/login" className="link">Inicia sesión</Link>
+              <Link to={`/portal/${portalToken}/login`} className="link">Inicia sesión</Link>
             </p>
           </div>
         </div>
@@ -354,5 +444,5 @@ const Register = () => {
   );
 };
 
-export default Register;
+export default PortalRegister;
 
