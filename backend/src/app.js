@@ -152,17 +152,35 @@ app.post('/api/admin/verify-emails', async (req, res) => {
   }
 });
 
-// Endpoint para ejecutar SQL de admin (temporal)
-app.post('/api/admin/sql', async (req, res) => {
-  const { secret, sql } = req.body;
+// Endpoint para crear tenant y asignar usuario (temporal)
+app.post('/api/admin/setup-tenant', async (req, res) => {
+  const { secret, tenantName, userEmail, userRole } = req.body;
   if (secret !== process.env.JWT_SECRET) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
   
   try {
     const { query } = require('./config/database');
-    const result = await query(sql);
-    res.json({ success: true, rows: result.rows, rowCount: result.rowCount });
+    const crypto = require('crypto');
+    
+    // Crear tenant
+    const tenantResult = await query(
+      `INSERT INTO tenants (name, slug, is_active, client_portal_enabled, supplier_portal_enabled, client_portal_token, supplier_portal_token) 
+       VALUES ($1, $2, true, true, true, $3, $4) 
+       ON CONFLICT (slug) DO UPDATE SET name = $1
+       RETURNING id, name, client_portal_token, supplier_portal_token`,
+      [tenantName, tenantName.toLowerCase().replace(/\s+/g, '-'), crypto.randomBytes(32).toString('hex'), crypto.randomBytes(32).toString('hex')]
+    );
+    
+    const tenant = tenantResult.rows[0];
+    
+    // Asignar usuario al tenant
+    const userResult = await query(
+      `UPDATE users SET tenant_id = $1, role = $2 WHERE email = $3 RETURNING id, email, first_name, role`,
+      [tenant.id, userRole || 'admin', userEmail.toLowerCase()]
+    );
+    
+    res.json({ success: true, tenant, user: userResult.rows[0] });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
