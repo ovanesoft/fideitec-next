@@ -358,11 +358,11 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     toast.error('Funcionalidad de subida en desarrollo');
   };
 
-  // Toggle categoría expandida
+  // Toggle categoría expandida (por defecto están colapsadas)
   const toggleCategory = (categoryCode) => {
     setExpandedCategories(prev => ({
       ...prev,
-      [categoryCode]: !prev[categoryCode]
+      [categoryCode]: prev[categoryCode] === true ? false : true
     }));
   };
 
@@ -853,9 +853,9 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                     </button>
                   </div>
                   
-                  {/* Items agrupados por categoría */}
+                  {/* Items agrupados por categoría - COLAPSADOS POR DEFECTO */}
                   {Object.entries(groupedItems).map(([categoryCode, items]) => {
-                    const isExpanded = expandedCategories[categoryCode] !== false;
+                    const isExpanded = expandedCategories[categoryCode] === true;
                     // Excluir items "No Aplica" del conteo
                     const applicableItems = items.filter(i => i.status !== 'not_applicable');
                     const completedCount = applicableItems.filter(i => i.status === 'completed').length;
