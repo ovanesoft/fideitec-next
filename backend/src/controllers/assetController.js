@@ -370,7 +370,7 @@ const createAsset = async (req, res) => {
 
     const assetId = result.rows[0].id;
 
-    // Si es un proyecto, crear las etapas
+    // Si es un proyecto, crear las etapas con progreso inicial 0
     if (asset_category === 'real_estate' && (asset_type === 'building_under_construction' || project_stage)) {
       const stages = [
         'paperwork', 'acquisition', 'excavation', 'foundation', 
@@ -379,8 +379,8 @@ const createAsset = async (req, res) => {
       
       for (const stage of stages) {
         await dbClient.query(
-          `INSERT INTO project_stages (asset_id, stage, status, created_by)
-           VALUES ($1, $2, 'pending', $3)`,
+          `INSERT INTO project_stages (asset_id, stage, status, progress_percentage, created_by)
+           VALUES ($1, $2, 'pending', 0, $3)`,
           [assetId, stage, user.id]
         );
       }
@@ -1011,15 +1011,28 @@ const updateProjectStage = async (req, res) => {
       ]
     );
 
-    // Calcular progreso total del proyecto y actualizarlo
+    // Calcular progreso total del proyecto basado en etapas completadas
+    // Fórmula: (completadas * 100 + en_progreso * porcentaje) / total_etapas
     const progressResult = await query(
-      `SELECT AVG(progress_percentage) as avg_progress
+      `SELECT 
+        COUNT(*) as total_stages,
+        COUNT(*) FILTER (WHERE status = 'completed') as completed_stages,
+        COALESCE(SUM(progress_percentage) FILTER (WHERE status = 'in_progress'), 0) as in_progress_sum,
+        COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress_count
        FROM project_stages
        WHERE asset_id = $1`,
       [assetId]
     );
 
-    const totalProgress = Math.round(progressResult.rows[0].avg_progress || 0);
+    const { total_stages, completed_stages, in_progress_sum, in_progress_count } = progressResult.rows[0];
+    const totalStages = parseInt(total_stages) || 10; // Default 10 etapas si no hay
+    const completedCount = parseInt(completed_stages) || 0;
+    const inProgressSum = parseFloat(in_progress_sum) || 0;
+    
+    // Progreso = (etapas completadas * 100 + suma de progreso en curso) / total
+    const totalProgress = totalStages > 0 
+      ? Math.round((completedCount * 100 + inProgressSum) / totalStages)
+      : 0;
 
     await query(
       `UPDATE assets SET 

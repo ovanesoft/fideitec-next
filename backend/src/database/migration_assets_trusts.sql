@@ -711,3 +711,26 @@ COMMENT ON COLUMN assets.risk_level IS 'Nivel de riesgo del activo en escala del
 COMMENT ON COLUMN assets.project_stage IS 'Etapa actual del proyecto: paperwork, acquisition, excavation, foundation, structure, rough_work, finishing, final_paperwork, delivery, completed';
 COMMENT ON COLUMN asset_units.is_template IS 'Indica si esta unidad es una plantilla para clonar otras unidades similares';
 
+-- ===========================================
+-- CORRECCIONES DE DATOS EXISTENTES
+-- ===========================================
+
+-- Corregir etapas con progress_percentage NULL a 0
+UPDATE project_stages SET progress_percentage = 0 WHERE progress_percentage IS NULL AND status = 'pending';
+UPDATE project_stages SET progress_percentage = 100 WHERE progress_percentage IS NULL AND status = 'completed';
+UPDATE project_stages SET progress_percentage = 50 WHERE progress_percentage IS NULL AND status = 'in_progress';
+
+-- Recalcular progreso de activos basado en etapas
+UPDATE assets a SET 
+    project_progress_percentage = COALESCE((
+        SELECT 
+            CASE 
+                WHEN COUNT(*) = 0 THEN 0
+                ELSE ROUND((COUNT(*) FILTER (WHERE status = 'completed') * 100 + 
+                           COALESCE(SUM(progress_percentage) FILTER (WHERE status = 'in_progress'), 0)) / COUNT(*)::numeric)
+            END
+        FROM project_stages ps 
+        WHERE ps.asset_id = a.id
+    ), 0)
+WHERE EXISTS (SELECT 1 FROM project_stages ps WHERE ps.asset_id = a.id);
+
