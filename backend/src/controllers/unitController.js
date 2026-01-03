@@ -32,15 +32,19 @@ const getUnitDetail = async (req, res) => {
     const unit = unitResult.rows[0];
 
     // Obtener items de progreso
+    // COALESCE para usar category_code/name del item si no tiene category_id
     const progressResult = await query(
       `SELECT upi.*, 
-              upc.name as category_name, upc.code as category_code, upc.icon as category_icon, upc.color as category_color,
+              COALESCE(upc.name, upi.category_name) as category_name, 
+              COALESCE(upc.code, upi.category_code) as category_code, 
+              upc.icon as category_icon, 
+              upc.color as category_color,
               s.company_name as supplier_name
        FROM unit_progress_items upi
        LEFT JOIN unit_progress_categories upc ON upi.category_id = upc.id
        LEFT JOIN suppliers s ON upi.supplier_id = s.id
        WHERE upi.unit_id = $1
-       ORDER BY upi.display_order, upi.created_at`,
+       ORDER BY COALESCE(upc.display_order, 999), upi.display_order, upi.created_at`,
       [unitId]
     );
 
@@ -397,14 +401,20 @@ const addProgressItem = async (req, res) => {
       });
     }
 
-    // Obtener el nombre de la categoría si se proporciona category_code
+    // Obtener el id y nombre de la categoría si se proporciona category_code
+    let categoryId = category_id || null;
     let categoryName = null;
-    if (category_code) {
+    if (category_code && !categoryId) {
       const catResult = await query(
-        `SELECT name FROM unit_progress_categories WHERE code = $1 AND tenant_id = $2`,
+        `SELECT id, name FROM unit_progress_categories WHERE code = $1 AND tenant_id = $2`,
         [category_code, tenantId]
       );
-      categoryName = catResult.rows[0]?.name || category_code;
+      if (catResult.rows[0]) {
+        categoryId = catResult.rows[0].id;
+        categoryName = catResult.rows[0].name;
+      } else {
+        categoryName = category_code; // Usar el código como nombre si no existe la categoría
+      }
     }
 
     // Obtener el máximo display_order
@@ -422,7 +432,7 @@ const addProgressItem = async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
-        unitId, category_id || null, category_code || null, categoryName,
+        unitId, categoryId, category_code || null, categoryName,
         name, description || null, status || 'pending', 
         estimated_cost || null, currency || 'USD',
         priority || 0, assigned_to || null, supplier_id || null,
