@@ -913,6 +913,75 @@ const getUploadUrl = async (req, res) => {
   }
 };
 
+// =============================================
+// ELIMINAR UNIDAD
+// =============================================
+
+const deleteUnit = async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { unitId } = req.params;
+    const tenantId = req.user.tenant_id;
+
+    await client.query('BEGIN');
+
+    // Verificar que la unidad existe y pertenece al tenant
+    const unitCheck = await client.query(
+      `SELECT u.id, u.unit_code, u.asset_id 
+       FROM asset_units u
+       JOIN assets a ON u.asset_id = a.id
+       WHERE u.id = $1 AND a.tenant_id = $2`,
+      [unitId, tenantId]
+    );
+
+    if (unitCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        message: 'Unidad no encontrada'
+      });
+    }
+
+    const unit = unitCheck.rows[0];
+
+    // Eliminar documentos asociados
+    await client.query(
+      'DELETE FROM unit_documents WHERE unit_id = $1',
+      [unitId]
+    );
+
+    // Eliminar items de progreso
+    await client.query(
+      'DELETE FROM unit_progress_items WHERE unit_id = $1',
+      [unitId]
+    );
+
+    // Eliminar la unidad
+    await client.query(
+      'DELETE FROM asset_units WHERE id = $1',
+      [unitId]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: `Departamento ${unit.unit_code} eliminado correctamente`
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error eliminando unidad:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al eliminar unidad'
+    });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   getUnitDetail,
   updateUnit,
@@ -925,6 +994,7 @@ module.exports = {
   addDocument,
   getUnitDocuments,
   deleteDocument,
-  getUploadUrl
+  getUploadUrl,
+  deleteUnit
 };
 

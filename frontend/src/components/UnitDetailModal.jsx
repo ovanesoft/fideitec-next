@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 
-const MODAL_VERSION = '1.12';
+const MODAL_VERSION = '1.13';
 import {
   X, Save, CheckCircle2, Circle, Clock, AlertTriangle,
   Building2, FileText, Image, Upload, Trash2, Plus, 
@@ -19,7 +19,8 @@ import {
   PaintBucket, DoorOpen, Bath, Wrench, Sparkles, 
   ClipboardCheck, Check, Loader2, Edit2, Info,
   Thermometer, Layers, LayoutGrid, Grip, Hammer, 
-  ShowerHead, Package, Fence, FileCheck, Square
+  ShowerHead, Package, Fence, FileCheck, Square,
+  Ban, MoreVertical
 } from 'lucide-react';
 
 // =============================================
@@ -315,6 +316,11 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   const [targetCategory, setTargetCategory] = useState(null);
   const [subcategoryForm, setSubcategoryForm] = useState({ name: '', weight: 20 });
   
+  // Menú de acciones y confirmaciones
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  
   // Refs
   const debounceTimers = useRef({});
   
@@ -453,6 +459,42 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
       toast.error('Error al guardar');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Borrar unidad
+  const handleDeleteUnit = async () => {
+    try {
+      setDeleting(true);
+      await api.delete(`/units/${unitId}`);
+      toast.success('Departamento eliminado');
+      onUpdate?.();
+      onClose?.();
+    } catch (error) {
+      console.error('Error eliminando unidad:', error);
+      toast.error('Error al eliminar el departamento');
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  // Bloquear/Desbloquear unidad
+  const handleToggleBlock = async () => {
+    try {
+      setSaving(true);
+      const newStatus = unit.sale_status === 'unavailable' ? 'available' : 'unavailable';
+      const response = await api.put(`/units/${unitId}`, { sale_status: newStatus });
+      if (response.data.success) {
+        setUnit(prev => ({ ...prev, sale_status: newStatus }));
+        toast.success(newStatus === 'unavailable' ? 'Departamento bloqueado' : 'Departamento desbloqueado');
+        onUpdate?.();
+      }
+    } catch (error) {
+      toast.error('Error al cambiar estado');
+    } finally {
+      setSaving(false);
+      setShowActionsMenu(false);
     }
   };
 
@@ -697,41 +739,98 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
         {/* Header */}
         <div className="relative flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30">
-              <Building2 className="w-7 h-7 text-white" />
+            <div className="w-12 h-12 bg-primary-500 rounded-lg flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-white" />
             </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">
-              {unit.unit_name || unit.unit_code || 'Unidad'}
-            </h2>
-            <p className="text-sm text-slate-500">
-              {unit.asset_name} • Piso {unit.floor_number || '-'}
-            </p>
-          </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono bg-slate-200 text-slate-700 px-2 py-0.5 rounded">
+                  {unit.unit_code || 'SIN-CÓDIGO'}
+                </span>
+                {unit.sale_status && (
+                  <span className={`text-xs px-2 py-0.5 rounded ${SALE_STATUS[unit.sale_status]?.color || 'bg-slate-100'}`}>
+                    {SALE_STATUS[unit.sale_status]?.label || unit.sale_status}
+                  </span>
+                )}
+              </div>
+              <h2 className="text-lg font-bold text-slate-800 mt-0.5">
+                {unit.unit_name || 'Sin nombre'}
+              </h2>
+              <p className="text-xs text-slate-500">
+                {unit.asset_name} • Piso {unit.floor_number || '-'}
+              </p>
+            </div>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* Progreso circular */}
-            <div className="relative w-16 h-16">
-              <svg className="w-16 h-16 transform -rotate-90">
-                <circle cx="32" cy="32" r="28" fill="none" stroke="#e2e8f0" strokeWidth="6" />
+            <div className="relative w-14 h-14">
+              <svg className="w-14 h-14 transform -rotate-90">
+                <circle cx="28" cy="28" r="24" fill="none" stroke="#e2e8f0" strokeWidth="5" />
                 <circle
-                  cx="32" cy="32" r="28"
+                  cx="28" cy="28" r="24"
                   fill="none"
                   stroke={overallProgress >= 100 ? '#22c55e' : '#3b82f6'}
-                  strokeWidth="6"
-                  strokeDasharray={`${overallProgress * 1.76} 176`}
+                  strokeWidth="5"
+                  strokeDasharray={`${overallProgress * 1.51} 151`}
                   strokeLinecap="round"
                   className="transition-all duration-700"
                 />
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-slate-700">
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-700">
                 {overallProgress}%
               </span>
             </div>
             
-            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
-              <X className="w-6 h-6" />
+            {/* Menú de acciones */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowActionsMenu(!showActionsMenu)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+              
+              {showActionsMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowActionsMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-1">
+                    <button
+                      onClick={() => {
+                        setActiveTab('info');
+                        setEditingInfo(true);
+                        setShowActionsMenu(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Editar datos
+                    </button>
+                    <button
+                      onClick={handleToggleBlock}
+                      className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                      <Ban className="w-4 h-4" />
+                      {unit.sale_status === 'unavailable' ? 'Desbloquear' : 'Bloquear'}
+                    </button>
+                    <div className="border-t border-slate-100 my-1" />
+                    <button
+                      onClick={() => {
+                        setShowDeleteConfirm(true);
+                        setShowActionsMenu(false);
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Eliminar departamento
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+              <X className="w-5 h-5" />
             </button>
           </div>
           {/* Versión */}
@@ -1112,6 +1211,55 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                   <>
                     <Check className="w-4 h-4" />
                     {editingSubcategory ? 'Guardar' : 'Agregar'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación de eliminación */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="p-6">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 text-center mb-2">
+                ¿Eliminar departamento?
+              </h3>
+              <p className="text-sm text-slate-600 text-center mb-4">
+                Estás por eliminar <strong>{unit.unit_code}</strong> ({unit.unit_name || 'Sin nombre'}).
+                Esta acción no se puede deshacer.
+              </p>
+              <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500">
+                Se eliminarán también todos los datos de progreso y documentos asociados.
+              </div>
+            </div>
+            <div className="flex border-t border-slate-200">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="flex-1 px-4 py-3 text-slate-700 hover:bg-slate-50 transition-colors font-medium disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteUnit}
+                disabled={deleting}
+                className="flex-1 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors font-medium border-l border-slate-200 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Eliminar
                   </>
                 )}
               </button>

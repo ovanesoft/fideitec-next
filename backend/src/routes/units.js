@@ -32,6 +32,12 @@ router.put('/:unitId',
   unitController.updateUnit
 );
 
+// Eliminar unidad
+router.delete('/:unitId',
+  requireRole(['root', 'admin']),
+  unitController.deleteUnit
+);
+
 // Marcar unidad como 100% completada
 router.post('/:unitId/complete',
   requireRole(['root', 'admin', 'manager']),
