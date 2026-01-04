@@ -12,6 +12,7 @@ import Clients from './pages/Clients';
 import Suppliers from './pages/Suppliers';
 import Trusts from './pages/Trusts';
 import Assets from './pages/Assets';
+import Tokenization from './pages/Tokenization';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -126,6 +127,7 @@ function AppRoutes() {
         <Route path="/suppliers" element={<Suppliers />} />
         <Route path="/trusts" element={<Trusts />} />
         <Route path="/assets" element={<Assets />} />
+        <Route path="/tokenization" element={<Tokenization />} />
       </Route>
 
       {/* Redirect root to login or dashboard */}

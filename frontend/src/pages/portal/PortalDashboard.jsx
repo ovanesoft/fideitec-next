@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useClientAuth } from '../../context/ClientAuthContext';
+import api from '../../api/axios';
+import toast from 'react-hot-toast';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -14,14 +16,64 @@ import {
   CheckCircle2,
   Clock,
   ChevronRight,
-  Bell
+  Bell,
+  Coins,
+  Download,
+  ExternalLink,
+  ShieldCheck,
+  QrCode,
+  Copy,
+  Check,
+  TrendingUp,
+  Wallet
 } from 'lucide-react';
+
+// Componente para copiar al portapapeles
+const CopyButton = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  
+  return (
+    <button onClick={handleCopy} className="p-1 hover:bg-gray-100 rounded">
+      {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
+    </button>
+  );
+};
+
+// Formatear números
+const formatNumber = (num) => {
+  if (!num) return '0';
+  return new Intl.NumberFormat('es-AR').format(num);
+};
+
+// Formatear moneda
+const formatCurrency = (amount, currency = 'USD') => {
+  if (!amount) return '$0';
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  }).format(amount);
+};
 
 const PortalDashboard = () => {
   const { portalToken } = useParams();
   const { client, tenant, logout, isAuthenticated, loading } = useClientAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState('dashboard'); // 'dashboard', 'tokens', 'certificates', 'profile'
   const navigate = useNavigate();
+
+  // Estados para tokens y certificados
+  const [tokens, setTokens] = useState([]);
+  const [certificates, setCertificates] = useState([]);
+  const [loadingData, setLoadingData] = useState(false);
+  const [totalPortfolioValue, setTotalPortfolioValue] = useState(0);
 
   // Redirigir si no está autenticado
   useEffect(() => {
@@ -29,6 +81,55 @@ const PortalDashboard = () => {
       navigate(`/portal/${portalToken}/login`);
     }
   }, [isAuthenticated, loading, navigate, portalToken]);
+
+  // Cargar tokens y certificados del cliente
+  const loadClientData = useCallback(async () => {
+    if (!client?.id) return;
+    
+    setLoadingData(true);
+    try {
+      const [tokensRes, certsRes] = await Promise.all([
+        api.get(`/tokenization/clients/${client.id}/tokens`),
+        api.get(`/tokenization/clients/${client.id}/certificates`)
+      ]);
+      
+      const tokenData = tokensRes.data.data.tokens || [];
+      setTokens(tokenData);
+      setCertificates(certsRes.data.data.certificates || []);
+      
+      // Calcular valor total del portfolio
+      const totalValue = tokenData.reduce((sum, t) => sum + (parseFloat(t.balance_value) || 0), 0);
+      setTotalPortfolioValue(totalValue);
+      
+    } catch (error) {
+      console.error('Error cargando datos:', error);
+    } finally {
+      setLoadingData(false);
+    }
+  }, [client?.id]);
+
+  useEffect(() => {
+    if (isAuthenticated && client?.id) {
+      loadClientData();
+    }
+  }, [isAuthenticated, client?.id, loadClientData]);
+
+  // Descargar certificado PDF
+  const handleDownloadCertificate = async (certId) => {
+    try {
+      const res = await api.get(`/tokenization/certificates/${certId}/html`, {
+        responseType: 'text'
+      });
+      
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(res.data);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 500);
+    } catch (error) {
+      toast.error('Error al descargar certificado');
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -48,9 +149,10 @@ const PortalDashboard = () => {
   }
 
   const navigation = [
-    { name: 'Dashboard', icon: LayoutDashboard, current: true },
-    { name: 'Mis Inversiones', icon: FileText, current: false },
-    { name: 'Mi Perfil', icon: User, current: false },
+    { name: 'Dashboard', key: 'dashboard', icon: LayoutDashboard },
+    { name: 'Mis Tokens', key: 'tokens', icon: Coins, badge: tokens.length > 0 ? tokens.length : null },
+    { name: 'Certificados', key: 'certificates', icon: FileText, badge: certificates.length > 0 ? certificates.length : null },
+    { name: 'Mi Perfil', key: 'profile', icon: User },
   ];
 
   // Estado KYC
@@ -129,16 +231,25 @@ const PortalDashboard = () => {
           <nav className="flex-1 p-4">
             <ul className="space-y-1">
               {navigation.map((item) => (
-                <li key={item.name}>
+                <li key={item.key}>
                   <button
+                    onClick={() => {
+                      setActiveSection(item.key);
+                      setSidebarOpen(false);
+                    }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                      item.current
+                      activeSection === item.key
                         ? 'bg-primary-50 text-primary-600'
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     <item.icon className="w-5 h-5" />
                     <span className="font-medium">{item.name}</span>
+                    {item.badge && (
+                      <span className="ml-auto bg-primary-100 text-primary-600 text-xs px-2 py-0.5 rounded-full">
+                        {item.badge}
+                      </span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -177,17 +288,23 @@ const PortalDashboard = () => {
           <nav className="flex-1 p-4 overflow-y-auto">
             <ul className="space-y-1">
               {navigation.map((item) => (
-                <li key={item.name}>
+                <li key={item.key}>
                   <button
+                    onClick={() => setActiveSection(item.key)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                      item.current
+                      activeSection === item.key
                         ? 'bg-primary-50 text-primary-600'
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     <item.icon className="w-5 h-5" />
                     <span className="font-medium">{item.name}</span>
-                    {item.current && <ChevronRight className="w-4 h-4 ml-auto" />}
+                    {item.badge && (
+                      <span className="ml-auto bg-primary-100 text-primary-600 text-xs px-2 py-0.5 rounded-full">
+                        {item.badge}
+                      </span>
+                    )}
+                    {activeSection === item.key && !item.badge && <ChevronRight className="w-4 h-4 ml-auto" />}
                   </button>
                 </li>
               ))}
@@ -297,15 +414,15 @@ const PortalDashboard = () => {
           </div>
 
           {/* Stats grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-blue-600" />
+                  <Coins className="w-6 h-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">Inversiones</p>
-                  <p className="text-2xl font-bold text-slate-800">0</p>
+                  <p className="text-sm text-slate-500">Mis Tokens</p>
+                  <p className="text-2xl font-bold text-slate-800">{tokens.length}</p>
                 </div>
               </div>
             </div>
@@ -313,11 +430,11 @@ const PortalDashboard = () => {
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6 text-green-600" />
+                  <Wallet className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">Documentos</p>
-                  <p className="text-2xl font-bold text-slate-800">0</p>
+                  <p className="text-sm text-slate-500">Valor Portfolio</p>
+                  <p className="text-2xl font-bold text-slate-800">{formatCurrency(totalPortfolioValue)}</p>
                 </div>
               </div>
             </div>
@@ -325,7 +442,19 @@ const PortalDashboard = () => {
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-purple-600" />
+                  <FileText className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Certificados</p>
+                  <p className="text-2xl font-bold text-slate-800">{certificates.length}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-amber-600" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">Estado KYC</p>
@@ -337,30 +466,285 @@ const PortalDashboard = () => {
             </div>
           </div>
 
-          {/* Client Info Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-800 mb-4">Mi Información</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-slate-500">Nombre completo</p>
-                <p className="font-medium text-slate-800">{client.firstName} {client.lastName}</p>
+          {/* Contenido según sección activa */}
+          {activeSection === 'dashboard' && (
+            <>
+              {/* Resumen de tokens */}
+              {tokens.length > 0 && (
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 mb-6">
+                  <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                    <Coins className="w-5 h-5 text-blue-600" />
+                    Mis Inversiones en Tokens
+                  </h3>
+                  <div className="space-y-3">
+                    {tokens.slice(0, 3).map((token) => (
+                      <div key={token.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Coins className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-800">{token.token_name}</p>
+                            <p className="text-sm text-slate-500">{token.token_symbol}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-slate-800">{formatNumber(token.balance)} tokens</p>
+                          <p className="text-sm text-green-600">{formatCurrency(token.balance_value, token.currency)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {tokens.length > 3 && (
+                    <button 
+                      onClick={() => setActiveSection('tokens')}
+                      className="w-full mt-4 text-center text-primary-600 hover:text-primary-700 text-sm font-medium"
+                    >
+                      Ver todos ({tokens.length}) →
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Info del cliente */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4">Mi Información</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-slate-500">Nombre completo</p>
+                    <p className="font-medium text-slate-800">{client.firstName} {client.lastName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Email</p>
+                    <p className="font-medium text-slate-800">{client.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Empresa</p>
+                    <p className="font-medium text-slate-800">{tenant.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Estado de cuenta</p>
+                    <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Activo
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-slate-500">Email</p>
-                <p className="font-medium text-slate-800">{client.email}</p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Empresa</p>
-                <p className="font-medium text-slate-800">{tenant.name}</p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Estado de cuenta</p>
-                <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Activo
-                </span>
+            </>
+          )}
+
+          {/* Sección: Mis Tokens */}
+          {activeSection === 'tokens' && (
+            <div className="space-y-6">
+              {loadingData ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                </div>
+              ) : tokens.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-2xl border">
+                  <Coins className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-slate-800 mb-2">Sin tokens aún</h3>
+                  <p className="text-slate-500">Cuando adquieras tokens, aparecerán aquí</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {tokens.map((token) => (
+                    <div key={token.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                            <Coins className="w-7 h-7 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-semibold text-slate-800">{token.token_name}</h4>
+                            <p className="text-sm text-slate-500 font-mono">{token.token_symbol}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-slate-800">{formatNumber(token.balance)}</p>
+                          <p className="text-sm text-slate-500">cuotas partes</p>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <p className="text-xs text-slate-500">Valor por token</p>
+                          <p className="font-medium text-slate-800">
+                            {formatCurrency(token.balance > 0 ? token.balance_value / token.balance : 0, token.currency)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-500">Valor total</p>
+                          <p className="font-semibold text-green-600">{formatCurrency(token.balance_value, token.currency)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-500">Moneda</p>
+                          <p className="font-medium text-slate-800">{token.currency}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-500">Estado</p>
+                          <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            Activo
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sección: Certificados */}
+          {activeSection === 'certificates' && (
+            <div className="space-y-6">
+              {loadingData ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                </div>
+              ) : certificates.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-2xl border">
+                  <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-slate-800 mb-2">Sin certificados</h3>
+                  <p className="text-slate-500">Los certificados se generan al adquirir tokens</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {certificates.map((cert) => (
+                    <div key={cert.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-3 rounded-xl ${cert.is_blockchain_certified ? 'bg-green-100' : 'bg-blue-100'}`}>
+                            {cert.is_blockchain_certified ? (
+                              <ShieldCheck className="w-6 h-6 text-green-600" />
+                            ) : (
+                              <FileText className="w-6 h-6 text-blue-600" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-mono text-sm font-semibold text-slate-800">{cert.certificate_number}</p>
+                            <p className="text-xs text-slate-500">
+                              {new Date(cert.issued_at).toLocaleDateString('es-AR', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        {cert.is_blockchain_certified && (
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            ✓ Blockchain
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2 mb-4">
+                        <div>
+                          <p className="text-xs text-slate-500">Token</p>
+                          <p className="font-medium text-slate-800">{cert.token_name}</p>
+                        </div>
+                        <div className="flex justify-between">
+                          <div>
+                            <p className="text-xs text-slate-500">Cantidad</p>
+                            <p className="font-semibold text-slate-800">{formatNumber(cert.token_amount)} cuotas</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-slate-500">Valor</p>
+                            <p className="font-semibold text-green-600">{formatCurrency(cert.total_value_at_issue, cert.currency)}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Código de verificación */}
+                      <div className="bg-slate-50 rounded-lg p-3 mb-4">
+                        <p className="text-xs text-slate-500 mb-1 flex items-center gap-1">
+                          <QrCode className="w-3 h-3" />
+                          Código de verificación
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 text-xs font-mono text-slate-600 truncate">
+                            {cert.verification_code?.slice(0, 24)}...
+                          </code>
+                          <CopyButton text={cert.verification_code} />
+                        </div>
+                      </div>
+                      
+                      {/* Acciones */}
+                      <button
+                        onClick={() => handleDownloadCertificate(cert.id)}
+                        className="w-full px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Descargar PDF
+                      </button>
+                      
+                      {cert.is_blockchain_certified && cert.blockchain_tx_hash && (
+                        <a
+                          href={`https://basescan.org/tx/${cert.blockchain_tx_hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full mt-2 px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 text-sm text-slate-600"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Ver en Blockchain
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sección: Perfil */}
+          {activeSection === 'profile' && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-800 mb-6">Mi Perfil</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-sm text-slate-500 mb-1">Nombre completo</p>
+                  <p className="font-medium text-slate-800 text-lg">{client.firstName} {client.lastName}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 mb-1">Email</p>
+                  <p className="font-medium text-slate-800 text-lg">{client.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 mb-1">Teléfono</p>
+                  <p className="font-medium text-slate-800">{client.phone || 'No registrado'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 mb-1">Documento</p>
+                  <p className="font-medium text-slate-800">
+                    {client.documentType && client.documentNumber 
+                      ? `${client.documentType}: ${client.documentNumber}` 
+                      : 'No registrado'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 mb-1">Empresa</p>
+                  <p className="font-medium text-slate-800">{tenant.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 mb-1">Estado de cuenta</p>
+                  <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    Activo
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 mb-1">Estado KYC</p>
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${kycStatus.color}`}>
+                    {kycStatus.label}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500 mb-1">Nivel KYC</p>
+                  <p className="font-medium text-slate-800">Nivel {client.kycLevel || 0}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </main>
       </div>
     </div>

@@ -27,6 +27,7 @@ const supplierPortalRoutes = require('./routes/supplierPortal');
 const trustRoutes = require('./routes/trusts');
 const assetRoutes = require('./routes/assets');
 const unitRoutes = require('./routes/units');
+const tokenizationRoutes = require('./routes/tokenization');
 
 const app = express();
 
@@ -330,6 +331,7 @@ app.post('/api/migrate', async (req, res) => {
     await executeSQL(path.join(__dirname, 'database', 'migration_suppliers.sql'), 'Proveedores');
     await executeSQL(path.join(__dirname, 'database', 'migration_assets_trusts.sql'), 'Activos y Fideicomisos');
     await executeSQL(path.join(__dirname, 'database', 'migration_units.sql'), 'Unidades');
+    await executeSQL(path.join(__dirname, 'database', 'migration_tokenization.sql'), 'Tokenización');
     
     res.json({ success: true, message: 'Migraciones procesadas', results });
   } catch (error) {
@@ -501,6 +503,7 @@ app.use('/api/supplier-portal', supplierPortalRoutes);
 app.use('/api/trusts', trustRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/units', unitRoutes);
+app.use('/api/tokenization', tokenizationRoutes);
 
 // ===========================================
 // Ruta raíz
@@ -633,6 +636,14 @@ const startServer = async () => {
           const unitsMigration = fs.readFileSync(unitsPath, 'utf8');
           await query(unitsMigration);
           console.log('✅ Migración de unidades aplicada');
+        }
+        
+        // Migración de tokenización blockchain
+        const tokenizationPath = path.join(__dirname, 'database', 'migration_tokenization.sql');
+        if (fs.existsSync(tokenizationPath)) {
+          const tokenizationMigration = fs.readFileSync(tokenizationPath, 'utf8');
+          await query(tokenizationMigration);
+          console.log('✅ Migración de tokenización aplicada');
         }
         
         console.log('🎉 Base de datos inicializada correctamente');
