@@ -87,11 +87,11 @@ CREATE TABLE IF NOT EXISTS unit_documents (
 -- =============================================
 DO $$ 
 BEGIN
-    -- Peso/incidencia del item sobre su categoría (1-100%)
+    -- Peso/incidencia del item sobre su categoría (0-100%)
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_name = 'unit_progress_items' AND column_name = 'weight') THEN
         ALTER TABLE unit_progress_items ADD COLUMN weight INTEGER DEFAULT 100 
-            CHECK (weight >= 1 AND weight <= 100);
+            CHECK (weight >= 0 AND weight <= 100);
     END IF;
 
     -- category_code para agrupar sin depender del category_id
@@ -104,6 +104,30 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_name = 'unit_progress_items' AND column_name = 'category_name') THEN
         ALTER TABLE unit_progress_items ADD COLUMN category_name VARCHAR(100);
+    END IF;
+END $$;
+
+-- =============================================
+-- FIX: Actualizar constraint de weight para permitir 0%
+-- =============================================
+DO $$
+DECLARE
+    constraint_name TEXT;
+BEGIN
+    -- Buscar el constraint existente de weight
+    SELECT conname INTO constraint_name
+    FROM pg_constraint c
+    JOIN pg_attribute a ON a.attnum = ANY(c.conkey) AND a.attrelid = c.conrelid
+    WHERE c.conrelid = 'unit_progress_items'::regclass
+    AND a.attname = 'weight'
+    AND c.contype = 'c';
+    
+    -- Si existe, eliminarlo y crear uno nuevo
+    IF constraint_name IS NOT NULL THEN
+        EXECUTE 'ALTER TABLE unit_progress_items DROP CONSTRAINT ' || constraint_name;
+        ALTER TABLE unit_progress_items ADD CONSTRAINT unit_progress_items_weight_check 
+            CHECK (weight >= 0 AND weight <= 100);
+        RAISE NOTICE 'Constraint de weight actualizado para permitir 0%%';
     END IF;
 END $$;
 
