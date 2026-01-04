@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 
-const MODAL_VERSION = '1.13';
+const MODAL_VERSION = '1.14';
 import {
   X, Save, CheckCircle2, Circle, Clock, AlertTriangle,
   Building2, FileText, Image, Upload, Trash2, Plus, 
@@ -264,7 +264,8 @@ const ConstructionCategory = ({
             />
           ))}
           
-          {generalItem && (
+          {/* Solo mostrar General si tiene peso > 0 */}
+          {generalItem && generalItem.weight > 0 && (
             <SubcategoryItem
               key={generalItem.id}
               item={generalItem}
@@ -593,13 +594,20 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     if (saving) return;
     setSaving(true);
     
-    if (!subcategoryForm.name.trim()) {
+    const name = subcategoryForm.name.trim();
+    if (!name) {
       toast.error('Ingresá un nombre');
       setSaving(false);
       return;
     }
 
-    const categoryCode = targetCategory.code;
+    const categoryCode = targetCategory?.code;
+    if (!categoryCode) {
+      toast.error('Error: Categoría no definida');
+      setSaving(false);
+      return;
+    }
+
     const items = groupedItems[categoryCode]?.items || [];
     const generalItem = items.find(i => i.name?.toLowerCase().includes('general'));
     
@@ -608,67 +616,79 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
       setSaving(false);
       return;
     }
+
+    const generalItemId = generalItem.id;
+    const currentGeneralWeight = generalItem.weight || 0;
+    const newWeight = Math.max(1, subcategoryForm.weight); // Mínimo 1%
     
     try {
       if (editingSubcategory) {
         // EDITAR: calcular diferencia y ajustar General
         const oldWeight = editingSubcategory.weight || 0;
-        const newWeight = subcategoryForm.weight;
-        const difference = newWeight - oldWeight; // positivo = toma de General, negativo = devuelve a General
+        const difference = newWeight - oldWeight;
         
         // Verificar que General tenga suficiente para dar
-        if (difference > 0 && difference > generalItem.weight) {
-          toast.error(`"General" solo tiene ${generalItem.weight}% disponible para entregar.`);
+        if (difference > 0 && difference > currentGeneralWeight) {
+          toast.error(`"General" solo tiene ${currentGeneralWeight}% disponible.`);
           setSaving(false);
           return;
         }
         
-        // Actualizar el subitem
+        const newGeneralWeight = Math.max(0, currentGeneralWeight - difference);
+        
+        // Actualizar el subitem primero
         await api.put(`/units/${unitId}/progress/${editingSubcategory.id}`, {
-          name: subcategoryForm.name,
+          name: name,
           weight: newWeight
         });
         
-        // Actualizar "General" (resta si subitem aumenta, suma si subitem reduce)
-        const newGeneralWeight = generalItem.weight - difference;
-        await api.put(`/units/${unitId}/progress/${generalItem.id}`, {
+        // Luego actualizar "General"
+        await api.put(`/units/${unitId}/progress/${generalItemId}`, {
           weight: newGeneralWeight
         });
         
         toast.success('Subcategoría actualizada');
       } else {
-        // CREAR: tomar porcentaje de General
-        if (subcategoryForm.weight > generalItem.weight) {
-          toast.error(`"General" solo tiene ${generalItem.weight}% disponible.`);
+        // CREAR: validar que hay disponible
+        if (newWeight > currentGeneralWeight) {
+          toast.error(`"General" solo tiene ${currentGeneralWeight}% disponible.`);
           setSaving(false);
           return;
         }
         
+        const newGeneralWeight = Math.max(0, currentGeneralWeight - newWeight);
+        
         // Crear el nuevo subitem
         await api.post(`/units/${unitId}/progress`, {
-          name: subcategoryForm.name,
+          name: name,
           category_code: categoryCode,
           category_name: targetCategory.name,
-          weight: subcategoryForm.weight,
+          weight: newWeight,
           status: 'pending',
           progress_percentage: 0
         });
         
-        // Restar de "General"
-        const newGeneralWeight = generalItem.weight - subcategoryForm.weight;
-        await api.put(`/units/${unitId}/progress/${generalItem.id}`, {
+        // Actualizar "General"
+        await api.put(`/units/${unitId}/progress/${generalItemId}`, {
           weight: newGeneralWeight
         });
         
         toast.success('Subcategoría agregada');
       }
       
-      await loadUnit();
+      // Cerrar modal ANTES de recargar para evitar race conditions
       setShowSubcategoryModal(false);
+      setSubcategoryForm({ name: '', weight: 20 });
+      setTargetCategory(null);
+      setEditingSubcategory(null);
+      
+      // Recargar datos
+      await loadUnit();
       
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error al guardar');
+      console.error('Error guardando subcategoría:', error);
+      const errorMsg = error.response?.data?.message || 'Error al guardar';
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }
