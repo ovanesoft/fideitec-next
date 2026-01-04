@@ -435,6 +435,61 @@ app.post('/api/fix-trash-columns', async (req, res) => {
   }
 });
 
+// Verificar rol de usuario (debug)
+app.post('/api/check-user-role', async (req, res) => {
+  const { secret, email } = req.body;
+  const ADMIN_SECRET = 'fdt_admin_2026_emergency';
+  if (secret !== ADMIN_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  
+  try {
+    const { pool } = require('./config/database');
+    const result = await pool.query(
+      'SELECT id, email, role, first_name, last_name, tenant_id FROM users WHERE email = $1',
+      [email]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.json({ success: false, message: 'Usuario no encontrado' });
+    }
+    
+    res.json({ success: true, user: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Actualizar rol de usuario
+app.post('/api/update-user-role', async (req, res) => {
+  const { secret, email, newRole } = req.body;
+  const ADMIN_SECRET = 'fdt_admin_2026_emergency';
+  if (secret !== ADMIN_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  
+  const validRoles = ['root', 'admin', 'manager', 'user'];
+  if (!validRoles.includes(newRole)) {
+    return res.status(400).json({ success: false, message: 'Rol inválido' });
+  }
+  
+  try {
+    const { pool } = require('./config/database');
+    const result = await pool.query(
+      'UPDATE users SET role = $1 WHERE email = $2 RETURNING id, email, role',
+      [newRole, email]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.json({ success: false, message: 'Usuario no encontrado' });
+    }
+    
+    res.json({ success: true, message: 'Rol actualizado', user: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/users', userRoutes);
