@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 
-const MODAL_VERSION = '1.11';
+const MODAL_VERSION = '1.12';
 import {
   X, Save, CheckCircle2, Circle, Clock, AlertTriangle,
   Building2, FileText, Image, Upload, Trash2, Plus, 
@@ -547,8 +547,13 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
 
   // Guardar subcategoría
   const handleSaveSubcategory = async () => {
+    // BLOQUEO INMEDIATO para evitar doble clic
+    if (saving) return;
+    setSaving(true);
+    
     if (!subcategoryForm.name.trim()) {
       toast.error('Ingresá un nombre');
+      setSaving(false);
       return;
     }
 
@@ -558,12 +563,11 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
     
     if (!generalItem) {
       toast.error('Error: No se encontró el item General');
+      setSaving(false);
       return;
     }
     
     try {
-      setSaving(true);
-      
       if (editingSubcategory) {
         // EDITAR: calcular diferencia y ajustar General
         const oldWeight = editingSubcategory.weight || 0;
@@ -1087,10 +1091,29 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
             </div>
             
             <div className="flex justify-end gap-2 p-4 border-t border-slate-200 bg-slate-50">
-              <button onClick={() => setShowSubcategoryModal(false)} className="btn-secondary text-sm py-2">Cancelar</button>
-              <button onClick={handleSaveSubcategory} disabled={saving || !subcategoryForm.name.trim()} className="btn-primary text-sm py-2 inline-flex items-center gap-1">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                {editingSubcategory ? 'Guardar' : 'Agregar'}
+              <button 
+                onClick={() => setShowSubcategoryModal(false)} 
+                disabled={saving}
+                className="btn-secondary text-sm py-2 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleSaveSubcategory} 
+                disabled={saving || !subcategoryForm.name.trim()} 
+                className="btn-primary text-sm py-2 inline-flex items-center gap-2 min-w-[100px] justify-center disabled:opacity-70"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    {editingSubcategory ? 'Guardar' : 'Agregar'}
+                  </>
+                )}
               </button>
             </div>
           </div>
