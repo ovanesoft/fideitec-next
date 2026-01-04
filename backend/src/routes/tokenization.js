@@ -6,13 +6,13 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticateJWT, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRole } = require('../middleware/auth');
 const tokenizationController = require('../controllers/tokenizationController');
 const orderService = require('../services/orderService');
 const certificateService = require('../services/certificateService');
 
 // Todas las rutas requieren autenticación
-router.use(authenticateJWT);
+router.use(authenticateToken);
 
 // ===========================================
 // ESTADO Y CONFIGURACIÓN
