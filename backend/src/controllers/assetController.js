@@ -100,7 +100,7 @@ const listAssets = async (req, res) => {
         a.project_stage, a.project_progress_percentage,
         a.trust_id, t.name as trust_name,
         a.created_at,
-        (SELECT COUNT(*) FROM asset_units au WHERE au.asset_id = a.id) as unit_count,
+        (SELECT COUNT(*) FROM asset_units au WHERE au.asset_id = a.id AND au.deleted_at IS NULL) as unit_count,
         u.first_name || ' ' || u.last_name as created_by_name
        FROM assets a
        LEFT JOIN trusts t ON a.trust_id = t.id
@@ -177,14 +177,14 @@ const getAssetById = async (req, res) => {
 
     const asset = result.rows[0];
 
-    // Obtener unidades del activo
+    // Obtener unidades del activo (excluir eliminadas)
     const unitsResult = await query(
       `SELECT au.*, 
               c.first_name || ' ' || c.last_name as owner_name,
               c.email as owner_email
        FROM asset_units au
        LEFT JOIN clients c ON au.owner_client_id = c.id
-       WHERE au.asset_id = $1
+       WHERE au.asset_id = $1 AND au.deleted_at IS NULL
        ORDER BY au.floor_number, au.unit_code`,
       [id]
     );

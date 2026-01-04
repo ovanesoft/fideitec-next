@@ -19,7 +19,8 @@ import {
   ChevronLeft, ChevronRight, Eye, Edit, X,
   MapPin, Ruler, DollarSign, Coins, Calendar, Trash2,
   Copy, Home, Building2, Warehouse, Hotel, Car, TreePine,
-  Factory, Briefcase, PiggyBank, Layers, BarChart3
+  Factory, Briefcase, PiggyBank, Layers, BarChart3,
+  RotateCcw, Archive
 } from 'lucide-react';
 
 // Categorías de activos
@@ -109,6 +110,11 @@ const Assets = () => {
   const [selectedUnitId, setSelectedUnitId] = useState(null);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Papelera
+  const [showTrashModal, setShowTrashModal] = useState(false);
+  const [trashUnits, setTrashUnits] = useState([]);
+  const [loadingTrash, setLoadingTrash] = useState(false);
   
   // Debounce del search para no buscar en cada tecla
   const search = useDebounce(searchInput, 300);
@@ -258,6 +264,62 @@ const Assets = () => {
   useEffect(() => {
     loadTrusts();
   }, []);
+
+  // =============================================
+  // PAPELERA
+  // =============================================
+  
+  const loadTrashUnits = async () => {
+    try {
+      setLoadingTrash(true);
+      const response = await api.get('/units/trash/list');
+      if (response.data.success) {
+        setTrashUnits(response.data.data.units);
+      }
+    } catch (error) {
+      console.error('Error cargando papelera:', error);
+      toast.error('Error al cargar papelera');
+    } finally {
+      setLoadingTrash(false);
+    }
+  };
+
+  const handleRestoreUnit = async (unitId) => {
+    try {
+      const response = await api.post(`/units/${unitId}/restore`);
+      if (response.data.success) {
+        toast.success(response.data.message);
+        loadTrashUnits();
+        // Recargar el activo si está abierto
+        if (selectedAsset) {
+          loadAssetDetail(selectedAsset.id);
+        }
+      }
+    } catch (error) {
+      toast.error('Error al restaurar');
+    }
+  };
+
+  const handlePermanentDelete = async (unitId, unitCode) => {
+    if (!window.confirm(`¿Eliminar DEFINITIVAMENTE "${unitCode}"?\n\nEsta acción NO se puede deshacer.`)) {
+      return;
+    }
+    
+    try {
+      const response = await api.delete(`/units/${unitId}/permanent`);
+      if (response.data.success) {
+        toast.success(response.data.message);
+        loadTrashUnits();
+      }
+    } catch (error) {
+      toast.error('Error al eliminar');
+    }
+  };
+
+  const openTrashModal = () => {
+    setShowTrashModal(true);
+    loadTrashUnits();
+  };
 
   // Obtener detalle de activo
   const loadAssetDetail = async (id) => {
@@ -459,13 +521,28 @@ const Assets = () => {
           <h1 className="text-2xl font-bold text-slate-800">Activos</h1>
           <p className="text-slate-500">Gestiona los activos adquiridos y tercerizados</p>
         </div>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Nuevo Activo
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={openTrashModal}
+            className="btn-secondary flex items-center gap-2"
+            title="Papelera"
+          >
+            <Trash2 className="w-4 h-4" />
+            Papelera
+            {trashUnits.length > 0 && (
+              <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {trashUnits.length}
+              </span>
+            )}
+          </button>
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nuevo Activo
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -1650,6 +1727,85 @@ const Assets = () => {
             }
           }}
         />
+      )}
+
+      {/* Modal Papelera */}
+      {showTrashModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowTrashModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden animate-fade-in">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">Papelera</h2>
+                  <p className="text-sm text-slate-500">Departamentos eliminados (30 días para restaurar)</p>
+                </div>
+              </div>
+              <button onClick={() => setShowTrashModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(80vh-120px)]">
+              {loadingTrash ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto"></div>
+                  <p className="text-slate-500 mt-2">Cargando...</p>
+                </div>
+              ) : trashUnits.length === 0 ? (
+                <div className="text-center py-12">
+                  <Archive className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-600">Papelera vacía</h3>
+                  <p className="text-slate-400">No hay departamentos eliminados</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {trashUnits.map((unit) => (
+                    <div key={unit.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm bg-slate-200 px-2 py-0.5 rounded">
+                              {unit.unit_code}
+                            </span>
+                            <span className="font-medium text-slate-700">{unit.unit_name || 'Sin nombre'}</span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {unit.asset_name} • Eliminado por {unit.deleted_by_name || 'Usuario'}
+                          </p>
+                          <p className="text-xs text-red-500 mt-1">
+                            Se eliminará definitivamente en {Math.max(0, Math.floor(unit.days_remaining))} días
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleRestoreUnit(unit.id)}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Restaurar"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handlePermanentDelete(unit.id, unit.unit_code)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Eliminar definitivamente"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

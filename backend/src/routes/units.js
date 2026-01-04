@@ -55,10 +55,32 @@ router.put('/:unitId',
   unitController.updateUnit
 );
 
-// Eliminar unidad
+// Eliminar unidad (soft delete - va a papelera)
 router.delete('/:unitId',
   requireRole(['root', 'admin']),
   unitController.deleteUnit
+);
+
+// =============================================
+// PAPELERA
+// =============================================
+
+// Obtener unidades en papelera
+router.get('/trash/list',
+  requireRole(['root', 'admin']),
+  unitController.getTrashUnits
+);
+
+// Restaurar unidad de papelera
+router.post('/:unitId/restore',
+  requireRole(['root', 'admin']),
+  unitController.restoreUnit
+);
+
+// Eliminar definitivamente
+router.delete('/:unitId/permanent',
+  requireRole(['root', 'admin']),
+  unitController.permanentDeleteUnit
 );
 
 // Marcar unidad como 100% completada

@@ -11,7 +11,7 @@ const getUnitDetail = async (req, res) => {
     const { unitId } = req.params;
     const tenantId = req.user.tenant_id;
 
-    // Obtener unidad con verificación de tenant
+    // Obtener unidad con verificación de tenant (excluir eliminadas)
     const unitResult = await query(
       `SELECT u.*, 
               a.name as asset_name, a.asset_category, a.asset_type,
@@ -19,7 +19,7 @@ const getUnitDetail = async (req, res) => {
        FROM asset_units u
        JOIN assets a ON u.asset_id = a.id
        LEFT JOIN clients c ON u.assigned_client_id = c.id
-       WHERE u.id = $1 AND a.tenant_id = $2`,
+       WHERE u.id = $1 AND a.tenant_id = $2 AND u.deleted_at IS NULL`,
       [unitId, tenantId]
     );
 
@@ -918,7 +918,153 @@ const getUploadUrl = async (req, res) => {
 // ELIMINAR UNIDAD
 // =============================================
 
+// Soft delete - mover a papelera (30 días)
 const deleteUnit = async (req, res) => {
+  try {
+    const { unitId } = req.params;
+    const tenantId = req.user.tenant_id;
+    const userId = req.user.id;
+
+    // Verificar que la unidad existe y pertenece al tenant
+    const unitCheck = await query(
+      `SELECT u.id, u.unit_code, u.deleted_at
+       FROM asset_units u
+       JOIN assets a ON u.asset_id = a.id
+       WHERE u.id = $1 AND a.tenant_id = $2`,
+      [unitId, tenantId]
+    );
+
+    if (unitCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Unidad no encontrada'
+      });
+    }
+
+    const unit = unitCheck.rows[0];
+
+    if (unit.deleted_at) {
+      return res.status(400).json({
+        success: false,
+        message: 'La unidad ya está en la papelera'
+      });
+    }
+
+    // Soft delete - marcar como eliminado
+    await query(
+      `UPDATE asset_units 
+       SET deleted_at = NOW(), deleted_by = $2, updated_at = NOW()
+       WHERE id = $1`,
+      [unitId, userId]
+    );
+
+    res.json({
+      success: true,
+      message: `Departamento ${unit.unit_code} movido a papelera. Se eliminará definitivamente en 30 días.`
+    });
+
+  } catch (error) {
+    console.error('Error eliminando unidad:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al eliminar unidad'
+    });
+  }
+};
+
+// Obtener unidades en papelera
+const getTrashUnits = async (req, res) => {
+  try {
+    const tenantId = req.user.tenant_id;
+    const { assetId } = req.query;
+
+    let whereClause = 'a.tenant_id = $1 AND u.deleted_at IS NOT NULL';
+    const params = [tenantId];
+
+    if (assetId) {
+      whereClause += ' AND u.asset_id = $2';
+      params.push(assetId);
+    }
+
+    const result = await query(
+      `SELECT u.*, 
+              a.name as asset_name,
+              usr.first_name as deleted_by_name,
+              u.deleted_at + INTERVAL '30 days' as permanent_delete_at,
+              EXTRACT(DAY FROM (u.deleted_at + INTERVAL '30 days' - NOW())) as days_remaining
+       FROM asset_units u
+       JOIN assets a ON u.asset_id = a.id
+       LEFT JOIN users usr ON u.deleted_by = usr.id
+       WHERE ${whereClause}
+       ORDER BY u.deleted_at DESC`,
+      params
+    );
+
+    res.json({
+      success: true,
+      data: { units: result.rows }
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo papelera:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener papelera'
+    });
+  }
+};
+
+// Restaurar unidad de la papelera
+const restoreUnit = async (req, res) => {
+  try {
+    const { unitId } = req.params;
+    const tenantId = req.user.tenant_id;
+
+    const unitCheck = await query(
+      `SELECT u.id, u.unit_code, u.deleted_at
+       FROM asset_units u
+       JOIN assets a ON u.asset_id = a.id
+       WHERE u.id = $1 AND a.tenant_id = $2`,
+      [unitId, tenantId]
+    );
+
+    if (unitCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Unidad no encontrada'
+      });
+    }
+
+    if (!unitCheck.rows[0].deleted_at) {
+      return res.status(400).json({
+        success: false,
+        message: 'La unidad no está en la papelera'
+      });
+    }
+
+    await query(
+      `UPDATE asset_units 
+       SET deleted_at = NULL, deleted_by = NULL, updated_at = NOW()
+       WHERE id = $1`,
+      [unitId]
+    );
+
+    res.json({
+      success: true,
+      message: `Departamento ${unitCheck.rows[0].unit_code} restaurado correctamente`
+    });
+
+  } catch (error) {
+    console.error('Error restaurando unidad:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al restaurar unidad'
+    });
+  }
+};
+
+// Eliminar definitivamente (hard delete)
+const permanentDeleteUnit = async (req, res) => {
   const client = await pool.connect();
   
   try {
@@ -927,9 +1073,9 @@ const deleteUnit = async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Verificar que la unidad existe y pertenece al tenant
+    // Verificar que la unidad existe, pertenece al tenant Y está en papelera
     const unitCheck = await client.query(
-      `SELECT u.id, u.unit_code, u.asset_id 
+      `SELECT u.id, u.unit_code, u.deleted_at
        FROM asset_units u
        JOIN assets a ON u.asset_id = a.id
        WHERE u.id = $1 AND a.tenant_id = $2`,
@@ -946,34 +1092,46 @@ const deleteUnit = async (req, res) => {
 
     const unit = unitCheck.rows[0];
 
-    // Eliminar documentos asociados
-    await client.query(
-      'DELETE FROM unit_documents WHERE unit_id = $1',
+    if (!unit.deleted_at) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'Solo se pueden eliminar definitivamente unidades que estén en la papelera'
+      });
+    }
+
+    // Eliminar documentos de Cloudinary
+    const docs = await client.query(
+      'SELECT file_key, mime_type FROM unit_documents WHERE unit_id = $1',
       [unitId]
     );
+    
+    for (const doc of docs.rows) {
+      if (doc.file_key) {
+        const isImage = doc.mime_type?.startsWith('image/');
+        await storage.deleteFile(doc.file_key, isImage ? 'image' : 'raw');
+      }
+    }
+
+    // Eliminar documentos de la DB
+    await client.query('DELETE FROM unit_documents WHERE unit_id = $1', [unitId]);
 
     // Eliminar items de progreso
-    await client.query(
-      'DELETE FROM unit_progress_items WHERE unit_id = $1',
-      [unitId]
-    );
+    await client.query('DELETE FROM unit_progress_items WHERE unit_id = $1', [unitId]);
 
     // Eliminar la unidad
-    await client.query(
-      'DELETE FROM asset_units WHERE id = $1',
-      [unitId]
-    );
+    await client.query('DELETE FROM asset_units WHERE id = $1', [unitId]);
 
     await client.query('COMMIT');
 
     res.json({
       success: true,
-      message: `Departamento ${unit.unit_code} eliminado correctamente`
+      message: `Departamento ${unit.unit_code} eliminado definitivamente`
     });
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Error eliminando unidad:', error);
+    console.error('Error eliminando unidad definitivamente:', error);
     res.status(500).json({
       success: false,
       message: 'Error al eliminar unidad'
@@ -1143,6 +1301,10 @@ module.exports = {
   getUploadUrl,
   deleteUnit,
   uploadDocument,
-  deleteDocumentWithStorage
+  deleteDocumentWithStorage,
+  // Papelera
+  getTrashUnits,
+  restoreUnit,
+  permanentDeleteUnit
 };
 

@@ -149,6 +149,18 @@ BEGIN
             CHECK (construction_status IN ('not_started', 'in_progress', 'completed', 'delivered'));
     END IF;
 
+    -- Soft delete: fecha de eliminación (papelera 30 días)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'asset_units' AND column_name = 'deleted_at') THEN
+        ALTER TABLE asset_units ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+    END IF;
+
+    -- Quién eliminó
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'asset_units' AND column_name = 'deleted_by') THEN
+        ALTER TABLE asset_units ADD COLUMN deleted_by UUID REFERENCES users(id) DEFAULT NULL;
+    END IF;
+
     -- Fecha de finalización
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_name = 'asset_units' AND column_name = 'completed_at') THEN
