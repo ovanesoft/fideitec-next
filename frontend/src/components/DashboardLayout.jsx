@@ -7,6 +7,8 @@ import {
   LayoutDashboard, Zap, UserCheck, Truck, Building, FileText
 } from 'lucide-react';
 
+const APP_VERSION = '1.17';
+
 const DashboardLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -58,7 +60,10 @@ const DashboardLayout = () => {
         <div className={`fixed inset-y-0 left-0 w-72 bg-white shadow-xl transform transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="flex items-center justify-between p-4 border-b">
             <div className="flex flex-col">
-              <span className="logo-text">FIDEITEC</span>
+              <div className="flex items-baseline gap-2">
+                <span className="logo-text">FIDEITEC</span>
+                <span className="text-[10px] text-slate-300 font-mono">v{APP_VERSION}</span>
+              </div>
               <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full mt-1 w-fit">Portal de Empresa</span>
             </div>
             <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-slate-600">
@@ -96,7 +101,10 @@ const DashboardLayout = () => {
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
         <div className="flex flex-col flex-1 bg-white border-r border-slate-200">
           <div className="flex flex-col p-6 border-b">
-            <span className="logo-text">FIDEITEC</span>
+            <div className="flex items-baseline gap-2">
+              <span className="logo-text">FIDEITEC</span>
+              <span className="text-[10px] text-slate-300 font-mono">v{APP_VERSION}</span>
+            </div>
             <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full mt-2 w-fit">Portal de Empresa</span>
           </div>
 
