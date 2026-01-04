@@ -1,7 +1,30 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const unitController = require('../controllers/unitController');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+
+// Configurar multer para archivos en memoria
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB máximo
+  },
+  fileFilter: (req, file, cb) => {
+    // Tipos permitidos
+    const allowedTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Tipo de archivo no permitido'), false);
+    }
+  }
+});
 
 // Todas las rutas requieren autenticación
 router.use(authenticateToken);
@@ -82,7 +105,14 @@ router.get('/:unitId/documents',
   unitController.getUnitDocuments
 );
 
-// Agregar documento
+// Subir documento (con archivo)
+router.post('/:unitId/documents/upload',
+  requireRole(['root', 'admin', 'manager', 'user']),
+  upload.single('file'),
+  unitController.uploadDocument
+);
+
+// Agregar documento (solo metadata, para URLs externas)
 router.post('/:unitId/documents',
   requireRole(['root', 'admin', 'manager', 'user']),
   unitController.addDocument
@@ -91,13 +121,7 @@ router.post('/:unitId/documents',
 // Eliminar documento
 router.delete('/:unitId/documents/:documentId',
   requireRole(['root', 'admin', 'manager']),
-  unitController.deleteDocument
-);
-
-// Obtener URL presignada para subida
-router.post('/:unitId/upload-url',
-  requireRole(['root', 'admin', 'manager', 'user']),
-  unitController.getUploadUrl
+  unitController.deleteDocumentWithStorage
 );
 
 module.exports = router;

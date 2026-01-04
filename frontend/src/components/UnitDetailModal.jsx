@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 
-const MODAL_VERSION = '1.15';
+const MODAL_VERSION = '1.16';
 import {
   X, Save, CheckCircle2, Circle, Clock, AlertTriangle,
   Building2, FileText, Image, Upload, Trash2, Plus, 
@@ -321,6 +321,11 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  
+  // Documentos
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef(null);
   
   // Refs
   const debounceTimers = useRef({});
@@ -733,6 +738,73 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   };
 
   // =============================================
+  // DOCUMENTOS - UPLOAD
+  // =============================================
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tamaño (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('El archivo no puede superar los 10MB');
+      return;
+    }
+
+    // Validar tipo
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Solo se permiten imágenes (JPG, PNG, GIF, WebP) y PDFs');
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('name', file.name);
+      formData.append('document_type', file.type.startsWith('image/') ? 'photo' : 'pdf');
+
+      const response = await api.post(`/units/${unitId}/documents/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(progress);
+        }
+      });
+
+      if (response.data.success) {
+        toast.success('Archivo subido correctamente');
+        await loadUnit();
+      }
+    } catch (error) {
+      console.error('Error subiendo archivo:', error);
+      toast.error(error.response?.data?.message || 'Error al subir archivo');
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeleteDocument = async (documentId) => {
+    if (!window.confirm('¿Eliminar este documento?')) return;
+
+    try {
+      await api.delete(`/units/${unitId}/documents/${documentId}`);
+      toast.success('Documento eliminado');
+      await loadUnit();
+    } catch (error) {
+      console.error('Error eliminando documento:', error);
+      toast.error('Error al eliminar documento');
+    }
+  };
+
+  // =============================================
   // RENDER
   // =============================================
 
@@ -1101,17 +1173,84 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
             <div className="p-6 space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="font-bold text-slate-800 text-lg">Documentos y Fotos</h3>
-                <label className="btn-primary inline-flex items-center gap-2 cursor-pointer">
-                  <Upload className="w-4 h-4" /> Subir Archivo
-                  <input type="file" className="hidden" accept="image/*,.pdf" onChange={() => toast.error('Funcionalidad en desarrollo')} />
+                <label className={`btn-primary inline-flex items-center gap-2 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  {uploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Subiendo {uploadProgress}%
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Subir Archivo
+                    </>
+                  )}
+                  <input 
+                    ref={fileInputRef}
+                    type="file" 
+                    className="hidden" 
+                    accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" 
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                  />
                 </label>
               </div>
 
-              <div className="text-center py-16 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-2 border-dashed border-slate-300">
-                <Image className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-slate-700 mb-2">Sin documentos</h3>
-                <p className="text-slate-500">Subí fotos del progreso, planos, facturas y otros documentos</p>
-                          </div>
+              {/* Barra de progreso */}
+              {uploading && (
+                <div className="w-full bg-slate-200 rounded-full h-2">
+                  <div 
+                    className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              )}
+
+              {/* Lista de documentos */}
+              {unit.documents && unit.documents.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {unit.documents.map((doc) => (
+                    <div key={doc.id} className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow">
+                      {/* Preview */}
+                      {doc.mime_type?.startsWith('image/') ? (
+                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="block aspect-square">
+                          <img 
+                            src={doc.thumbnail_url || doc.file_url} 
+                            alt={doc.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </a>
+                      ) : (
+                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="block aspect-square bg-slate-100 flex items-center justify-center">
+                          <FileText className="w-12 h-12 text-slate-400" />
+                        </a>
+                      )}
+                      
+                      {/* Info */}
+                      <div className="p-2">
+                        <p className="text-xs font-medium text-slate-700 truncate">{doc.name}</p>
+                        <p className="text-xs text-slate-400">
+                          {doc.document_type === 'photo' ? 'Foto' : 'PDF'}
+                        </p>
+                      </div>
+                      
+                      {/* Botón eliminar */}
+                      <button
+                        onClick={() => handleDeleteDocument(doc.id)}
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-2 border-dashed border-slate-300">
+                  <Image className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-slate-700 mb-2">Sin documentos</h3>
+                  <p className="text-slate-500">Subí fotos del progreso, planos, facturas y otros documentos</p>
+                </div>
+              )}
             </div>
           )}
         </div>

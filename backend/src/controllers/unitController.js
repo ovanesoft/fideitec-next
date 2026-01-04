@@ -1,4 +1,5 @@
 const { query, pool } = require('../config/database');
+const storage = require('../services/storage');
 
 // =============================================
 // GESTIÓN DE UNIDADES
@@ -982,6 +983,151 @@ const deleteUnit = async (req, res) => {
   }
 };
 
+// =============================================
+// UPLOAD DE DOCUMENTOS (con Cloudinary)
+// =============================================
+
+const uploadDocument = async (req, res) => {
+  try {
+    const { unitId } = req.params;
+    const tenantId = req.user.tenant_id;
+    const userId = req.user.id;
+
+    // Verificar que hay archivo
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No se recibió ningún archivo'
+      });
+    }
+
+    // Verificar pertenencia al tenant
+    const checkResult = await query(
+      `SELECT u.id, u.unit_code FROM asset_units u
+       JOIN assets a ON u.asset_id = a.id
+       WHERE u.id = $1 AND a.tenant_id = $2`,
+      [unitId, tenantId]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Unidad no encontrada'
+      });
+    }
+
+    const unit = checkResult.rows[0];
+    const { document_type, name, description, progress_item_id, stage } = req.body;
+
+    // Determinar tipo de recurso para Cloudinary
+    const isImage = req.file.mimetype.startsWith('image/');
+    const resourceType = isImage ? 'image' : 'raw';
+
+    // Subir a Cloudinary
+    const uploadResult = await storage.uploadFile(req.file.buffer, {
+      folder: `units/${unit.unit_code}`,
+      resourceType: resourceType,
+      tags: [document_type || 'photo', `unit-${unitId}`]
+    });
+
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Error al subir archivo: ' + uploadResult.error
+      });
+    }
+
+    // Generar thumbnail si es imagen
+    const thumbnailUrl = isImage 
+      ? storage.getThumbnailUrl(uploadResult.url, { width: 300, height: 300 })
+      : null;
+
+    // Guardar en base de datos
+    const result = await query(
+      `INSERT INTO unit_documents 
+       (unit_id, progress_item_id, document_type, name, description, 
+        file_url, file_key, file_size, mime_type, thumbnail_url, stage, tags, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       RETURNING *`,
+      [
+        unitId,
+        progress_item_id || null,
+        document_type || (isImage ? 'photo' : 'pdf'),
+        name || req.file.originalname,
+        description || null,
+        uploadResult.url,
+        uploadResult.publicId,
+        uploadResult.size,
+        req.file.mimetype,
+        thumbnailUrl,
+        stage || null,
+        JSON.stringify([]),
+        userId
+      ]
+    );
+
+    res.json({
+      success: true,
+      data: { document: result.rows[0] },
+      message: 'Documento subido correctamente'
+    });
+
+  } catch (error) {
+    console.error('Error subiendo documento:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al subir documento'
+    });
+  }
+};
+
+// Eliminar documento (actualizado para borrar de Cloudinary)
+const deleteDocumentWithStorage = async (req, res) => {
+  try {
+    const { unitId, documentId } = req.params;
+    const tenantId = req.user.tenant_id;
+
+    // Obtener documento y verificar pertenencia
+    const checkResult = await query(
+      `SELECT ud.id, ud.file_key, ud.mime_type FROM unit_documents ud
+       JOIN asset_units u ON ud.unit_id = u.id
+       JOIN assets a ON u.asset_id = a.id
+       WHERE ud.id = $1 AND ud.unit_id = $2 AND a.tenant_id = $3`,
+      [documentId, unitId, tenantId]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Documento no encontrado'
+      });
+    }
+
+    const doc = checkResult.rows[0];
+
+    // Eliminar de Cloudinary si tiene file_key
+    if (doc.file_key) {
+      const isImage = doc.mime_type?.startsWith('image/');
+      await storage.deleteFile(doc.file_key, isImage ? 'image' : 'raw');
+    }
+
+    // Eliminar de la base de datos
+    await query('DELETE FROM unit_documents WHERE id = $1', [documentId]);
+
+    res.json({
+      success: true,
+      message: 'Documento eliminado'
+    });
+
+  } catch (error) {
+    console.error('Error eliminando documento:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al eliminar documento'
+    });
+  }
+};
+
 module.exports = {
   getUnitDetail,
   updateUnit,
@@ -995,6 +1141,8 @@ module.exports = {
   getUnitDocuments,
   deleteDocument,
   getUploadUrl,
-  deleteUnit
+  deleteUnit,
+  uploadDocument,
+  deleteDocumentWithStorage
 };
 
