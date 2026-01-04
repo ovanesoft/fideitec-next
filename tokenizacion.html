@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fideitec - Tokenización Inmobiliaria</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      /* Color Schemes - Default: Blue (matching fideitec.com) */
+      --primary-color: #3b82f6;
+      --primary-dark: #2563eb;
+      --secondary-color: #1d4ed8;
+      --accent-color: #60a5fa;
+      --gradient-start: #3b82f6;
+      --gradient-end: #1d4ed8;
+
+      /* Neutral Colors */
+      --white: #ffffff;
+      --black: #000000;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+
+      /* Semantic Colors */
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --info: #3b82f6;
+
+      /* Border Radius */
+      --radius-sm: 0.5rem;
+      --radius-md: 1rem;
+      --radius-lg: 1.5rem;
+      --radius-xl: 2rem;
+      --radius-full: 9999px;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+    
+    /* Header */
+    header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      padding: 1rem 2rem;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid var(--gray-200);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    nav {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      font-size: 1.75rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    
+    .nav-links a {
+      color: var(--gray-700);
+      text-decoration: none;
+      transition: color 0.3s;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    
+    .nav-links a:hover { color: var(--primary-color); }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--primary-color);
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+
+    .back-link:hover {
+      transform: translateX(-5px);
+    }
+    
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6rem 2rem 4rem;
+      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.15) 0%, transparent 60%);
+    }
+    
+    .hero-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .hero-content h1 {
+      font-size: 3.5rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.2;
+      color: var(--white);
+      text-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    .hero-content h1 span {
+      display: block;
+      background: rgba(255,255,255,0.2);
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+    
+    .hero-content p {
+      font-size: 1.25rem;
+      color: rgba(255,255,255,0.95);
+      max-width: 600px;
+      margin: 0 auto 2rem;
+    }
+    
+    .cta-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .btn {
+      padding: 1rem 2rem;
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s;
+      cursor: pointer;
+      border: 2px solid transparent;
+      font-size: 1rem;
+    }
+    
+    .btn-primary {
+      background: var(--white);
+      color: var(--primary-color);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    
+    .btn-secondary {
+      background: transparent;
+      color: var(--white);
+      border-color: var(--white);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--white);
+      color: var(--primary-color);
+      transform: translateY(-3px);
+    }
+    
+    /* Sections */
+    section {
+      padding: 5rem 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .section-title {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    
+    .section-title h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: var(--gray-900);
+    }
+    
+    .section-title p {
+      color: var(--gray-600);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .underline {
+      width: 80px;
+      height: 4px;
+      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+      margin: 1rem auto 0;
+      border-radius: var(--radius-full);
+    }
+    
+    /* Flow Diagram */
+    .flow-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+    
+    .flow-tab {
+      padding: 0.75rem 2rem;
+      background: var(--white);
+      border: 2px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      color: var(--gray-600);
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+    
+    .flow-tab.active {
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+      background: rgba(59, 130, 246, 0.05);
+    }
+    
+    .flow-tab:hover:not(.active) {
+      background: var(--gray-100);
+      border-color: var(--gray-300);
+    }
+    
+    .flow-content {
+      display: none;
+    }
+    
+    .flow-content.active {
+      display: block;
+      animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    
+    .flow-node {
+      background: var(--white);
+      padding: 1.5rem 2rem;
+      border-radius: var(--radius-lg);
+      text-align: center;
+      min-width: 140px;
+      transition: all 0.3s;
+      cursor: pointer;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--gray-100);
+    }
+    
+    .flow-node:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-xl);
+    }
+    
+    .flow-node.highlight {
+      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+      color: var(--white);
+    }
+    
+    .flow-node.seller {
+      border: 2px solid var(--warning);
+    }
+    
+    .flow-node.buyer {
+      border: 2px solid var(--primary-color);
+    }
+    
+    .flow-node .icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .flow-node .label {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--gray-900);
+    }
+
+    .flow-node.highlight .label {
+      color: var(--white);
+    }
+    
+    .flow-node .sublabel {
+      font-size: 0.75rem;
+      color: var(--gray-500);
+      margin-top: 0.25rem;
+    }
+
+    .flow-node.highlight .sublabel {
+      color: rgba(255,255,255,0.8);
+    }
+    
+    .flow-arrow {
+      font-size: 1.5rem;
+      color: var(--gray-400);
+    }
+    
+    .flow-arrow.money { color: var(--success); }
+    .flow-arrow.token { color: var(--primary-color); }
+    
+    .flow-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    
+    .step-card {
+      background: var(--white);
+      padding: 1.5rem;
+      border-radius: var(--radius-lg);
+      border-left: 4px solid var(--primary-color);
+      transition: all 0.3s;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .step-card:hover {
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+    }
+    
+    .step-number {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      color: var(--white);
+    }
+    
+    .step-card h4 {
+      margin-bottom: 0.5rem;
+      color: var(--gray-900);
+    }
+    
+    .step-card p {
+      color: var(--gray-600);
+      font-size: 0.875rem;
+    }
+    
+    /* Comparison Table */
+    .comparison-container {
+      overflow-x: auto;
+    }
+    
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .comparison-table th,
+    .comparison-table td {
+      padding: 1.25rem 1.5rem;
+      text-align: left;
+    }
+    
+    .comparison-table thead {
+      background: var(--gray-100);
+    }
+    
+    .comparison-table th {
+      font-weight: 600;
+      color: var(--gray-700);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+    
+    .comparison-table th:nth-child(2) { color: var(--error); }
+    .comparison-table th:nth-child(3) { color: var(--success); }
+    
+    .comparison-table tbody tr {
+      border-top: 1px solid var(--gray-200);
+      transition: background 0.3s;
+    }
+    
+    .comparison-table tbody tr:hover {
+      background: var(--gray-50);
+    }
+    
+    .comparison-table td:first-child {
+      font-weight: 500;
+      color: var(--gray-900);
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    .badge-red {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+    }
+    
+    .badge-green {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+    }
+    
+    /* Architecture */
+    .arch-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 2rem;
+    }
+    
+    @media (max-width: 900px) {
+      .arch-grid { grid-template-columns: 1fr; }
+    }
+    
+    .arch-diagram {
+      background: var(--white);
+      padding: 2rem;
+      border-radius: var(--radius-xl);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .arch-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .arch-node {
+      padding: 1rem 1.5rem;
+      border-radius: var(--radius-md);
+      text-align: center;
+      min-width: 100px;
+      transition: all 0.3s;
+      cursor: pointer;
+      color: var(--white);
+    }
+    
+    .arch-node:hover {
+      transform: scale(1.05);
+    }
+    
+    .arch-node.frontend { background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end)); }
+    .arch-node.backend { background: linear-gradient(135deg, var(--success), #047857); }
+    .arch-node.database { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
+    .arch-node.blockchain { background: linear-gradient(135deg, var(--warning), #D97706); }
+    
+    .arch-node .icon { font-size: 1.5rem; }
+    .arch-node .name { font-weight: 600; font-size: 0.875rem; margin-top: 0.25rem; }
+    .arch-node .tech { font-size: 0.7rem; opacity: 0.9; }
+    
+    .arch-arrow {
+      color: var(--gray-400);
+      font-size: 1.25rem;
+    }
+    
+    .arch-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .arch-card {
+      background: var(--white);
+      padding: 1.25rem;
+      border-radius: var(--radius-md);
+      border-left: 3px solid;
+      transition: all 0.3s;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .arch-card:hover { 
+      box-shadow: var(--shadow-md);
+      transform: translateX(5px);
+    }
+    
+    .arch-card.db { border-color: #8B5CF6; }
+    .arch-card.bc { border-color: var(--warning); }
+    .arch-card.cert { border-color: var(--error); }
+    .arch-card.cost { 
+      border-color: var(--success); 
+      background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.05)); 
+    }
+    
+    .arch-card h4 {
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--gray-900);
+    }
+    
+    .arch-card ul {
+      list-style: none;
+      color: var(--gray-600);
+      font-size: 0.8rem;
+    }
+    
+    .arch-card ul li {
+      padding: 0.15rem 0;
+    }
+    
+    .cost-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--success);
+    }
+    
+    /* UX Demo */
+    .ux-demo {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .phone-mockup {
+      background: var(--white);
+      border-radius: var(--radius-xl);
+      padding: 1.5rem;
+      color: var(--gray-900);
+      box-shadow: var(--shadow-xl);
+      transition: all 0.3s;
+      border: 1px solid var(--gray-100);
+    }
+    
+    .phone-mockup:hover {
+      transform: translateY(-10px);
+      box-shadow: var(--shadow-2xl);
+    }
+    
+    .phone-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .phone-header .icon { font-size: 1.5rem; }
+    .phone-header h4 { font-size: 0.95rem; color: var(--gray-900); }
+    
+    .property-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    
+    .property-info .label {
+      color: var(--gray-500);
+      font-size: 0.75rem;
+    }
+    
+    .property-info .value {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--gray-900);
+    }
+    
+    .property-info .value.green { color: var(--success); }
+    
+    .phone-btn {
+      width: 100%;
+      padding: 0.875rem;
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .phone-btn.primary {
+      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+      color: var(--white);
+    }
+    
+    .phone-btn.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .payment-options {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .payment-option {
+      flex: 1;
+      padding: 0.625rem;
+      background: var(--gray-100);
+      border: 2px solid transparent;
+      border-radius: var(--radius-md);
+      text-align: center;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      color: var(--gray-700);
+    }
+    
+    .payment-option.selected {
+      border-color: var(--primary-color);
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--primary-color);
+    }
+    
+    .success-icon {
+      font-size: 3rem;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .success-text {
+      text-align: center;
+      color: var(--success);
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .cert-box {
+      background: var(--gray-50);
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      margin-bottom: 1rem;
+      border: 1px solid var(--gray-200);
+    }
+    
+    .cert-box .label {
+      color: var(--gray-500);
+      font-size: 0.7rem;
+    }
+    
+    .cert-box .id {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--gray-900);
+    }
+    
+    .cert-box .owner {
+      color: var(--gray-500);
+      font-size: 0.8rem;
+      margin-top: 0.25rem;
+    }
+    
+    .cert-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .cert-btn {
+      flex: 1;
+      padding: 0.5rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.7rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .cert-btn.dark {
+      background: var(--gray-800);
+      color: var(--white);
+    }
+    
+    .cert-btn.green {
+      background: var(--success);
+      color: var(--white);
+    }
+
+    .cert-btn:hover {
+      transform: translateY(-2px);
+    }
+    
+    /* Features comparison */
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+    
+    @media (max-width: 700px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+    
+    .feature-box {
+      background: var(--white);
+      padding: 1.5rem;
+      border-radius: var(--radius-lg);
+      border-top: 3px solid;
+      box-shadow: var(--shadow-md);
+    }
+    
+    .feature-box.bad { border-color: var(--error); }
+    .feature-box.good { border-color: var(--success); }
+    
+    .feature-box h4 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .feature-box.bad h4 { color: var(--error); }
+    .feature-box.good h4 { color: var(--success); }
+    
+    .feature-box ul {
+      list-style: none;
+    }
+    
+    .feature-box li {
+      padding: 0.5rem 0;
+      color: var(--gray-600);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    /* Footer */
+    footer {
+      background: var(--gray-900);
+      padding: 3rem 2rem;
+      text-align: center;
+      margin-top: 4rem;
+    }
+    
+    footer .logo {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    footer p {
+      color: var(--gray-400);
+      font-size: 0.875rem;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero-content h1 { font-size: 2.5rem; }
+      .nav-links { display: none; }
+      section { padding: 3rem 1rem; }
+    }
+    
+    /* Scroll animations */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.6s ease-out;
+    }
+    
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Full width sections backgrounds */
+    .section-bg-white {
+      background: var(--white);
+      padding: 5rem 0;
+      margin: 0;
+      max-width: 100%;
+    }
+
+    .section-bg-gray {
+      background: var(--gray-50);
+      padding: 5rem 0;
+      margin: 0;
+      max-width: 100%;
+    }
+
+    .section-bg-white .container,
+    .section-bg-gray .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="index.html" class="logo">FIDEITEC</a>
+      <ul class="nav-links">
+        <li><a href="#flujos">Flujos</a></li>
+        <li><a href="#legal">Legal</a></li>
+        <li><a href="#ux">Experiencia</a></li>
+        <li><a href="#arquitectura">Arquitectura</a></li>
+        <li><a href="index.html" class="back-link">← Volver al inicio</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Tokenización Inmobiliaria<br><span>Sin Complicaciones</span></h1>
+      <p>Invertí en fideicomisos inmobiliarios con la seguridad del blockchain, sin necesidad de wallets ni conocimientos técnicos.</p>
+      <div class="cta-buttons">
+        <a href="#flujos" class="btn btn-primary">Ver cómo funciona</a>
+        <a href="#arquitectura" class="btn btn-secondary">Arquitectura técnica</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-bg-white" id="flujos">
+    <div class="container">
+      <div class="section-title fade-in">
+        <h2>¿Cómo Funciona?</h2>
+        <p>Fideitec actúa como intermediario en todas las transacciones, garantizando seguridad y cumplimiento legal.</p>
+        <div class="underline"></div>
+      </div>
+
+      <div class="flow-tabs fade-in">
+        <button class="flow-tab active" onclick="showFlow('compra')">💰 Flujo de Compra</button>
+        <button class="flow-tab" onclick="showFlow('venta')">📤 Flujo de Venta</button>
+      </div>
+
+      <div id="compra" class="flow-content active fade-in">
+        <div class="flow-diagram">
+          <div class="flow-node buyer">
+            <div class="icon">👤</div>
+            <div class="label">Cliente</div>
+            <div class="sublabel">Comprador</div>
+          </div>
+          <div class="flow-arrow money">$$$→</div>
+          <div class="flow-node highlight">
+            <div class="icon">🏢</div>
+            <div class="label">FIDEITEC</div>
+          </div>
+          <div class="flow-arrow token">🎟️→</div>
+          <div class="flow-node buyer">
+            <div class="icon">👤</div>
+            <div class="label">Cliente</div>
+            <div class="sublabel">+ Token</div>
+          </div>
+        </div>
+        <div class="flow-steps">
+          <div class="step-card">
+            <div class="step-number">1</div>
+            <h4>Selección</h4>
+            <p>Cliente elige fideicomiso y cantidad de cuotas</p>
+          </div>
+          <div class="step-card">
+            <div class="step-number">2</div>
+            <h4>Pago</h4>
+            <p>Transferencia, MercadoPago o crypto a Fideitec</p>
+          </div>
+          <div class="step-card">
+            <div class="step-number">3</div>
+            <h4>Emisión</h4>
+            <p>Fideitec genera token endosado al cliente</p>
+          </div>
+          <div class="step-card">
+            <div class="step-number">4</div>
+            <h4>Certificado</h4>
+            <p>PDF firmado + hash anclado en blockchain</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="venta" class="flow-content fade-in">
+        <div class="flow-diagram">
+          <div class="flow-node seller">
+            <div class="icon">👤</div>
+            <div class="label">Cliente</div>
+            <div class="sublabel">Vendedor</div>
+          </div>
+          <div class="flow-arrow token">🎟️→</div>
+          <div class="flow-node highlight">
+            <div class="icon">🏢</div>
+            <div class="label">FIDEITEC</div>
+          </div>
+          <div class="flow-arrow money">$$$→</div>
+          <div class="flow-node buyer">
+            <div class="icon">👤</div>
+            <div class="label">Cliente</div>
+            <div class="sublabel">+ Pago</div>
+          </div>
+        </div>
+        <div class="flow-steps">
+          <div class="step-card" style="border-left-color: var(--warning);">
+            <div class="step-number" style="background: linear-gradient(135deg, var(--warning), #D97706);">1</div>
+            <h4>Solicitud</h4>
+            <p>Cliente solicita vender su cuota parte</p>
+          </div>
+          <div class="step-card" style="border-left-color: var(--warning);">
+            <div class="step-number" style="background: linear-gradient(135deg, var(--warning), #D97706);">2</div>
+            <h4>Re-endoso</h4>
+            <p>Token se re-endosa a Fideitec</p>
+          </div>
+          <div class="step-card" style="border-left-color: var(--warning);">
+            <div class="step-number" style="background: linear-gradient(135deg, var(--warning), #D97706);">3</div>
+            <h4>Pago</h4>
+            <p>Fideitec paga al cliente vendedor</p>
+          </div>
+          <div class="step-card" style="border-left-color: var(--warning);">
+            <div class="step-number" style="background: linear-gradient(135deg, var(--warning), #D97706);">4</div>
+            <h4>Disponible</h4>
+            <p>Token disponible para re-venta o quemar</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-bg-gray" id="legal">
+    <div class="container">
+      <div class="section-title fade-in">
+        <h2>Marco Legal</h2>
+        <p>Modelo diseñado para evitar regulación de la CNV mientras mantiene la seguridad del blockchain.</p>
+        <div class="underline"></div>
+      </div>
+
+      <div class="comparison-container fade-in">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Característica</th>
+              <th>❌ Mercado de Valores</th>
+              <th>✅ Modelo Fideitec</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Tipo de transacción</td>
+              <td><span class="badge badge-red">P2P directo</span></td>
+              <td><span class="badge badge-green">Siempre intermediado</span></td>
+            </tr>
+            <tr>
+              <td>Regulación CNV</td>
+              <td><span class="badge badge-red">Requiere registro</span></td>
+              <td><span class="badge badge-green">No aplica</span></td>
+            </tr>
+            <tr>
+              <td>Mercado secundario</td>
+              <td><span class="badge badge-red">Trading libre</span></td>
+              <td><span class="badge badge-green">Controlado por Fideitec</span></td>
+            </tr>
+            <tr>
+              <td>Emisor del token</td>
+              <td>Cualquier participante</td>
+              <td>Solo Fideitec</td>
+            </tr>
+            <tr>
+              <td>Modelo de negocio</td>
+              <td>Comisiones por trading</td>
+              <td>Comisión por intermediación</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-bg-white" id="ux">
+    <div class="container">
+      <div class="section-title fade-in">
+        <h2>Experiencia del Cliente</h2>
+        <p>Interfaz familiar sin complejidad técnica. El cliente nunca necesita interactuar con blockchain.</p>
+        <div class="underline"></div>
+      </div>
+
+      <div class="ux-demo fade-in">
+        <div class="phone-mockup">
+          <div class="phone-header">
+            <span class="icon">🏠</span>
+            <h4>Fideicomiso Torres del Sol</h4>
+          </div>
+          <div class="property-info">
+            <div>
+              <div class="label">Cuota parte</div>
+              <div class="value">$1,500,000</div>
+            </div>
+            <div style="text-align: right;">
+              <div class="label">Disponibles</div>
+              <div class="value green">47/100</div>
+            </div>
+          </div>
+          <button class="phone-btn primary">COMPRAR CUOTA PARTE</button>
+        </div>
+
+        <div class="phone-mockup">
+          <div class="phone-header">
+            <span class="icon">💳</span>
+            <h4>Medio de pago</h4>
+          </div>
+          <div class="payment-options">
+            <div class="payment-option selected">🏦 Transferencia</div>
+            <div class="payment-option">💳 MP</div>
+            <div class="payment-option">💰 Crypto</div>
+          </div>
+          <button class="phone-btn primary">CONFIRMAR COMPRA</button>
+        </div>
+
+        <div class="phone-mockup">
+          <div class="success-icon">✅</div>
+          <div class="success-text">¡Compra exitosa!</div>
+          <div class="cert-box">
+            <div class="label">📜 Certificado Digital</div>
+            <div class="id">#FDT-2024-001</div>
+            <div class="owner">Endosado a: Juan Pérez</div>
+          </div>
+          <div class="cert-buttons">
+            <button class="cert-btn dark">📥 DESCARGAR</button>
+            <button class="cert-btn green">🔗 VERIFICAR</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="features-grid fade-in">
+        <div class="feature-box bad">
+          <h4>❌ NUNCA necesita:</h4>
+          <ul>
+            <li>🚫 Wallet de crypto</li>
+            <li>🚫 Entender blockchain</li>
+            <li>🚫 Pagar gas</li>
+            <li>🚫 Ver direcciones hexadecimales</li>
+          </ul>
+        </div>
+        <div class="feature-box good">
+          <h4>✅ SÍ ve:</h4>
+          <ul>
+            <li>✓ Compra/venta en pesos o dólares</li>
+            <li>✓ Certificado PDF verificable</li>
+            <li>✓ Portfolio de cuotas partes</li>
+            <li>✓ Interfaz web familiar</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-bg-gray" id="arquitectura">
+    <div class="container">
+      <div class="section-title fade-in">
+        <h2>Arquitectura Técnica</h2>
+        <p>Custodia centralizada con certificación inmutable en blockchain.</p>
+        <div class="underline"></div>
+      </div>
+
+      <div class="arch-grid fade-in">
+        <div class="arch-diagram">
+          <div class="arch-row">
+            <div class="arch-node frontend">
+              <div class="icon">🖥️</div>
+              <div class="name">Frontend</div>
+              <div class="tech">React / Next.js</div>
+            </div>
+            <span class="arch-arrow">→</span>
+            <div class="arch-node backend">
+              <div class="icon">⚙️</div>
+              <div class="name">Backend</div>
+              <div class="tech">Node.js</div>
+            </div>
+            <span class="arch-arrow">→</span>
+            <div class="arch-node database">
+              <div class="icon">🗄️</div>
+              <div class="name">PostgreSQL</div>
+              <div class="tech">Supabase</div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+            <div style="width: 2px; height: 40px; background: var(--gray-300);"></div>
+            <span style="font-size: 0.75rem; color: var(--gray-500);">Solo para certificación</span>
+            <div style="width: 2px; height: 20px; background: var(--gray-300);"></div>
+          </div>
+          <div class="arch-node blockchain">
+            <div class="icon">⛓️</div>
+            <div class="name">Blockchain (Base)</div>
+            <div class="tech">Hash | Timestamp | Inmutable</div>
+          </div>
+        </div>
+
+        <div class="arch-cards">
+          <div class="arch-card db">
+            <h4>🗄️ PostgreSQL</h4>
+            <ul>
+              <li>• Propiedad real de tokens</li>
+              <li>• Saldos y transacciones</li>
+              <li>• Datos de clientes</li>
+            </ul>
+          </div>
+          <div class="arch-card bc">
+            <h4>⛓️ Blockchain</h4>
+            <ul>
+              <li>• Certificación inmutable</li>
+              <li>• Hash + timestamp</li>
+            </ul>
+          </div>
+          <div class="arch-card cert">
+            <h4>📜 Certificado PDF</h4>
+            <ul>
+              <li>• Documento firmado digitalmente</li>
+              <li>• Verificable públicamente</li>
+            </ul>
+          </div>
+          <div class="arch-card cost">
+            <h4>💰 Costo de Gas</h4>
+            <div class="cost-value">~$0.001 - $0.01</div>
+            <span style="font-size: 0.75rem; color: var(--gray-500);">por transacción en Base</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="logo">FIDEITEC</div>
+    <p>Tokenización inmobiliaria segura y accesible.</p>
+    <p style="margin-top: 0.5rem; opacity: 0.6;">© 2025 Fideitec - Todos los derechos reservados</p>
+  </footer>
+
+  <script>
+    // Flow tabs
+    function showFlow(type) {
+      document.querySelectorAll('.flow-tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.flow-content').forEach(content => content.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(type).classList.add('active');
+    }
+
+    // Payment option selection
+    document.querySelectorAll('.payment-option').forEach(option => {
+      option.addEventListener('click', function() {
+        this.parentElement.querySelectorAll('.payment-option').forEach(o => o.classList.remove('selected'));
+        this.classList.add('selected');
+      });
+    });
+
+    // Scroll animations
+    const fadeElements = document.querySelectorAll('.fade-in');
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    fadeElements.forEach(el => observer.observe(el));
+
+    // Smooth scroll for nav links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
