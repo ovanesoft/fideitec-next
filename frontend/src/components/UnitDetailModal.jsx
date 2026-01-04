@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 
-const MODAL_VERSION = '1.10';
+const MODAL_VERSION = '1.11';
 import {
   X, Save, CheckCircle2, Circle, Clock, AlertTriangle,
   Building2, FileText, Image, Upload, Trash2, Plus, 
@@ -207,8 +207,6 @@ const ConstructionCategory = ({
     }, 0);
   }, [items]);
   
-  const usedWeight = regularItems.reduce((sum, item) => sum + (item.weight || 0), 0);
-  const availableWeight = Math.max(0, 100 - usedWeight);
   const isComplete = categoryProgress >= 99.5;
   
   return (
@@ -237,7 +235,7 @@ const ConstructionCategory = ({
               )}
             </div>
             <p className="text-xs text-slate-500">
-              {items.length} items{availableWeight < 100 && availableWeight > 0 && ` • ${availableWeight}% libre`}
+              {items.length} items{generalItem && generalItem.weight > 0 && generalItem.weight < 100 && ` • General: ${generalItem.weight}%`}
             </p>
           </div>
           
@@ -276,7 +274,7 @@ const ConstructionCategory = ({
             />
           )}
           
-          {availableWeight > 0 && (
+          {generalItem && generalItem.weight > 0 && (
             <button
               onClick={onAddSubcategory}
               className="w-full p-3 rounded-lg border border-dashed border-slate-300 text-slate-500 
@@ -284,8 +282,14 @@ const ConstructionCategory = ({
                 transition-all flex items-center justify-center gap-2 text-sm"
             >
               <Plus className="w-4 h-4" />
-              Agregar ({availableWeight}% disponible)
+              Agregar subitem (General tiene {generalItem.weight}%)
             </button>
+          )}
+          
+          {generalItem && generalItem.weight <= 0 && regularItems.length > 0 && (
+            <div className="text-center py-2 text-xs text-amber-600 bg-amber-50 rounded-lg">
+              "General" en 0%. Para agregar más, reducí el % de otros subitems.
+            </div>
           )}
         </div>
       )}
@@ -514,18 +518,22 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   // Abrir modal para agregar subcategoría
   const openAddSubcategoryModal = (categoryCode, categoryName) => {
     const items = groupedItems[categoryCode]?.items || [];
-    const regularItems = items.filter(i => !i.name?.toLowerCase().includes('general'));
-    const usedWeight = regularItems.reduce((sum, i) => sum + (i.weight || 0), 0);
-    const available = Math.max(0, 100 - usedWeight);
+    const generalItem = items.find(i => i.name?.toLowerCase().includes('general'));
+    const generalWeight = generalItem?.weight || 0;
     
-    if (available <= 0) {
-      toast.error('No hay porcentaje disponible. Reducí otras subcategorías primero.');
+    // Solo se puede agregar si "General" tiene porcentaje disponible
+    if (generalWeight <= 0) {
+      toast.error(
+        'No hay porcentaje disponible en "General".\n' +
+        'Para agregar un subitem, primero reducí el porcentaje de otros subitems.',
+        { duration: 4000 }
+      );
       return;
     }
     
     setTargetCategory({ code: categoryCode, name: categoryName });
     setEditingSubcategory(null);
-    setSubcategoryForm({ name: '', weight: Math.min(20, available) });
+    setSubcategoryForm({ name: '', weight: Math.min(20, generalWeight) });
     setShowSubcategoryModal(true);
   };
 
@@ -541,17 +549,15 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
   const handleSaveSubcategory = async () => {
     if (!subcategoryForm.name.trim()) {
       toast.error('Ingresá un nombre');
-        return;
-      }
+      return;
+    }
 
     const categoryCode = targetCategory.code;
     const items = groupedItems[categoryCode]?.items || [];
-    const regularItems = items.filter(i => !i.name?.toLowerCase().includes('general') && i.id !== editingSubcategory?.id);
-    const usedWeight = regularItems.reduce((sum, i) => sum + (i.weight || 0), 0);
-    const maxAvailable = 100 - usedWeight;
+    const generalItem = items.find(i => i.name?.toLowerCase().includes('general'));
     
-    if (subcategoryForm.weight > maxAvailable) {
-      toast.error(`Máximo disponible: ${maxAvailable}%`);
+    if (!generalItem) {
+      toast.error('Error: No se encontró el item General');
       return;
     }
     
@@ -559,24 +565,40 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
       setSaving(true);
       
       if (editingSubcategory) {
-        // Actualizar existente
+        // EDITAR: calcular diferencia y ajustar General
+        const oldWeight = editingSubcategory.weight || 0;
+        const newWeight = subcategoryForm.weight;
+        const difference = newWeight - oldWeight; // positivo = toma de General, negativo = devuelve a General
+        
+        // Verificar que General tenga suficiente para dar
+        if (difference > 0 && difference > generalItem.weight) {
+          toast.error(`"General" solo tiene ${generalItem.weight}% disponible para entregar.`);
+          setSaving(false);
+          return;
+        }
+        
+        // Actualizar el subitem
         await api.put(`/units/${unitId}/progress/${editingSubcategory.id}`, {
           name: subcategoryForm.name,
-          weight: subcategoryForm.weight
+          weight: newWeight
         });
         
-        // Actualizar "General" para compensar
-        const generalItem = items.find(i => i.name?.toLowerCase().includes('general'));
-        if (generalItem) {
-          const newGeneralWeight = maxAvailable - subcategoryForm.weight;
-          await api.put(`/units/${unitId}/progress/${generalItem.id}`, {
-            weight: newGeneralWeight
-          });
-        }
+        // Actualizar "General" (resta si subitem aumenta, suma si subitem reduce)
+        const newGeneralWeight = generalItem.weight - difference;
+        await api.put(`/units/${unitId}/progress/${generalItem.id}`, {
+          weight: newGeneralWeight
+        });
         
         toast.success('Subcategoría actualizada');
       } else {
-        // Crear nueva
+        // CREAR: tomar porcentaje de General
+        if (subcategoryForm.weight > generalItem.weight) {
+          toast.error(`"General" solo tiene ${generalItem.weight}% disponible.`);
+          setSaving(false);
+          return;
+        }
+        
+        // Crear el nuevo subitem
         await api.post(`/units/${unitId}/progress`, {
           name: subcategoryForm.name,
           category_code: categoryCode,
@@ -586,14 +608,11 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
           progress_percentage: 0
         });
         
-        // Actualizar "General" para compensar
-        const generalItem = items.find(i => i.name?.toLowerCase().includes('general'));
-        if (generalItem) {
-          const newGeneralWeight = maxAvailable - subcategoryForm.weight;
-          await api.put(`/units/${unitId}/progress/${generalItem.id}`, {
-            weight: Math.max(0, newGeneralWeight)
-          });
-        }
+        // Restar de "General"
+        const newGeneralWeight = generalItem.weight - subcategoryForm.weight;
+        await api.put(`/units/${unitId}/progress/${generalItem.id}`, {
+          weight: newGeneralWeight
+        });
         
         toast.success('Subcategoría agregada');
       }
@@ -1000,25 +1019,34 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
               </div>
 
               <div>
-                <label className="form-label">Incidencia</label>
+                <label className="form-label">Porcentaje de Incidencia</label>
                 {(() => {
                   const items = groupedItems[targetCategory.code]?.items || [];
-                  const regularItems = items.filter(i => !i.name?.toLowerCase().includes('general') && i.id !== editingSubcategory?.id);
-                  const usedWeight = regularItems.reduce((sum, i) => sum + (i.weight || 0), 0);
-                  const maxAvailable = 100 - usedWeight;
+                  const generalItem = items.find(i => i.name?.toLowerCase().includes('general'));
+                  const generalWeight = generalItem?.weight || 0;
+                  
+                  // Si estamos editando, el máximo es: lo que tiene General + lo que ya tiene este subitem
+                  const currentItemWeight = editingSubcategory?.weight || 0;
+                  const maxAvailable = editingSubcategory 
+                    ? generalWeight + currentItemWeight 
+                    : generalWeight;
                   
                   return (
                     <div className="space-y-3">
-                      {/* Barra visual simple */}
-                      <div className="h-4 bg-slate-200 rounded overflow-hidden flex">
-                        {usedWeight > 0 && (
-                          <div className="h-full bg-slate-500" style={{ width: `${usedWeight}%` }} />
-                        )}
-                        {subcategoryForm.weight > 0 && (
-                          <div className="h-full bg-primary-500" style={{ width: `${Math.min(subcategoryForm.weight, maxAvailable)}%` }} />
+                      {/* Info de General */}
+                      <div className="p-3 bg-slate-100 rounded-lg">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-600">"{targetCategory.name} General" tiene:</span>
+                          <span className="font-bold text-primary-600">{generalWeight}%</span>
+                        </div>
+                        {editingSubcategory && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            + {currentItemWeight}% de este subitem = {maxAvailable}% máximo
+                          </p>
                         )}
                       </div>
 
+                      {/* Slider */}
                       <div className="flex items-center gap-3">
                         <input
                           type="range"
@@ -1039,9 +1067,19 @@ const UnitDetailModal = ({ unitId, assetId, onClose, onUpdate }) => {
                         />
                         <span className="text-slate-400 text-sm">%</span>
                       </div>
-                      <p className="text-xs text-slate-500">
-                        Disponible: {maxAvailable}% • Usado: {usedWeight}%
-                      </p>
+                      
+                      {/* Preview del resultado */}
+                      <div className="text-xs text-slate-500 p-2 bg-slate-50 rounded">
+                        {editingSubcategory ? (
+                          <>
+                            Al guardar: "General" quedará en <strong>{maxAvailable - subcategoryForm.weight}%</strong>
+                          </>
+                        ) : (
+                          <>
+                            Al agregar: "General" bajará a <strong>{generalWeight - subcategoryForm.weight}%</strong>
+                          </>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}
