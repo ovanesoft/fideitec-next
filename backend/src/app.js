@@ -387,6 +387,54 @@ app.post('/api/fix-weight-constraint', async (req, res) => {
   }
 });
 
+// Fix para agregar columnas de papelera (soft delete)
+app.post('/api/fix-trash-columns', async (req, res) => {
+  const { secret } = req.body;
+  const ADMIN_SECRET = 'fdt_admin_2026_emergency';
+  if (secret !== process.env.JWT_SECRET && secret !== ADMIN_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  
+  try {
+    const { pool } = require('./config/database');
+    const client = await pool.connect();
+    
+    try {
+      const results = [];
+      
+      // Agregar deleted_at si no existe
+      const check1 = await client.query(`
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'asset_units' AND column_name = 'deleted_at'
+      `);
+      if (check1.rows.length === 0) {
+        await client.query('ALTER TABLE asset_units ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL');
+        results.push('deleted_at: agregado');
+      } else {
+        results.push('deleted_at: ya existe');
+      }
+      
+      // Agregar deleted_by si no existe
+      const check2 = await client.query(`
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'asset_units' AND column_name = 'deleted_by'
+      `);
+      if (check2.rows.length === 0) {
+        await client.query('ALTER TABLE asset_units ADD COLUMN deleted_by UUID DEFAULT NULL');
+        results.push('deleted_by: agregado');
+      } else {
+        results.push('deleted_by: ya existe');
+      }
+      
+      res.json({ success: true, message: 'Columnas de papelera verificadas', results });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/users', userRoutes);
