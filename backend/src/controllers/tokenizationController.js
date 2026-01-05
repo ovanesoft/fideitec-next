@@ -340,10 +340,10 @@ const tokenizeAsset = async (req, res) => {
       });
     }
     
-    // Obtener siguiente token_id
+    // Obtener siguiente token_id (usar contract.id, no contract_id del request)
     const nextTokenIdResult = await dbClient.query(
       'SELECT get_next_token_id($1) as next_id',
-      [contract_id]
+      [contract.id]
     );
     const tokenId = parseInt(nextTokenIdResult.rows[0].next_id);
     
@@ -356,7 +356,7 @@ const tokenizeAsset = async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11, $12, $13, 'draft', $14)
       RETURNING *`,
       [
-        tenantId, contract_id, asset_type, asset_id, asset_unit_id, trust_id,
+        tenantId, contract.id, asset_type, asset_id, asset_unit_id, trust_id,
         contract.blockchain, tokenId, total_supply, token_price || 0,
         token_name || sourceAsset.name || `Token ${tokenId}`,
         token_symbol || `FDT${tokenId}`,
