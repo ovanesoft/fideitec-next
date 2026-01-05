@@ -11,15 +11,12 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
     :root {
-      /* Color Schemes - Default: Blue (matching fideitec.com) */
       --primary-color: #3b82f6;
       --primary-dark: #2563eb;
       --secondary-color: #1d4ed8;
       --accent-color: #60a5fa;
       --gradient-start: #3b82f6;
       --gradient-end: #1d4ed8;
-
-      /* Neutral Colors */
       --white: #ffffff;
       --black: #000000;
       --gray-50: #f9fafb;
@@ -32,21 +29,15 @@
       --gray-700: #374151;
       --gray-800: #1f2937;
       --gray-900: #111827;
-
-      /* Semantic Colors */
       --success: #10b981;
       --warning: #f59e0b;
       --error: #ef4444;
       --info: #3b82f6;
-
-      /* Border Radius */
       --radius-sm: 0.5rem;
       --radius-md: 1rem;
       --radius-lg: 1.5rem;
       --radius-xl: 2rem;
       --radius-full: 9999px;
-
-      /* Shadows */
       --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
       --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
       --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
@@ -61,7 +52,6 @@
       line-height: 1.6;
     }
     
-    /* Header */
     header {
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(20px);
@@ -75,7 +65,7 @@
     }
     
     nav {
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
       display: flex;
       justify-content: space-between;
@@ -94,15 +84,16 @@
     
     .nav-links {
       display: flex;
-      gap: 2rem;
+      gap: 1.5rem;
       list-style: none;
+      align-items: center;
     }
     
     .nav-links a {
       color: var(--gray-700);
       text-decoration: none;
       transition: color 0.3s;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: 500;
     }
     
@@ -114,15 +105,18 @@
       gap: 0.5rem;
       color: var(--primary-color);
       text-decoration: none;
-      font-weight: 500;
+      font-weight: 600;
       transition: all 0.3s;
+      padding: 0.5rem 1rem;
+      background: rgba(59, 130, 246, 0.1);
+      border-radius: var(--radius-full);
     }
 
     .back-link:hover {
-      transform: translateX(-5px);
+      background: var(--primary-color);
+      color: white;
     }
     
-    /* Hero */
     .hero {
       min-height: 100vh;
       display: flex;
@@ -145,6 +139,7 @@
     .hero-content {
       position: relative;
       z-index: 2;
+      max-width: 900px;
     }
 
     .hero-content h1 {
@@ -155,17 +150,10 @@
       text-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     
-    .hero-content h1 span {
-      display: block;
-      background: rgba(255,255,255,0.2);
-      -webkit-background-clip: text;
-      background-clip: text;
-    }
-    
     .hero-content p {
       font-size: 1.25rem;
       color: rgba(255,255,255,0.95);
-      max-width: 600px;
+      max-width: 700px;
       margin: 0 auto 2rem;
     }
     
@@ -208,12 +196,90 @@
       color: var(--primary-color);
       transform: translateY(-3px);
     }
+
+    .btn-orange {
+      background: var(--warning);
+      color: white;
+      border-color: var(--warning);
+    }
+
+    .btn-orange:hover {
+      background: #d97706;
+      transform: translateY(-3px);
+    }
+
+    /* Audience Selector */
+    .audience-selector {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin: 3rem 0;
+      flex-wrap: wrap;
+    }
+
+    .audience-card {
+      background: var(--white);
+      padding: 2rem;
+      border-radius: var(--radius-xl);
+      text-align: center;
+      width: 280px;
+      cursor: pointer;
+      transition: all 0.3s;
+      border: 3px solid transparent;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .audience-card:hover {
+      transform: translateY(-10px);
+      box-shadow: var(--shadow-2xl);
+    }
+
+    .audience-card.active {
+      border-color: var(--primary-color);
+    }
+
+    .audience-card .icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+
+    .audience-card h3 {
+      color: var(--gray-900);
+      margin-bottom: 0.5rem;
+    }
+
+    .audience-card p {
+      color: var(--gray-600);
+      font-size: 0.9rem;
+    }
     
     /* Sections */
-    section {
-      padding: 5rem 2rem;
+    .section-bg-white {
+      background: var(--white);
+      padding: 5rem 0;
+    }
+
+    .section-bg-gray {
+      background: var(--gray-50);
+      padding: 5rem 0;
+    }
+
+    .section-bg-dark {
+      background: var(--gray-900);
+      padding: 5rem 0;
+      color: white;
+    }
+
+    .section-bg-gradient {
+      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+      padding: 5rem 0;
+      color: white;
+    }
+
+    .container {
       max-width: 1200px;
       margin: 0 auto;
+      padding: 0 2rem;
     }
     
     .section-title {
@@ -226,11 +292,21 @@
       margin-bottom: 1rem;
       color: var(--gray-900);
     }
+
+    .section-bg-dark .section-title h2,
+    .section-bg-gradient .section-title h2 {
+      color: white;
+    }
     
     .section-title p {
       color: var(--gray-600);
-      max-width: 600px;
+      max-width: 700px;
       margin: 0 auto;
+    }
+
+    .section-bg-dark .section-title p,
+    .section-bg-gradient .section-title p {
+      color: rgba(255,255,255,0.8);
     }
     
     .underline {
@@ -240,13 +316,154 @@
       margin: 1rem auto 0;
       border-radius: var(--radius-full);
     }
-    
-    /* Flow Diagram */
+
+    .section-bg-dark .underline,
+    .section-bg-gradient .underline {
+      background: white;
+    }
+
+    /* What is Token */
+    .token-explainer {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: center;
+    }
+
+    @media (max-width: 900px) {
+      .token-explainer { grid-template-columns: 1fr; }
+    }
+
+    .token-visual {
+      background: var(--white);
+      padding: 2rem;
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-xl);
+    }
+
+    .building-diagram {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .building-diagram .building {
+      font-size: 6rem;
+    }
+
+    .building-diagram .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gray-900);
+    }
+
+    .tokens-grid {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 0.25rem;
+      margin: 1.5rem 0;
+    }
+
+    .token-unit {
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      color: white;
+      font-weight: 600;
+    }
+
+    .token-unit.empty {
+      background: var(--gray-200);
+      color: var(--gray-500);
+    }
+
+    .token-info-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .token-info-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: var(--gray-50);
+      border-radius: var(--radius-md);
+      border-left: 4px solid var(--primary-color);
+    }
+
+    .token-info-card .icon {
+      font-size: 2rem;
+    }
+
+    .token-info-card h4 {
+      font-size: 0.9rem;
+      color: var(--gray-900);
+    }
+
+    .token-info-card p {
+      font-size: 0.8rem;
+      color: var(--gray-600);
+    }
+
+    /* Comparison Grid */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .comparison-grid { grid-template-columns: 1fr; }
+    }
+
+    .comparison-card {
+      background: var(--white);
+      padding: 2rem;
+      border-radius: var(--radius-lg);
+      text-align: center;
+      box-shadow: var(--shadow-md);
+      transition: all 0.3s;
+    }
+
+    .comparison-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-xl);
+    }
+
+    .comparison-card .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .comparison-card h4 {
+      margin-bottom: 0.5rem;
+      color: var(--gray-900);
+    }
+
+    .comparison-card .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    .comparison-card p {
+      font-size: 0.85rem;
+      color: var(--gray-600);
+      margin-top: 0.5rem;
+    }
+
+    /* Flow Tabs */
     .flow-tabs {
       display: flex;
       justify-content: center;
       gap: 1rem;
       margin-bottom: 3rem;
+      flex-wrap: wrap;
     }
     
     .flow-tab {
@@ -317,44 +534,17 @@
       color: var(--white);
     }
     
-    .flow-node.seller {
-      border: 2px solid var(--warning);
-    }
+    .flow-node.seller { border: 2px solid var(--warning); }
+    .flow-node.buyer { border: 2px solid var(--primary-color); }
+    .flow-node.constructor { border: 2px solid var(--success); }
     
-    .flow-node.buyer {
-      border: 2px solid var(--primary-color);
-    }
+    .flow-node .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .flow-node .label { font-weight: 600; font-size: 0.9rem; color: var(--gray-900); }
+    .flow-node.highlight .label { color: var(--white); }
+    .flow-node .sublabel { font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem; }
+    .flow-node.highlight .sublabel { color: rgba(255,255,255,0.8); }
     
-    .flow-node .icon {
-      font-size: 2.5rem;
-      margin-bottom: 0.5rem;
-    }
-    
-    .flow-node .label {
-      font-weight: 600;
-      font-size: 0.9rem;
-      color: var(--gray-900);
-    }
-
-    .flow-node.highlight .label {
-      color: var(--white);
-    }
-    
-    .flow-node .sublabel {
-      font-size: 0.75rem;
-      color: var(--gray-500);
-      margin-top: 0.25rem;
-    }
-
-    .flow-node.highlight .sublabel {
-      color: rgba(255,255,255,0.8);
-    }
-    
-    .flow-arrow {
-      font-size: 1.5rem;
-      color: var(--gray-400);
-    }
-    
+    .flow-arrow { font-size: 1.5rem; color: var(--gray-400); }
     .flow-arrow.money { color: var(--success); }
     .flow-arrow.token { color: var(--primary-color); }
     
@@ -392,20 +582,174 @@
       color: var(--white);
     }
     
-    .step-card h4 {
+    .step-card h4 { margin-bottom: 0.5rem; color: var(--gray-900); }
+    .step-card p { color: var(--gray-600); font-size: 0.875rem; }
+
+    /* B2B Section */
+    .b2b-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .b2b-grid { grid-template-columns: 1fr; }
+    }
+
+    .b2b-diagram {
+      background: rgba(255,255,255,0.1);
+      padding: 2rem;
+      border-radius: var(--radius-xl);
+      text-align: center;
+    }
+
+    .b2b-flow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .b2b-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .b2b-node {
+      padding: 1rem 1.5rem;
+      background: rgba(255,255,255,0.15);
+      border-radius: var(--radius-md);
+      min-width: 120px;
+    }
+
+    .b2b-node.central {
+      background: white;
+      color: var(--primary-color);
+      font-weight: 700;
+      padding: 1.5rem 2rem;
+    }
+
+    .b2b-node .icon { font-size: 1.5rem; }
+    .b2b-node .name { font-size: 0.8rem; margin-top: 0.25rem; }
+
+    .b2b-arrow {
+      font-size: 1.5rem;
+      opacity: 0.7;
+    }
+
+    .b2b-features {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .b2b-feature {
+      background: rgba(255,255,255,0.1);
+      padding: 1.5rem;
+      border-radius: var(--radius-md);
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .b2b-feature .icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+
+    .b2b-feature h4 {
+      margin-bottom: 0.25rem;
+    }
+
+    .b2b-feature p {
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    /* Pricing */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+    }
+
+    @media (max-width: 900px) {
+      .pricing-grid { grid-template-columns: 1fr; }
+    }
+
+    .pricing-card {
+      background: var(--white);
+      padding: 2rem;
+      border-radius: var(--radius-xl);
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pricing-card.featured {
+      border: 3px solid var(--primary-color);
+      transform: scale(1.05);
+    }
+
+    .pricing-card.featured::before {
+      content: 'POPULAR';
+      position: absolute;
+      top: 1rem;
+      right: -2rem;
+      background: var(--primary-color);
+      color: white;
+      padding: 0.25rem 2rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      transform: rotate(45deg);
+    }
+
+    .pricing-card h3 {
+      font-size: 1.25rem;
       margin-bottom: 0.5rem;
       color: var(--gray-900);
     }
-    
-    .step-card p {
+
+    .pricing-card .price {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--primary-color);
+      margin: 1rem 0;
+    }
+
+    .pricing-card .price span {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--gray-500);
+    }
+
+    .pricing-card ul {
+      list-style: none;
+      text-align: left;
+      margin: 1.5rem 0;
+    }
+
+    .pricing-card li {
+      padding: 0.5rem 0;
+      font-size: 0.9rem;
       color: var(--gray-600);
-      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
-    
+
+    .pricing-card li::before {
+      content: '✓';
+      color: var(--success);
+      font-weight: 700;
+    }
+
     /* Comparison Table */
-    .comparison-container {
-      overflow-x: auto;
-    }
+    .comparison-container { overflow-x: auto; }
     
     .comparison-table {
       width: 100%;
@@ -416,15 +760,12 @@
       box-shadow: var(--shadow-lg);
     }
     
-    .comparison-table th,
-    .comparison-table td {
+    .comparison-table th, .comparison-table td {
       padding: 1.25rem 1.5rem;
       text-align: left;
     }
     
-    .comparison-table thead {
-      background: var(--gray-100);
-    }
+    .comparison-table thead { background: var(--gray-100); }
     
     .comparison-table th {
       font-weight: 600;
@@ -442,14 +783,8 @@
       transition: background 0.3s;
     }
     
-    .comparison-table tbody tr:hover {
-      background: var(--gray-50);
-    }
-    
-    .comparison-table td:first-child {
-      font-weight: 500;
-      color: var(--gray-900);
-    }
+    .comparison-table tbody tr:hover { background: var(--gray-50); }
+    .comparison-table td:first-child { font-weight: 500; color: var(--gray-900); }
     
     .badge {
       display: inline-block;
@@ -459,27 +794,20 @@
       font-weight: 600;
     }
     
-    .badge-red {
-      background: rgba(239, 68, 68, 0.1);
-      color: var(--error);
-    }
-    
-    .badge-green {
-      background: rgba(16, 185, 129, 0.1);
-      color: var(--success);
-    }
-    
+    .badge-red { background: rgba(239, 68, 68, 0.1); color: var(--error); }
+    .badge-green { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+
     /* Architecture */
     .arch-grid {
       display: grid;
       grid-template-columns: 2fr 1fr;
       gap: 2rem;
     }
-    
+
     @media (max-width: 900px) {
       .arch-grid { grid-template-columns: 1fr; }
     }
-    
+
     .arch-diagram {
       background: var(--white);
       padding: 2rem;
@@ -490,7 +818,7 @@
       gap: 1rem;
       box-shadow: var(--shadow-lg);
     }
-    
+
     .arch-row {
       display: flex;
       align-items: center;
@@ -498,7 +826,7 @@
       flex-wrap: wrap;
       justify-content: center;
     }
-    
+
     .arch-node {
       padding: 1rem 1.5rem;
       border-radius: var(--radius-md);
@@ -508,31 +836,26 @@
       cursor: pointer;
       color: var(--white);
     }
-    
-    .arch-node:hover {
-      transform: scale(1.05);
-    }
-    
+
+    .arch-node:hover { transform: scale(1.05); }
+
     .arch-node.frontend { background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end)); }
     .arch-node.backend { background: linear-gradient(135deg, var(--success), #047857); }
     .arch-node.database { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
     .arch-node.blockchain { background: linear-gradient(135deg, var(--warning), #D97706); }
-    
+
     .arch-node .icon { font-size: 1.5rem; }
     .arch-node .name { font-weight: 600; font-size: 0.875rem; margin-top: 0.25rem; }
     .arch-node .tech { font-size: 0.7rem; opacity: 0.9; }
-    
-    .arch-arrow {
-      color: var(--gray-400);
-      font-size: 1.25rem;
-    }
-    
+
+    .arch-arrow { color: var(--gray-400); font-size: 1.25rem; }
+
     .arch-cards {
       display: flex;
       flex-direction: column;
       gap: 1rem;
     }
-    
+
     .arch-card {
       background: var(--white);
       padding: 1.25rem;
@@ -542,20 +865,20 @@
       cursor: pointer;
       box-shadow: var(--shadow-sm);
     }
-    
-    .arch-card:hover { 
+
+    .arch-card:hover {
       box-shadow: var(--shadow-md);
       transform: translateX(5px);
     }
-    
+
     .arch-card.db { border-color: #8B5CF6; }
     .arch-card.bc { border-color: var(--warning); }
     .arch-card.cert { border-color: var(--error); }
-    .arch-card.cost { 
-      border-color: var(--success); 
-      background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.05)); 
+    .arch-card.cost {
+      border-color: var(--success);
+      background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.05));
     }
-    
+
     .arch-card h4 {
       font-size: 0.9rem;
       margin-bottom: 0.5rem;
@@ -564,244 +887,118 @@
       gap: 0.5rem;
       color: var(--gray-900);
     }
-    
+
     .arch-card ul {
       list-style: none;
       color: var(--gray-600);
       font-size: 0.8rem;
     }
-    
-    .arch-card ul li {
-      padding: 0.15rem 0;
-    }
-    
+
+    .arch-card ul li { padding: 0.15rem 0; }
+
     .cost-value {
       font-size: 1.5rem;
       font-weight: 700;
       color: var(--success);
     }
-    
-    /* UX Demo */
-    .ux-demo {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
-    }
-    
-    .phone-mockup {
-      background: var(--white);
-      border-radius: var(--radius-xl);
-      padding: 1.5rem;
-      color: var(--gray-900);
-      box-shadow: var(--shadow-xl);
-      transition: all 0.3s;
-      border: 1px solid var(--gray-100);
-    }
-    
-    .phone-mockup:hover {
-      transform: translateY(-10px);
-      box-shadow: var(--shadow-2xl);
-    }
-    
-    .phone-header {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 1rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid var(--gray-200);
-    }
-    
-    .phone-header .icon { font-size: 1.5rem; }
-    .phone-header h4 { font-size: 0.95rem; color: var(--gray-900); }
-    
-    .property-info {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-    }
-    
-    .property-info .label {
-      color: var(--gray-500);
-      font-size: 0.75rem;
-    }
-    
-    .property-info .value {
-      font-weight: 700;
-      font-size: 1.1rem;
-      color: var(--gray-900);
-    }
-    
-    .property-info .value.green { color: var(--success); }
-    
-    .phone-btn {
-      width: 100%;
-      padding: 0.875rem;
-      border: none;
-      border-radius: var(--radius-md);
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-    
-    .phone-btn.primary {
-      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-      color: var(--white);
-    }
-    
-    .phone-btn.primary:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-lg);
-    }
-    
-    .payment-options {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-    
-    .payment-option {
-      flex: 1;
-      padding: 0.625rem;
-      background: var(--gray-100);
-      border: 2px solid transparent;
-      border-radius: var(--radius-md);
-      text-align: center;
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: all 0.3s;
-      color: var(--gray-700);
-    }
-    
-    .payment-option.selected {
-      border-color: var(--primary-color);
-      background: rgba(59, 130, 246, 0.1);
-      color: var(--primary-color);
-    }
-    
-    .success-icon {
-      font-size: 3rem;
-      text-align: center;
-      margin-bottom: 0.5rem;
-    }
-    
-    .success-text {
-      text-align: center;
-      color: var(--success);
-      font-weight: 700;
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-    }
-    
-    .cert-box {
-      background: var(--gray-50);
-      padding: 1rem;
-      border-radius: var(--radius-md);
-      margin-bottom: 1rem;
-      border: 1px solid var(--gray-200);
-    }
-    
-    .cert-box .label {
-      color: var(--gray-500);
-      font-size: 0.7rem;
-    }
-    
-    .cert-box .id {
-      font-weight: 700;
-      font-size: 0.95rem;
-      color: var(--gray-900);
-    }
-    
-    .cert-box .owner {
-      color: var(--gray-500);
-      font-size: 0.8rem;
-      margin-top: 0.25rem;
-    }
-    
-    .cert-buttons {
-      display: flex;
-      gap: 0.5rem;
-    }
-    
-    .cert-btn {
-      flex: 1;
-      padding: 0.5rem;
-      border-radius: var(--radius-sm);
-      font-size: 0.7rem;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-    
-    .cert-btn.dark {
-      background: var(--gray-800);
-      color: var(--white);
-    }
-    
-    .cert-btn.green {
-      background: var(--success);
-      color: var(--white);
-    }
 
-    .cert-btn:hover {
-      transform: translateY(-2px);
-    }
-    
-    /* Features comparison */
-    .features-grid {
+    /* FAQ */
+    .faq-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-      margin-top: 2rem;
+      gap: 1.5rem;
     }
-    
-    @media (max-width: 700px) {
-      .features-grid { grid-template-columns: 1fr; }
+
+    @media (max-width: 900px) {
+      .faq-grid { grid-template-columns: 1fr; }
     }
-    
-    .feature-box {
+
+    .faq-item {
       background: var(--white);
       padding: 1.5rem;
       border-radius: var(--radius-lg);
-      border-top: 3px solid;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .faq-item:hover {
       box-shadow: var(--shadow-md);
     }
-    
-    .feature-box.bad { border-color: var(--error); }
-    .feature-box.good { border-color: var(--success); }
-    
-    .feature-box h4 {
+
+    .faq-item h4 {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
+      gap: 0.75rem;
+      color: var(--gray-900);
+      margin-bottom: 0.5rem;
     }
-    
-    .feature-box.bad h4 { color: var(--error); }
-    .feature-box.good h4 { color: var(--success); }
-    
-    .feature-box ul {
-      list-style: none;
-    }
-    
-    .feature-box li {
-      padding: 0.5rem 0;
+
+    .faq-item p {
       color: var(--gray-600);
       font-size: 0.9rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      padding-left: 2rem;
     }
-    
+
+    /* CTA Section */
+    .cta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 900px) {
+      .cta-grid { grid-template-columns: 1fr; }
+    }
+
+    .cta-card {
+      padding: 3rem;
+      border-radius: var(--radius-xl);
+      text-align: center;
+    }
+
+    .cta-card.investor {
+      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+      color: white;
+    }
+
+    .cta-card.constructor {
+      background: linear-gradient(135deg, var(--success), #047857);
+      color: white;
+    }
+
+    .cta-card .icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+
+    .cta-card h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .cta-card p {
+      opacity: 0.9;
+      margin-bottom: 1.5rem;
+    }
+
+    .cta-card .btn {
+      background: white;
+      color: var(--gray-900);
+    }
+
+    .cta-card .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-xl);
+    }
+
     /* Footer */
     footer {
       background: var(--gray-900);
       padding: 3rem 2rem;
       text-align: center;
-      margin-top: 4rem;
     }
-    
+
     footer .logo {
       font-size: 1.25rem;
       margin-bottom: 1rem;
@@ -811,46 +1008,24 @@
       color: var(--gray-400);
       font-size: 0.875rem;
     }
-    
-    /* Responsive */
-    @media (max-width: 768px) {
-      .hero-content h1 { font-size: 2.5rem; }
-      .nav-links { display: none; }
-      section { padding: 3rem 1rem; }
-    }
-    
-    /* Scroll animations */
+
+    /* Animations */
     .fade-in {
       opacity: 0;
       transform: translateY(30px);
       transition: all 0.6s ease-out;
     }
-    
+
     .fade-in.visible {
       opacity: 1;
       transform: translateY(0);
     }
 
-    /* Full width sections backgrounds */
-    .section-bg-white {
-      background: var(--white);
-      padding: 5rem 0;
-      margin: 0;
-      max-width: 100%;
-    }
-
-    .section-bg-gray {
-      background: var(--gray-50);
-      padding: 5rem 0;
-      margin: 0;
-      max-width: 100%;
-    }
-
-    .section-bg-white .container,
-    .section-bg-gray .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 2rem;
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero-content h1 { font-size: 2.5rem; }
+      .nav-links { display: none; }
+      .pricing-card.featured { transform: scale(1); }
     }
   </style>
 </head>
@@ -859,78 +1034,185 @@
     <nav>
       <a href="index.html" class="logo">FIDEITEC</a>
       <ul class="nav-links">
-        <li><a href="#flujos">Flujos</a></li>
+        <li><a href="#que-es">¿Qué es?</a></li>
+        <li><a href="#inversores">Inversores</a></li>
+        <li><a href="#constructoras">Constructoras</a></li>
         <li><a href="#legal">Legal</a></li>
-        <li><a href="#ux">Experiencia</a></li>
-        <li><a href="#arquitectura">Arquitectura</a></li>
-        <li><a href="index.html" class="back-link">← Volver al inicio</a></li>
+        <li><a href="#arquitectura">Tecnología</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="index.html" class="back-link">← Inicio</a></li>
       </ul>
     </nav>
   </header>
 
   <section class="hero">
     <div class="hero-content">
-      <h1>Tokenización Inmobiliaria<br><span>Sin Complicaciones</span></h1>
-      <p>Invertí en fideicomisos inmobiliarios con la seguridad del blockchain, sin necesidad de wallets ni conocimientos técnicos.</p>
+      <h1>Tokenización Inmobiliaria<br>Sin Complicaciones</h1>
+      <p>La plataforma que conecta desarrolladores inmobiliarios con inversores, usando tecnología blockchain para certificar cada transacción de forma inmutable.</p>
       <div class="cta-buttons">
-        <a href="#flujos" class="btn btn-primary">Ver cómo funciona</a>
-        <a href="#arquitectura" class="btn btn-secondary">Arquitectura técnica</a>
+        <a href="#inversores" class="btn btn-primary">Soy Inversor</a>
+        <a href="#constructoras" class="btn btn-secondary">Soy Constructora</a>
+        <a href="#que-es" class="btn btn-orange">¿Cómo funciona?</a>
       </div>
     </div>
   </section>
 
-  <div class="section-bg-white" id="flujos">
+  <!-- ¿QUÉ ES UN TOKEN? -->
+  <div class="section-bg-white" id="que-es">
     <div class="container">
       <div class="section-title fade-in">
-        <h2>¿Cómo Funciona?</h2>
-        <p>Fideitec actúa como intermediario en todas las transacciones, garantizando seguridad y cumplimiento legal.</p>
+        <h2>¿Qué es la Tokenización?</h2>
+        <p>Dividimos activos inmobiliarios en "cuotas partes" digitales llamadas tokens, permitiendo inversiones desde montos accesibles.</p>
+        <div class="underline"></div>
+      </div>
+
+      <div class="token-explainer fade-in">
+        <div class="token-visual">
+          <div class="building-diagram">
+            <div class="building">🏢</div>
+            <div class="value">Edificio: USD 5.000.000</div>
+          </div>
+          <p style="text-align: center; color: var(--gray-600); margin-bottom: 1rem;">Se divide en 100 tokens de USD 50.000 cada uno:</p>
+          <div class="tokens-grid">
+            <div class="token-unit">1</div>
+            <div class="token-unit">2</div>
+            <div class="token-unit">3</div>
+            <div class="token-unit">4</div>
+            <div class="token-unit">5</div>
+            <div class="token-unit empty">6</div>
+            <div class="token-unit empty">7</div>
+            <div class="token-unit empty">8</div>
+            <div class="token-unit empty">9</div>
+            <div class="token-unit empty">10</div>
+            <div class="token-unit">11</div>
+            <div class="token-unit">12</div>
+            <div class="token-unit empty">13</div>
+            <div class="token-unit empty">14</div>
+            <div class="token-unit">15</div>
+            <div class="token-unit empty">16</div>
+            <div class="token-unit empty">17</div>
+            <div class="token-unit empty">18</div>
+            <div class="token-unit">19</div>
+            <div class="token-unit">20</div>
+            <!-- más tokens... -->
+          </div>
+          <p style="text-align: center; font-size: 0.85rem; color: var(--gray-500);">🔵 Vendidos &nbsp; ⚪ Disponibles</p>
+        </div>
+
+        <div class="token-info-cards">
+          <div class="token-info-card">
+            <span class="icon">📜</span>
+            <div>
+              <h4>Propiedad Real</h4>
+              <p>Cada token representa una fracción legal del fideicomiso inmobiliario</p>
+            </div>
+          </div>
+          <div class="token-info-card" style="border-color: var(--success);">
+            <span class="icon">💰</span>
+            <div>
+              <h4>Derechos Económicos</h4>
+              <p>Participación proporcional en rentas, ganancias y revalorización</p>
+            </div>
+          </div>
+          <div class="token-info-card" style="border-color: var(--warning);">
+            <span class="icon">🔐</span>
+            <div>
+              <h4>Certificado Digital</h4>
+              <p>Documento PDF firmado por Fideitec, verificable en blockchain</p>
+            </div>
+          </div>
+          <div class="token-info-card" style="border-color: #8B5CF6;">
+            <span class="icon">⛓️</span>
+            <div>
+              <h4>Registro Inmutable</h4>
+              <p>Huella digital anclada en Base (Ethereum L2) que nadie puede modificar</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparación -->
+      <div style="margin-top: 4rem;">
+        <h3 style="text-align: center; margin-bottom: 2rem; color: var(--gray-900);">Tokens vs Inversión Tradicional vs Crypto</h3>
+        <div class="comparison-grid fade-in">
+          <div class="comparison-card">
+            <div class="icon">🏠</div>
+            <h4>Inmueble Tradicional</h4>
+            <div class="value">USD 100.000+</div>
+            <p>Inversión mínima alta, poca liquidez, proceso lento de venta</p>
+          </div>
+          <div class="comparison-card" style="border: 3px solid var(--primary-color);">
+            <div class="icon">🎟️</div>
+            <h4>Token Fideitec</h4>
+            <div class="value">USD 500+</div>
+            <p>Accesible, respaldo real, liquidez, certificado blockchain</p>
+          </div>
+          <div class="comparison-card">
+            <div class="icon">₿</div>
+            <h4>Criptomoneda</h4>
+            <div class="value">Cualquier monto</div>
+            <p>Sin respaldo, alta volatilidad, requiere conocimiento técnico</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLUJOS PARA INVERSORES -->
+  <div class="section-bg-gray" id="inversores">
+    <div class="container">
+      <div class="section-title fade-in">
+        <h2>👤 Para Inversores</h2>
+        <p>Invertí en fideicomisos inmobiliarios sin complicaciones. Sin wallet, sin crypto, sin conocimientos técnicos.</p>
         <div class="underline"></div>
       </div>
 
       <div class="flow-tabs fade-in">
-        <button class="flow-tab active" onclick="showFlow('compra')">💰 Flujo de Compra</button>
-        <button class="flow-tab" onclick="showFlow('venta')">📤 Flujo de Venta</button>
+        <button class="flow-tab active" onclick="showFlow('compra')">💰 Comprar Token</button>
+        <button class="flow-tab" onclick="showFlow('venta')">📤 Vender Token</button>
+        <button class="flow-tab" onclick="showFlow('certificado')">📜 Mi Certificado</button>
       </div>
 
       <div id="compra" class="flow-content active fade-in">
         <div class="flow-diagram">
           <div class="flow-node buyer">
             <div class="icon">👤</div>
-            <div class="label">Cliente</div>
-            <div class="sublabel">Comprador</div>
+            <div class="label">Vos</div>
+            <div class="sublabel">Inversor</div>
           </div>
           <div class="flow-arrow money">$$$→</div>
           <div class="flow-node highlight">
             <div class="icon">🏢</div>
             <div class="label">FIDEITEC</div>
+            <div class="sublabel">Intermediario</div>
           </div>
           <div class="flow-arrow token">🎟️→</div>
           <div class="flow-node buyer">
             <div class="icon">👤</div>
-            <div class="label">Cliente</div>
-            <div class="sublabel">+ Token</div>
+            <div class="label">Vos</div>
+            <div class="sublabel">+ Token + Certificado</div>
           </div>
         </div>
         <div class="flow-steps">
           <div class="step-card">
             <div class="step-number">1</div>
-            <h4>Selección</h4>
-            <p>Cliente elige fideicomiso y cantidad de cuotas</p>
+            <h4>Registrate</h4>
+            <p>Creá tu cuenta y verificá tu identidad (KYC) en 5 minutos</p>
           </div>
           <div class="step-card">
             <div class="step-number">2</div>
-            <h4>Pago</h4>
-            <p>Transferencia, MercadoPago o crypto a Fideitec</p>
+            <h4>Elegí tu inversión</h4>
+            <p>Explorá fideicomisos disponibles y seleccioná cantidad de tokens</p>
           </div>
           <div class="step-card">
             <div class="step-number">3</div>
-            <h4>Emisión</h4>
-            <p>Fideitec genera token endosado al cliente</p>
+            <h4>Pagá en pesos/USD</h4>
+            <p>Transferencia, MercadoPago o crypto. Fideitec absorbe el gas</p>
           </div>
           <div class="step-card">
             <div class="step-number">4</div>
-            <h4>Certificado</h4>
-            <p>PDF firmado + hash anclado en blockchain</p>
+            <h4>Recibí tu certificado</h4>
+            <p>PDF firmado digitalmente + registro inmutable en blockchain</p>
           </div>
         </div>
       </div>
@@ -939,52 +1221,214 @@
         <div class="flow-diagram">
           <div class="flow-node seller">
             <div class="icon">👤</div>
-            <div class="label">Cliente</div>
+            <div class="label">Vos</div>
             <div class="sublabel">Vendedor</div>
           </div>
           <div class="flow-arrow token">🎟️→</div>
           <div class="flow-node highlight">
             <div class="icon">🏢</div>
             <div class="label">FIDEITEC</div>
+            <div class="sublabel">Re-endosa</div>
           </div>
           <div class="flow-arrow money">$$$→</div>
-          <div class="flow-node buyer">
+          <div class="flow-node seller">
             <div class="icon">👤</div>
-            <div class="label">Cliente</div>
-            <div class="sublabel">+ Pago</div>
+            <div class="label">Vos</div>
+            <div class="sublabel">Recibís tu plata</div>
           </div>
         </div>
         <div class="flow-steps">
           <div class="step-card" style="border-left-color: var(--warning);">
             <div class="step-number" style="background: linear-gradient(135deg, var(--warning), #D97706);">1</div>
-            <h4>Solicitud</h4>
-            <p>Cliente solicita vender su cuota parte</p>
+            <h4>Solicitá vender</h4>
+            <p>Indicá cuántos tokens querés vender desde tu portfolio</p>
           </div>
           <div class="step-card" style="border-left-color: var(--warning);">
             <div class="step-number" style="background: linear-gradient(135deg, var(--warning), #D97706);">2</div>
-            <h4>Re-endoso</h4>
-            <p>Token se re-endosa a Fideitec</p>
+            <h4>Recibí cotización</h4>
+            <p>Fideitec te ofrece precio de recompra o lo publicás en consignación</p>
           </div>
           <div class="step-card" style="border-left-color: var(--warning);">
             <div class="step-number" style="background: linear-gradient(135deg, var(--warning), #D97706);">3</div>
-            <h4>Pago</h4>
-            <p>Fideitec paga al cliente vendedor</p>
+            <h4>Re-endoso automático</h4>
+            <p>Tu token vuelve a Fideitec, se genera nuevo certificado</p>
           </div>
           <div class="step-card" style="border-left-color: var(--warning);">
             <div class="step-number" style="background: linear-gradient(135deg, var(--warning), #D97706);">4</div>
-            <h4>Disponible</h4>
-            <p>Token disponible para re-venta o quemar</p>
+            <h4>Cobrá tu dinero</h4>
+            <p>Transferencia a tu cuenta en 5-10 días hábiles</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="certificado" class="flow-content fade-in">
+        <div style="max-width: 600px; margin: 0 auto; background: var(--white); padding: 2rem; border-radius: var(--radius-xl); box-shadow: var(--shadow-xl);">
+          <div style="text-align: center; margin-bottom: 2rem;">
+            <span style="font-size: 4rem;">📜</span>
+            <h3 style="margin-top: 1rem;">Certificado de Propiedad Digital</h3>
+          </div>
+          <div style="background: var(--gray-50); padding: 1.5rem; border-radius: var(--radius-md); margin-bottom: 1rem;">
+            <p style="font-size: 0.8rem; color: var(--gray-500);">NÚMERO DE CERTIFICADO</p>
+            <p style="font-weight: 700; font-size: 1.25rem;">#FDT-2025-001547</p>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+            <div>
+              <p style="font-size: 0.8rem; color: var(--gray-500);">TITULAR</p>
+              <p style="font-weight: 600;">Juan Carlos Pérez</p>
+            </div>
+            <div>
+              <p style="font-size: 0.8rem; color: var(--gray-500);">DNI</p>
+              <p style="font-weight: 600;">30.456.789</p>
+            </div>
+            <div>
+              <p style="font-size: 0.8rem; color: var(--gray-500);">PROYECTO</p>
+              <p style="font-weight: 600;">Torres del Sol</p>
+            </div>
+            <div>
+              <p style="font-size: 0.8rem; color: var(--gray-500);">TOKENS</p>
+              <p style="font-weight: 600;">2 de 1.000 (0.2%)</p>
+            </div>
+          </div>
+          <div style="background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end)); color: white; padding: 1rem; border-radius: var(--radius-md); text-align: center;">
+            <p style="font-size: 0.75rem; opacity: 0.9;">VERIFICADO EN BLOCKCHAIN</p>
+            <p style="font-family: monospace; font-size: 0.8rem;">Base • Tx: 0x7f3a8b2c4d5e...</p>
+          </div>
+          <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+            <button style="flex: 1; padding: 0.75rem; background: var(--gray-800); color: white; border: none; border-radius: var(--radius-md); font-weight: 600; cursor: pointer;">📥 Descargar PDF</button>
+            <button style="flex: 1; padding: 0.75rem; background: var(--success); color: white; border: none; border-radius: var(--radius-md); font-weight: 600; cursor: pointer;">🔗 Verificar en Blockchain</button>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="section-bg-gray" id="legal">
+  <!-- SECCIÓN B2B PARA CONSTRUCTORAS -->
+  <div class="section-bg-gradient" id="constructoras">
     <div class="container">
       <div class="section-title fade-in">
-        <h2>Marco Legal</h2>
-        <p>Modelo diseñado para evitar regulación de la CNV mientras mantiene la seguridad del blockchain.</p>
+        <h2>🏗️ Para Constructoras y Desarrolladores</h2>
+        <p>Tokenizá tus proyectos inmobiliarios sin necesidad de conocimientos blockchain. Fideitec es tu socio tecnológico.</p>
+        <div class="underline"></div>
+      </div>
+
+      <div class="b2b-grid fade-in">
+        <div class="b2b-diagram">
+          <h4 style="margin-bottom: 1.5rem;">Modelo Centralizado</h4>
+          <div class="b2b-flow">
+            <div class="b2b-row">
+              <div class="b2b-node">
+                <div class="icon">🏗️</div>
+                <div class="name">Constructora A</div>
+              </div>
+              <div class="b2b-node">
+                <div class="icon">🏗️</div>
+                <div class="name">Constructora B</div>
+              </div>
+              <div class="b2b-node">
+                <div class="icon">🏗️</div>
+                <div class="name">Constructora C</div>
+              </div>
+            </div>
+            <div class="b2b-arrow">↓ ↓ ↓</div>
+            <div class="b2b-node central">
+              <div class="icon">🔐</div>
+              <div class="name">FIDEITEC</div>
+              <div style="font-size: 0.7rem; opacity: 0.7;">Certifica TODO con una sola wallet</div>
+            </div>
+            <div class="b2b-arrow">↓</div>
+            <div class="b2b-node" style="background: rgba(245, 158, 11, 0.3);">
+              <div class="icon">⛓️</div>
+              <div class="name">Blockchain (Base)</div>
+            </div>
+          </div>
+          <p style="margin-top: 1.5rem; font-size: 0.85rem; opacity: 0.9;">Las constructoras no necesitan wallet ni crypto.<br>Fideitec maneja toda la tecnología.</p>
+        </div>
+
+        <div class="b2b-features">
+          <div class="b2b-feature">
+            <span class="icon">🚀</span>
+            <div>
+              <h4>Sin Fricción Técnica</h4>
+              <p>No necesitás entender blockchain, tener wallet, ni fondear con crypto. Nosotros nos encargamos.</p>
+            </div>
+          </div>
+          <div class="b2b-feature">
+            <span class="icon">📜</span>
+            <div>
+              <h4>Certificación Inmutable</h4>
+              <p>Cada transacción queda registrada en blockchain con nuestra firma digital como "notario tecnológico".</p>
+            </div>
+          </div>
+          <div class="b2b-feature">
+            <span class="icon">👥</span>
+            <div>
+              <h4>Portal de Inversores Incluido</h4>
+              <p>Tus clientes acceden a un portal web profesional para ver sus inversiones y descargar certificados.</p>
+            </div>
+          </div>
+          <div class="b2b-feature">
+            <span class="icon">💰</span>
+            <div>
+              <h4>Modelo de Revenue Share</h4>
+              <p>Compartimos las comisiones de cada transacción. Vos captas inversores, nosotros procesamos todo.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing B2B -->
+      <div style="margin-top: 4rem;">
+        <h3 style="text-align: center; margin-bottom: 2rem;">Planes para Constructoras</h3>
+        <div class="pricing-grid fade-in">
+          <div class="pricing-card">
+            <h3>Starter</h3>
+            <div class="price">2%<span> por transacción</span></div>
+            <ul>
+              <li>Hasta 3 proyectos activos</li>
+              <li>Portal de inversores básico</li>
+              <li>Certificados blockchain</li>
+              <li>Soporte por email</li>
+              <li>Sin costo de setup</li>
+            </ul>
+            <a href="#contacto" class="btn btn-secondary" style="width: 100%; border-color: var(--primary-color); color: var(--primary-color);">Comenzar</a>
+          </div>
+          <div class="pricing-card featured">
+            <h3>Professional</h3>
+            <div class="price">1.5%<span> por transacción</span></div>
+            <ul>
+              <li>Proyectos ilimitados</li>
+              <li>Portal personalizado con tu marca</li>
+              <li>API de integración</li>
+              <li>Dashboard de analytics</li>
+              <li>Soporte prioritario</li>
+              <li>Onboarding dedicado</li>
+            </ul>
+            <a href="#contacto" class="btn btn-primary" style="width: 100%;">Contactar</a>
+          </div>
+          <div class="pricing-card">
+            <h3>Enterprise</h3>
+            <div class="price">Custom</div>
+            <ul>
+              <li>Todo lo de Professional</li>
+              <li>White-label completo</li>
+              <li>Infraestructura dedicada</li>
+              <li>SLA garantizado</li>
+              <li>Account manager dedicado</li>
+              <li>Integración con tu ERP</li>
+            </ul>
+            <a href="#contacto" class="btn btn-secondary" style="width: 100%; border-color: var(--primary-color); color: var(--primary-color);">Hablemos</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MARCO LEGAL -->
+  <div class="section-bg-white" id="legal">
+    <div class="container">
+      <div class="section-title fade-in">
+        <h2>⚖️ Marco Legal</h2>
+        <p>Modelo diseñado para operar sin regulación CNV, manteniendo seguridad blockchain.</p>
         <div class="underline"></div>
       </div>
 
@@ -1016,101 +1460,42 @@
             <tr>
               <td>Emisor del token</td>
               <td>Cualquier participante</td>
-              <td>Solo Fideitec</td>
+              <td>Solo Fideitec (entidad certificadora)</td>
             </tr>
             <tr>
               <td>Modelo de negocio</td>
               <td>Comisiones por trading</td>
               <td>Comisión por intermediación</td>
             </tr>
+            <tr>
+              <td>Naturaleza jurídica</td>
+              <td>Valor negociable</td>
+              <td>Cuota parte de fideicomiso</td>
+            </tr>
           </tbody>
         </table>
       </div>
-    </div>
-  </div>
 
-  <div class="section-bg-white" id="ux">
-    <div class="container">
-      <div class="section-title fade-in">
-        <h2>Experiencia del Cliente</h2>
-        <p>Interfaz familiar sin complejidad técnica. El cliente nunca necesita interactuar con blockchain.</p>
-        <div class="underline"></div>
-      </div>
-
-      <div class="ux-demo fade-in">
-        <div class="phone-mockup">
-          <div class="phone-header">
-            <span class="icon">🏠</span>
-            <h4>Fideicomiso Torres del Sol</h4>
-          </div>
-          <div class="property-info">
-            <div>
-              <div class="label">Cuota parte</div>
-              <div class="value">$1,500,000</div>
-            </div>
-            <div style="text-align: right;">
-              <div class="label">Disponibles</div>
-              <div class="value green">47/100</div>
-            </div>
-          </div>
-          <button class="phone-btn primary">COMPRAR CUOTA PARTE</button>
-        </div>
-
-        <div class="phone-mockup">
-          <div class="phone-header">
-            <span class="icon">💳</span>
-            <h4>Medio de pago</h4>
-          </div>
-          <div class="payment-options">
-            <div class="payment-option selected">🏦 Transferencia</div>
-            <div class="payment-option">💳 MP</div>
-            <div class="payment-option">💰 Crypto</div>
-          </div>
-          <button class="phone-btn primary">CONFIRMAR COMPRA</button>
-        </div>
-
-        <div class="phone-mockup">
-          <div class="success-icon">✅</div>
-          <div class="success-text">¡Compra exitosa!</div>
-          <div class="cert-box">
-            <div class="label">📜 Certificado Digital</div>
-            <div class="id">#FDT-2024-001</div>
-            <div class="owner">Endosado a: Juan Pérez</div>
-          </div>
-          <div class="cert-buttons">
-            <button class="cert-btn dark">📥 DESCARGAR</button>
-            <button class="cert-btn green">🔗 VERIFICAR</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="features-grid fade-in">
-        <div class="feature-box bad">
-          <h4>❌ NUNCA necesita:</h4>
-          <ul>
-            <li>🚫 Wallet de crypto</li>
-            <li>🚫 Entender blockchain</li>
-            <li>🚫 Pagar gas</li>
-            <li>🚫 Ver direcciones hexadecimales</li>
-          </ul>
-        </div>
-        <div class="feature-box good">
-          <h4>✅ SÍ ve:</h4>
-          <ul>
-            <li>✓ Compra/venta en pesos o dólares</li>
-            <li>✓ Certificado PDF verificable</li>
-            <li>✓ Portfolio de cuotas partes</li>
-            <li>✓ Interfaz web familiar</li>
-          </ul>
-        </div>
+      <div style="margin-top: 3rem; background: var(--gray-50); padding: 2rem; border-radius: var(--radius-lg); border-left: 4px solid var(--primary-color);" class="fade-in">
+        <h4 style="margin-bottom: 1rem;">📋 Fundamento Legal</h4>
+        <p style="color: var(--gray-600);">
+          Los tokens de Fideitec representan cuotas partes de fideicomisos inmobiliarios bajo la <strong>Ley 24.441</strong>. 
+          No constituyen valores negociables según la Ley 26.831 porque:
+        </p>
+        <ul style="margin-top: 1rem; color: var(--gray-600); padding-left: 1.5rem;">
+          <li>No son de oferta pública (requieren KYC/AML individual)</li>
+          <li>No existe mercado secundario libre (toda transacción pasa por Fideitec)</li>
+          <li>Son contratos bilaterales entre Fideitec y cada inversor</li>
+        </ul>
       </div>
     </div>
   </div>
 
+  <!-- ARQUITECTURA -->
   <div class="section-bg-gray" id="arquitectura">
     <div class="container">
       <div class="section-title fade-in">
-        <h2>Arquitectura Técnica</h2>
+        <h2>🔧 Arquitectura Técnica</h2>
         <p>Custodia centralizada con certificación inmutable en blockchain.</p>
         <div class="underline"></div>
       </div>
@@ -1121,7 +1506,7 @@
             <div class="arch-node frontend">
               <div class="icon">🖥️</div>
               <div class="name">Frontend</div>
-              <div class="tech">React / Next.js</div>
+              <div class="tech">React</div>
             </div>
             <span class="arch-arrow">→</span>
             <div class="arch-node backend">
@@ -1133,7 +1518,7 @@
             <div class="arch-node database">
               <div class="icon">🗄️</div>
               <div class="name">PostgreSQL</div>
-              <div class="tech">Supabase</div>
+              <div class="tech">Render</div>
             </div>
           </div>
           <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
@@ -1144,7 +1529,7 @@
           <div class="arch-node blockchain">
             <div class="icon">⛓️</div>
             <div class="name">Blockchain (Base)</div>
-            <div class="tech">Hash | Timestamp | Inmutable</div>
+            <div class="tech">Ethereum L2 by Coinbase</div>
           </div>
         </div>
 
@@ -1154,28 +1539,97 @@
             <ul>
               <li>• Propiedad real de tokens</li>
               <li>• Saldos y transacciones</li>
-              <li>• Datos de clientes</li>
+              <li>• Datos de clientes (KYC)</li>
+              <li>• Multi-tenant por constructora</li>
             </ul>
           </div>
           <div class="arch-card bc">
-            <h4>⛓️ Blockchain</h4>
+            <h4>⛓️ Blockchain (Base)</h4>
             <ul>
               <li>• Certificación inmutable</li>
               <li>• Hash + timestamp</li>
+              <li>• Verificable públicamente</li>
             </ul>
           </div>
           <div class="arch-card cert">
             <h4>📜 Certificado PDF</h4>
             <ul>
               <li>• Documento firmado digitalmente</li>
-              <li>• Verificable públicamente</li>
+              <li>• QR de verificación</li>
+              <li>• Datos del titular y proyecto</li>
             </ul>
           </div>
           <div class="arch-card cost">
             <h4>💰 Costo de Gas</h4>
             <div class="cost-value">~$0.001 - $0.01</div>
-            <span style="font-size: 0.75rem; color: var(--gray-500);">por transacción en Base</span>
+            <span style="font-size: 0.75rem; color: var(--gray-500);">por transacción (Fideitec lo absorbe)</span>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="section-bg-white" id="faq">
+    <div class="container">
+      <div class="section-title fade-in">
+        <h2>❓ Preguntas Frecuentes</h2>
+        <p>Todo lo que necesitás saber sobre la tokenización con Fideitec.</p>
+        <div class="underline"></div>
+      </div>
+
+      <div class="faq-grid fade-in">
+        <div class="faq-item">
+          <h4>💰 ¿Cuál es el monto mínimo para invertir?</h4>
+          <p>Depende del proyecto, pero típicamente desde USD 500 o su equivalente en pesos.</p>
+        </div>
+        <div class="faq-item">
+          <h4>🔐 ¿Necesito wallet de criptomonedas?</h4>
+          <p>No. Fideitec custodia los tokens por vos. Solo necesitás una cuenta en la plataforma.</p>
+        </div>
+        <div class="faq-item">
+          <h4>⛽ ¿Tengo que pagar gas de blockchain?</h4>
+          <p>No. Fideitec absorbe todos los costos de blockchain. Vos pagás en pesos o dólares.</p>
+        </div>
+        <div class="faq-item">
+          <h4>📄 ¿Cómo verifico mi certificado?</h4>
+          <p>Tu certificado incluye un link a basescan.org donde podés ver el registro inmutable en blockchain.</p>
+        </div>
+        <div class="faq-item">
+          <h4>🏦 ¿Qué pasa si Fideitec cierra?</h4>
+          <p>El fideicomiso es un patrimonio separado. Los activos están protegidos y se designaría un nuevo fiduciario.</p>
+        </div>
+        <div class="faq-item">
+          <h4>💸 ¿Recibo dividendos?</h4>
+          <p>Sí, si el fideicomiso genera ingresos (alquileres), se distribuyen proporcionalmente entre titulares.</p>
+        </div>
+        <div class="faq-item">
+          <h4>🏗️ ¿Cómo tokenizan mi proyecto?</h4>
+          <p>Nos contactás, verificamos tu empresa, cargamos el proyecto y vos empezás a captar inversores. Nosotros procesamos todo.</p>
+        </div>
+        <div class="faq-item">
+          <h4>📊 ¿Qué comisiones cobran?</h4>
+          <p>2% por transacción para inversores. Para constructoras, planes desde 1.5% con revenue share.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA FINAL -->
+  <div class="section-bg-gray" id="contacto">
+    <div class="container">
+      <div class="cta-grid fade-in">
+        <div class="cta-card investor">
+          <div class="icon">👤</div>
+          <h3>Soy Inversor</h3>
+          <p>Quiero invertir en fideicomisos inmobiliarios tokenizados</p>
+          <a href="https://app.fideitec.com.ar/register" class="btn">Crear Cuenta Gratis</a>
+        </div>
+        <div class="cta-card constructor">
+          <div class="icon">🏗️</div>
+          <h3>Soy Constructora</h3>
+          <p>Quiero tokenizar mis proyectos y captar inversores</p>
+          <a href="mailto:constructoras@fideitec.com.ar" class="btn">Contactar Ventas</a>
         </div>
       </div>
     </div>
@@ -1196,14 +1650,6 @@
       event.target.classList.add('active');
       document.getElementById(type).classList.add('active');
     }
-
-    // Payment option selection
-    document.querySelectorAll('.payment-option').forEach(option => {
-      option.addEventListener('click', function() {
-        this.parentElement.querySelectorAll('.payment-option').forEach(o => o.classList.remove('selected'));
-        this.classList.add('selected');
-      });
-    });
 
     // Scroll animations
     const fadeElements = document.querySelectorAll('.fade-in');
@@ -1231,4 +1677,3 @@
   </script>
 </body>
 </html>
-
