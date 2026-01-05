@@ -1,13 +1,11 @@
 /**
- * FIDEITEC - Configuración de Blockchain (Thirdweb v5 + Polygon)
+ * FIDEITEC - Configuración de Blockchain (ethers.js + Base)
  * 
- * Este módulo configura la conexión con Polygon usando Thirdweb SDK v5.
- * Soporta múltiples redes para fácil migración futura (Base, Ethereum, etc.)
+ * Sistema simplificado para anclar certificados en blockchain.
+ * No usa Thirdweb, solo ethers.js puro.
  */
 
-const { createThirdwebClient, getContract } = require('thirdweb');
-const { privateKeyToAccount } = require('thirdweb/wallets');
-const { polygon, polygonAmoy, base, baseSepolia } = require('thirdweb/chains');
+const { ethers } = require('ethers');
 
 // ===========================================
 // Configuración de Redes
@@ -15,174 +13,156 @@ const { polygon, polygonAmoy, base, baseSepolia } = require('thirdweb/chains');
 
 const NETWORKS = {
   // Mainnet
-  polygon: {
-    chain: polygon,
-    name: 'Polygon Mainnet',
-    explorer: 'https://polygonscan.com',
+  base: {
+    name: 'Base Mainnet',
+    chainId: 8453,
+    rpcUrl: 'https://mainnet.base.org',
+    explorer: 'https://basescan.org',
     isTestnet: false
   },
-  base: {
-    chain: base,
-    name: 'Base Mainnet',
-    explorer: 'https://basescan.org',
+  polygon: {
+    name: 'Polygon Mainnet',
+    chainId: 137,
+    rpcUrl: 'https://polygon-rpc.com',
+    explorer: 'https://polygonscan.com',
     isTestnet: false
   },
   
   // Testnets
-  'polygon-amoy': {
-    chain: polygonAmoy,
-    name: 'Polygon Amoy (Testnet)',
-    explorer: 'https://amoy.polygonscan.com',
-    isTestnet: true
-  },
   'base-sepolia': {
-    chain: baseSepolia,
     name: 'Base Sepolia (Testnet)',
+    chainId: 84532,
+    rpcUrl: 'https://sepolia.base.org',
     explorer: 'https://sepolia.basescan.org',
     isTestnet: true
+  },
+  'polygon-amoy': {
+    name: 'Polygon Amoy (Testnet)',
+    chainId: 80002,
+    rpcUrl: 'https://rpc-amoy.polygon.technology',
+    explorer: 'https://amoy.polygonscan.com',
+    isTestnet: true
   }
 };
 
-// Red por defecto (configurable por env)
-const DEFAULT_NETWORK = process.env.BLOCKCHAIN_NETWORK || 'polygon';
+// Red por defecto - Base Mainnet
+const DEFAULT_NETWORK = process.env.BLOCKCHAIN_NETWORK || 'base';
 
 // ===========================================
-// Cliente de Thirdweb
+// Provider y Wallet
 // ===========================================
 
-let thirdwebClient = null;
-let adminAccount = null;
+let provider = null;
+let adminWallet = null;
 
 /**
- * Obtiene el cliente de Thirdweb
- * @returns {ThirdwebClient}
+ * Obtiene el provider de la red
  */
-const getClient = () => {
-  if (thirdwebClient) {
-    return thirdwebClient;
+const getProvider = () => {
+  if (provider) return provider;
+  
+  const network = NETWORKS[DEFAULT_NETWORK];
+  if (!network) {
+    throw new Error(`Red no soportada: ${DEFAULT_NETWORK}`);
   }
   
-  const secretKey = process.env.THIRDWEB_SECRET_KEY;
-  if (!secretKey) {
-    throw new Error('THIRDWEB_SECRET_KEY no está configurada en las variables de entorno');
-  }
+  provider = new ethers.JsonRpcProvider(network.rpcUrl);
+  console.log(`✅ Provider conectado a ${network.name}`);
   
-  thirdwebClient = createThirdwebClient({
-    secretKey: secretKey
-  });
-  
-  console.log('✅ Thirdweb Client inicializado');
-  
-  return thirdwebClient;
+  return provider;
 };
 
 /**
- * Obtiene la cuenta admin (wallet de Fideitec)
- * @returns {Account}
+ * Obtiene la wallet admin de Fideitec
  */
-const getAdminAccount = () => {
-  if (adminAccount) {
-    return adminAccount;
-  }
+const getAdminWallet = () => {
+  if (adminWallet) return adminWallet;
   
   const privateKey = process.env.BLOCKCHAIN_PRIVATE_KEY;
   if (!privateKey) {
     throw new Error('BLOCKCHAIN_PRIVATE_KEY no está configurada');
   }
   
-  adminAccount = privateKeyToAccount({
-    client: getClient(),
-    privateKey: privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`
-  });
+  const formattedKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
+  adminWallet = new ethers.Wallet(formattedKey, getProvider());
   
-  return adminAccount;
-};
-
-/**
- * Obtiene información de la red actual
- * @param {string} network 
- * @returns {object}
- */
-const getNetworkInfo = (network = DEFAULT_NETWORK) => {
-  const networkConfig = NETWORKS[network];
-  if (!networkConfig) {
-    throw new Error(`Red no soportada: ${network}. Usar: ${Object.keys(NETWORKS).join(', ')}`);
-  }
-  return {
-    ...networkConfig,
-    chainId: networkConfig.chain.id
-  };
-};
-
-/**
- * Obtiene la chain para una red
- * @param {string} network 
- * @returns {Chain}
- */
-const getChain = (network = DEFAULT_NETWORK) => {
-  const networkConfig = NETWORKS[network];
-  if (!networkConfig) {
-    throw new Error(`Red no soportada: ${network}`);
-  }
-  return networkConfig.chain;
-};
-
-/**
- * Obtiene el contrato ERC1155 para tokenización
- * @param {string} contractAddress - Dirección del contrato
- * @param {string} network - Red
- * @returns {Contract}
- */
-const getTokenContract = (contractAddress, network = DEFAULT_NETWORK) => {
-  const client = getClient();
-  const chain = getChain(network);
+  console.log(`✅ Wallet admin configurada: ${adminWallet.address}`);
   
-  return getContract({
-    client,
-    chain,
-    address: contractAddress
-  });
+  return adminWallet;
 };
 
 /**
  * Obtiene la dirección de la wallet admin
- * @returns {string}
  */
 const getAdminWalletAddress = () => {
-  const account = getAdminAccount();
-  return account.address;
+  const wallet = getAdminWallet();
+  return wallet.address;
 };
 
 /**
- * Verifica si la configuración de blockchain está completa
- * @returns {object} Estado de la configuración
+ * Obtiene el balance de la wallet admin
+ */
+const getAdminWalletBalance = async () => {
+  try {
+    const wallet = getAdminWallet();
+    const balance = await wallet.provider.getBalance(wallet.address);
+    const balanceInEth = ethers.formatEther(balance);
+    
+    return {
+      wei: balance.toString(),
+      eth: balanceInEth,
+      formatted: `${parseFloat(balanceInEth).toFixed(6)} ETH`
+    };
+  } catch (error) {
+    console.error('Error obteniendo balance:', error);
+    return null;
+  }
+};
+
+/**
+ * Obtiene información de la red actual
+ */
+const getNetworkInfo = (network = DEFAULT_NETWORK) => {
+  const networkConfig = NETWORKS[network];
+  if (!networkConfig) {
+    throw new Error(`Red no soportada: ${network}`);
+  }
+  return networkConfig;
+};
+
+/**
+ * Verifica si la configuración está completa
  */
 const checkConfiguration = () => {
   const status = {
-    thirdwebSecretKey: !!process.env.THIRDWEB_SECRET_KEY,
     privateKey: !!process.env.BLOCKCHAIN_PRIVATE_KEY,
-    network: process.env.BLOCKCHAIN_NETWORK || DEFAULT_NETWORK,
-    contractAddress: process.env.FIDEITEC_CONTRACT_ADDRESS || null,
+    network: DEFAULT_NETWORK,
+    networkInfo: NETWORKS[DEFAULT_NETWORK],
     isConfigured: false,
     errors: []
   };
   
-  if (!status.thirdwebSecretKey) {
-    status.errors.push('Falta THIRDWEB_SECRET_KEY');
-  }
   if (!status.privateKey) {
     status.errors.push('Falta BLOCKCHAIN_PRIVATE_KEY');
   }
   
   status.isConfigured = status.errors.length === 0;
   
+  // Si está configurado, agregar dirección de wallet
+  if (status.isConfigured) {
+    try {
+      status.walletAddress = getAdminWalletAddress();
+    } catch (e) {
+      status.errors.push('Error al cargar wallet: ' + e.message);
+      status.isConfigured = false;
+    }
+  }
+  
   return status;
 };
 
 /**
- * Formatea una dirección de wallet para display
- * @param {string} address 
- * @returns {string}
+ * Formatea una dirección para display
  */
 const formatAddress = (address) => {
   if (!address) return '';
@@ -191,9 +171,6 @@ const formatAddress = (address) => {
 
 /**
  * Obtiene el link del explorador para una transacción
- * @param {string} txHash 
- * @param {string} network 
- * @returns {string}
  */
 const getExplorerTxLink = (txHash, network = DEFAULT_NETWORK) => {
   const networkConfig = NETWORKS[network];
@@ -203,9 +180,6 @@ const getExplorerTxLink = (txHash, network = DEFAULT_NETWORK) => {
 
 /**
  * Obtiene el link del explorador para una dirección
- * @param {string} address 
- * @param {string} network 
- * @returns {string}
  */
 const getExplorerAddressLink = (address, network = DEFAULT_NETWORK) => {
   const networkConfig = NETWORKS[network];
@@ -214,12 +188,11 @@ const getExplorerAddressLink = (address, network = DEFAULT_NETWORK) => {
 };
 
 module.exports = {
-  getClient,
-  getAdminAccount,
-  getNetworkInfo,
-  getChain,
-  getTokenContract,
+  getProvider,
+  getAdminWallet,
   getAdminWalletAddress,
+  getAdminWalletBalance,
+  getNetworkInfo,
   checkConfiguration,
   formatAddress,
   getExplorerTxLink,

@@ -1,17 +1,19 @@
 /**
  * FIDEITEC - Controlador de Tokenización
  * 
+ * Sistema de tokenización con certificación en blockchain.
+ * Los tokens se gestionan en base de datos y los certificados
+ * se anclan en blockchain (Base) para verificación inmutable.
+ * 
  * Endpoints para:
- * - Tokenizar activos (crear tokens representando un activo)
- * - Emitir tokens (mint)
- * - Endosar/Transferir tokens a clientes
- * - Recibir tokens de vuelta (return)
- * - Quemar tokens
- * - Consultar estados y balances
+ * - Ver estado de configuración blockchain
+ * - Gestionar activos tokenizados
+ * - Crear/completar órdenes de compra/venta
+ * - Generar certificados y anclarlos en blockchain
  */
 
 const { query, getClient } = require('../config/database');
-const { checkConfiguration, getNetworkInfo, getExplorerTxLink, DEFAULT_NETWORK } = require('../config/blockchain');
+const { checkConfiguration, getNetworkInfo, getExplorerTxLink, DEFAULT_NETWORK, getAdminWalletAddress } = require('../config/blockchain');
 const blockchainService = require('../services/blockchainService');
 
 // ===========================================
@@ -27,11 +29,14 @@ const getBlockchainStatus = async (req, res) => {
     const networkInfo = config.isConfigured ? getNetworkInfo(DEFAULT_NETWORK) : null;
     
     let walletBalance = null;
+    let estimatedCost = null;
+    
     if (config.isConfigured) {
       try {
-        walletBalance = await blockchainService.getAdminWalletBalance();
+        walletBalance = await blockchainService.getWalletBalance();
+        estimatedCost = await blockchainService.estimateAnchorCost();
       } catch (err) {
-        console.error('Error obteniendo balance:', err);
+        console.error('Error obteniendo balance/costo:', err);
       }
     }
     
@@ -40,15 +45,19 @@ const getBlockchainStatus = async (req, res) => {
       data: {
         isConfigured: config.isConfigured,
         network: config.network,
+        walletAddress: config.walletAddress,
         networkInfo: networkInfo ? {
           name: networkInfo.name,
           chainId: networkInfo.chainId,
           explorer: networkInfo.explorer,
           isTestnet: networkInfo.isTestnet
         } : null,
-        contractAddress: config.contractAddress,
         walletBalance,
-        errors: config.errors
+        estimatedCostPerCertificate: estimatedCost,
+        errors: config.errors,
+        message: config.isConfigured 
+          ? '✅ Blockchain configurada correctamente' 
+          : '⚠️ Configure BLOCKCHAIN_PRIVATE_KEY en las variables de entorno'
       }
     });
   } catch (error) {
