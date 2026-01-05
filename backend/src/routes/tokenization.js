@@ -498,6 +498,335 @@ router.post('/certificates/:id/certify-blockchain', requireRole(['admin', 'root'
 });
 
 // ===========================================
+// COMPRA INSTANTÁNEA (para demo/testing sin KYC)
+// ===========================================
+
+/**
+ * POST /api/tokenization/instant-buy
+ * Compra instantánea de tokens con certificación blockchain
+ * 
+ * Este endpoint hace todo el flujo en un solo paso:
+ * 1. Crea la orden
+ * 2. Confirma el pago automáticamente
+ * 3. Transfiere los tokens
+ * 4. Genera el certificado
+ * 5. Ancla el hash en blockchain
+ * 6. Devuelve el certificado completo
+ * 
+ * Body: { tokenizedAssetId, clientId, tokenAmount }
+ */
+router.post('/instant-buy', async (req, res) => {
+  const { getClient } = require('../config/database');
+  const blockchainService = require('../services/blockchainService');
+  const { checkConfiguration, DEFAULT_NETWORK } = require('../config/blockchain');
+  
+  const dbClient = await getClient();
+  
+  try {
+    const { tokenizedAssetId, clientId, tokenAmount } = req.body;
+    const tenantId = req.user.tenant_id;
+    const userId = req.user.id;
+
+    console.log('🛒 Iniciando compra instantánea...');
+
+    // Validaciones
+    if (!tokenizedAssetId || !clientId || !tokenAmount) {
+      return res.status(400).json({
+        success: false,
+        message: 'tokenizedAssetId, clientId y tokenAmount son requeridos'
+      });
+    }
+
+    await dbClient.query('BEGIN');
+
+    // 1. Verificar activo tokenizado
+    const assetResult = await dbClient.query(
+      `SELECT ta.*, 
+              CASE 
+                WHEN ta.asset_type = 'asset' THEN a.name
+                WHEN ta.asset_type = 'asset_unit' THEN au.unit_name
+                WHEN ta.asset_type = 'trust' THEN t.name
+              END as asset_name
+       FROM tokenized_assets ta
+       LEFT JOIN assets a ON ta.asset_id = a.id
+       LEFT JOIN asset_units au ON ta.asset_unit_id = au.id
+       LEFT JOIN trusts t ON ta.trust_id = t.id
+       WHERE ta.id = $1 AND ta.tenant_id = $2 AND ta.status = 'active'`,
+      [tokenizedAssetId, tenantId]
+    );
+
+    if (assetResult.rows.length === 0) {
+      throw new Error('Activo tokenizado no encontrado o inactivo');
+    }
+    const asset = assetResult.rows[0];
+
+    if (asset.fideitec_balance < tokenAmount) {
+      throw new Error(`Tokens insuficientes. Disponibles: ${asset.fideitec_balance}`);
+    }
+
+    // 2. Verificar cliente
+    const clientResult = await dbClient.query(
+      `SELECT * FROM clients WHERE id = $1 AND tenant_id = $2`,
+      [clientId, tenantId]
+    );
+    if (clientResult.rows.length === 0) {
+      throw new Error('Cliente no encontrado');
+    }
+    const client = clientResult.rows[0];
+
+    console.log(`✅ Cliente: ${client.first_name} ${client.last_name}`);
+    console.log(`✅ Activo: ${asset.token_name} (${asset.token_symbol})`);
+    console.log(`✅ Cantidad: ${tokenAmount} tokens`);
+
+    // 3. Calcular valores
+    const pricePerToken = parseFloat(asset.token_price);
+    const totalAmount = pricePerToken * tokenAmount;
+
+    // 4. Crear orden
+    const orderNumberResult = await dbClient.query(
+      `SELECT generate_order_number($1, 'buy') as order_number`,
+      [tenantId]
+    );
+    const orderNumber = orderNumberResult.rows[0].order_number;
+
+    const orderResult = await dbClient.query(
+      `INSERT INTO token_orders (
+        tenant_id, tokenized_asset_id, client_id, order_type,
+        order_number, token_amount, price_per_token, subtotal,
+        fees, taxes, total_amount, currency, payment_method,
+        status, payment_reference, payment_date, payment_confirmed_at,
+        processed_by
+      ) VALUES ($1, $2, $3, 'buy', $4, $5, $6, $7, 0, 0, $7, $8, 'instant', 
+        'payment_received', 'INSTANT-' || $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $9)
+      RETURNING *`,
+      [tenantId, tokenizedAssetId, clientId, orderNumber, tokenAmount, pricePerToken, 
+       totalAmount, asset.currency || 'USD', userId]
+    );
+    const order = orderResult.rows[0];
+    console.log(`✅ Orden creada: ${orderNumber}`);
+
+    // 5. Obtener o crear holder del cliente
+    let holderResult = await dbClient.query(
+      `SELECT id FROM token_holders WHERE tokenized_asset_id = $1 AND client_id = $2`,
+      [tokenizedAssetId, clientId]
+    );
+
+    let clientHolderId;
+    if (holderResult.rows.length === 0) {
+      const newHolder = await dbClient.query(
+        `INSERT INTO token_holders (tenant_id, tokenized_asset_id, holder_type, client_id, balance)
+         VALUES ($1, $2, 'client', $3, 0) RETURNING id`,
+        [tenantId, tokenizedAssetId, clientId]
+      );
+      clientHolderId = newHolder.rows[0].id;
+    } else {
+      clientHolderId = holderResult.rows[0].id;
+    }
+
+    // 6. Obtener holder de Fideitec
+    const fideitecHolder = await dbClient.query(
+      `SELECT id FROM token_holders WHERE tokenized_asset_id = $1 AND holder_type = 'fideitec'`,
+      [tokenizedAssetId]
+    );
+
+    // 7. Registrar transacción de transferencia
+    const txResult = await dbClient.query(
+      `INSERT INTO token_transactions (
+        tenant_id, tokenized_asset_id, transaction_type,
+        from_holder_id, to_holder_id, amount, blockchain,
+        status, reason, reference_id, initiated_by, confirmed_at
+      ) VALUES ($1, $2, 'transfer', $3, $4, $5, 'internal', 'confirmed', 
+        'Compra instantánea - Orden ' || $6, $6, $7, CURRENT_TIMESTAMP)
+      RETURNING *`,
+      [tenantId, tokenizedAssetId, fideitecHolder.rows[0].id, clientHolderId,
+       tokenAmount, orderNumber, userId]
+    );
+    console.log(`✅ Transferencia registrada`);
+
+    // 8. Generar certificado
+    const certNumberResult = await dbClient.query(
+      'SELECT generate_certificate_number($1) as cert_number',
+      [tenantId]
+    );
+    const certificateNumber = certNumberResult.rows[0].cert_number;
+    const verificationCode = require('crypto').randomBytes(32).toString('hex');
+
+    const certResult = await dbClient.query(
+      `INSERT INTO token_certificates (
+        tenant_id, tokenized_asset_id, client_id, token_holder_id, transaction_id,
+        certificate_number, certificate_type, title, description,
+        token_amount, token_value_at_issue, total_value_at_issue, currency,
+        endorser_name, beneficiary_name, beneficiary_document_type, 
+        beneficiary_document_number, beneficiary_address,
+        verification_code, status, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'ownership', $7, $8, $9, $10, $11, $12, 
+        'FIDEITEC S.A.', $13, $14, $15, $16, $17, 'active', $18)
+      RETURNING *`,
+      [
+        tenantId, tokenizedAssetId, clientId, clientHolderId, txResult.rows[0].id,
+        certificateNumber, 
+        `Certificado de Posesión - ${asset.token_name}`,
+        `Posesión de ${tokenAmount} cuotas partes del activo ${asset.asset_name}`,
+        tokenAmount, pricePerToken, totalAmount, asset.currency || 'USD',
+        `${client.first_name} ${client.last_name}`,
+        client.document_type || 'DNI',
+        client.document_number || 'N/A',
+        client.address_street || 'N/A',
+        verificationCode, userId
+      ]
+    );
+    const certificate = certResult.rows[0];
+    console.log(`✅ Certificado generado: ${certificateNumber}`);
+
+    // 9. Generar hash del certificado
+    const certificateData = {
+      certificateNumber,
+      beneficiary: `${client.first_name} ${client.last_name}`,
+      tokenName: asset.token_name,
+      tokenAmount,
+      totalValue: totalAmount,
+      issuedAt: certificate.issued_at
+    };
+    const pdfHash = require('crypto')
+      .createHash('sha256')
+      .update(JSON.stringify(certificateData))
+      .digest('hex');
+
+    await dbClient.query(
+      'UPDATE token_certificates SET pdf_hash = $1 WHERE id = $2',
+      [pdfHash, certificate.id]
+    );
+
+    // 10. Actualizar orden como completada
+    await dbClient.query(
+      `UPDATE token_orders 
+       SET status = 'completed',
+           token_transaction_id = $1,
+           certificate_id = $2,
+           tokens_transferred_at = CURRENT_TIMESTAMP,
+           completed_at = CURRENT_TIMESTAMP
+       WHERE id = $3`,
+      [txResult.rows[0].id, certificate.id, order.id]
+    );
+
+    await dbClient.query('COMMIT');
+    console.log(`✅ Base de datos actualizada`);
+
+    // 11. Anclar en blockchain (fuera de la transacción DB)
+    let blockchainResult = null;
+    const config = checkConfiguration();
+    
+    if (config.isConfigured) {
+      try {
+        console.log(`⛓️ Anclando en blockchain (${DEFAULT_NETWORK})...`);
+        blockchainResult = await blockchainService.anchorCertificateHash({
+          certificateHash: pdfHash,
+          certificateId: certificate.id,
+          certificateNumber: certificateNumber
+        });
+        
+        // Actualizar certificado con info de blockchain
+        await certificateService.setCertificateBlockchainInfo(certificate.id, {
+          blockchain: DEFAULT_NETWORK,
+          txHash: blockchainResult.txHash,
+          blockNumber: blockchainResult.blockNumber,
+          timestamp: blockchainResult.timestamp
+        });
+        
+        console.log(`✅ Anclado en blockchain: ${blockchainResult.txHash}`);
+      } catch (blockchainError) {
+        console.error('⚠️ Error en blockchain (el certificado se creó pero sin anclar):', blockchainError.message);
+      }
+    } else {
+      console.log('⚠️ Blockchain no configurada - certificado sin anclar');
+    }
+
+    // 12. Respuesta completa
+    res.status(201).json({
+      success: true,
+      message: blockchainResult 
+        ? '🎉 ¡Compra completada y certificada en blockchain!' 
+        : '✅ Compra completada (certificado sin anclar en blockchain)',
+      data: {
+        order: {
+          id: order.id,
+          orderNumber: orderNumber,
+          status: 'completed',
+          tokenAmount: tokenAmount,
+          pricePerToken: pricePerToken,
+          totalAmount: totalAmount,
+          currency: asset.currency || 'USD'
+        },
+        certificate: {
+          id: certificate.id,
+          certificateNumber: certificateNumber,
+          beneficiaryName: `${client.first_name} ${client.last_name}`,
+          tokenName: asset.token_name,
+          tokenSymbol: asset.token_symbol,
+          tokenAmount: tokenAmount,
+          totalValue: totalAmount,
+          verificationCode: verificationCode,
+          pdfHash: pdfHash,
+          isBlockchainCertified: !!blockchainResult,
+          blockchain: blockchainResult ? {
+            network: DEFAULT_NETWORK,
+            txHash: blockchainResult.txHash,
+            blockNumber: blockchainResult.blockNumber,
+            explorerLink: blockchainResult.explorerLink
+          } : null
+        },
+        downloadUrl: `/api/tokenization/certificates/${certificate.id}/html`
+      }
+    });
+
+  } catch (error) {
+    await dbClient.query('ROLLBACK');
+    console.error('❌ Error en compra instantánea:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  } finally {
+    dbClient.release();
+  }
+});
+
+/**
+ * GET /api/tokenization/available-tokens
+ * Lista tokens disponibles para comprar (sin autenticación especial)
+ */
+router.get('/available-tokens', async (req, res) => {
+  try {
+    const { query: dbQuery } = require('../config/database');
+    const result = await dbQuery(
+      `SELECT ta.id, ta.token_name, ta.token_symbol, ta.token_price, 
+              ta.total_supply, ta.fideitec_balance as available,
+              ta.currency, ta.status, ta.asset_type,
+              CASE 
+                WHEN ta.asset_type = 'asset' THEN a.name
+                WHEN ta.asset_type = 'asset_unit' THEN au.unit_name
+                WHEN ta.asset_type = 'trust' THEN t.name
+              END as asset_name
+       FROM tokenized_assets ta
+       LEFT JOIN assets a ON ta.asset_id = a.id
+       LEFT JOIN asset_units au ON ta.asset_unit_id = au.id
+       LEFT JOIN trusts t ON ta.trust_id = t.id
+       WHERE ta.tenant_id = $1 AND ta.status = 'active' AND ta.fideitec_balance > 0
+       ORDER BY ta.created_at DESC`,
+      [req.user.tenant_id]
+    );
+    
+    res.json({
+      success: true,
+      data: { tokens: result.rows }
+    });
+  } catch (error) {
+    console.error('Error obteniendo tokens disponibles:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ===========================================
 // VERIFICACIÓN PÚBLICA (sin auth)
 // ===========================================
 
