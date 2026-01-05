@@ -1139,22 +1139,14 @@ const Tokenization = () => {
           </div>
           
           <form onSubmit={handleTokenize} className="p-6 space-y-4">
-            {/* Contrato */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Contrato *</label>
-              <select
-                value={tokenizeForm.contract_id}
-                onChange={(e) => setTokenizeForm({...tokenizeForm, contract_id: e.target.value})}
-                required
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Seleccionar contrato</option>
-                {contracts.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({formatAddress(c.contract_address)})
-                  </option>
-                ))}
-              </select>
+            {/* Info de blockchain */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-blue-800">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm font-medium">Los certificados se anclarán en Base Mainnet</span>
+              </div>
             </div>
             
             {/* Tipo de activo */}
@@ -1291,7 +1283,7 @@ const Tokenization = () => {
               </button>
               <button
                 type="submit"
-                disabled={submitting || !tokenizeForm.contract_id}
+                disabled={submitting}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {submitting ? 'Procesando...' : 'Tokenizar'}

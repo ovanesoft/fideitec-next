@@ -190,6 +190,9 @@ const listContracts = async (req, res) => {
 
 /**
  * Tokenizar un activo (crear representación en blockchain)
+ * 
+ * Sistema simplificado: No requiere contrato ERC-1155.
+ * Los tokens se gestionan en base de datos y los certificados se anclan en blockchain.
  */
 const tokenizeAsset = async (req, res) => {
   const dbClient = await getClient();
@@ -202,7 +205,7 @@ const tokenizeAsset = async (req, res) => {
       asset_id,
       asset_unit_id,
       trust_id,
-      contract_id,
+      contract_id,       // Opcional - se crea automáticamente si no existe
       total_supply,      // Cantidad de tokens a emitir
       token_price,       // Precio por token
       token_name,
@@ -227,21 +230,62 @@ const tokenizeAsset = async (req, res) => {
     
     await dbClient.query('BEGIN');
     
-    // Verificar que el contrato existe y pertenece al tenant
-    const contractResult = await dbClient.query(
-      `SELECT * FROM blockchain_contracts WHERE id = $1 AND tenant_id = $2 AND status = 'active'`,
-      [contract_id, tenantId]
-    );
+    // Obtener o crear contrato por defecto para el tenant
+    let contract;
     
-    if (contractResult.rows.length === 0) {
-      await dbClient.query('ROLLBACK');
-      return res.status(404).json({
-        success: false,
-        message: 'Contrato no encontrado o inactivo'
-      });
+    if (contract_id) {
+      // Si se especifica un contrato, verificar que existe
+      const contractResult = await dbClient.query(
+        `SELECT * FROM blockchain_contracts WHERE id = $1 AND tenant_id = $2 AND status = 'active'`,
+        [contract_id, tenantId]
+      );
+      
+      if (contractResult.rows.length === 0) {
+        await dbClient.query('ROLLBACK');
+        return res.status(404).json({
+          success: false,
+          message: 'Contrato no encontrado o inactivo'
+        });
+      }
+      contract = contractResult.rows[0];
+    } else {
+      // Buscar o crear contrato por defecto "FIDEITEC_CERTIFICATES"
+      let contractResult = await dbClient.query(
+        `SELECT * FROM blockchain_contracts 
+         WHERE tenant_id = $1 AND name = 'FIDEITEC_CERTIFICATES' AND status = 'active'`,
+        [tenantId]
+      );
+      
+      if (contractResult.rows.length === 0) {
+        // Crear contrato por defecto
+        const { getAdminWalletAddress, DEFAULT_NETWORK } = require('../config/blockchain');
+        let walletAddress;
+        try {
+          walletAddress = getAdminWalletAddress();
+        } catch (e) {
+          walletAddress = '0x0000000000000000000000000000000000000000';
+        }
+        
+        contractResult = await dbClient.query(
+          `INSERT INTO blockchain_contracts (
+            tenant_id, name, description, contract_type, blockchain, 
+            contract_address, status, created_by
+          ) VALUES ($1, $2, $3, $4, $5, $6, 'active', $7)
+          RETURNING *`,
+          [
+            tenantId,
+            'FIDEITEC_CERTIFICATES',
+            'Sistema de certificación de cuotas partes en blockchain',
+            'ERC1155',
+            DEFAULT_NETWORK,
+            walletAddress,  // Usamos la wallet como "contrato" para certificación
+            user.id
+          ]
+        );
+        console.log('✅ Contrato FIDEITEC_CERTIFICATES creado automáticamente');
+      }
+      contract = contractResult.rows[0];
     }
-    
-    const contract = contractResult.rows[0];
     
     // Verificar que el activo existe
     let sourceAsset;
