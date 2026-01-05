@@ -374,53 +374,34 @@ const tokenizeAsset = async (req, res) => {
       [tenantId, tokenizedAsset.id, total_supply]
     );
     
-    // Emitir tokens en blockchain
-    let mintResult;
-    try {
-      mintResult = await blockchainService.mintTokens({
-        contractAddress: contract.contract_address,
-        tokenId,
-        amount: total_supply,
-        tokenUri: token_uri,
-        network: contract.blockchain
-      });
-      
-      // Actualizar registro con info de mint
-      await dbClient.query(
-        `UPDATE tokenized_assets 
-         SET status = 'active', 
-             mint_tx_hash = $1, 
-             tokenization_date = CURRENT_TIMESTAMP
-         WHERE id = $2`,
-        [mintResult.txHash, tokenizedAsset.id]
-      );
-      
-      // Registrar transacción de mint
-      const fideitecHolder = await dbClient.query(
-        `SELECT id FROM token_holders WHERE tokenized_asset_id = $1 AND holder_type = 'fideitec'`,
-        [tokenizedAsset.id]
-      );
-      
-      await dbClient.query(
-        `INSERT INTO token_transactions (
-          tenant_id, tokenized_asset_id, transaction_type, to_holder_id,
-          to_address, amount, blockchain, tx_hash, block_number, status, initiated_by
-        ) VALUES ($1, $2, 'mint', $3, $4, $5, $6, $7, $8, 'confirmed', $9)`,
-        [
-          tenantId, tokenizedAsset.id, fideitecHolder.rows[0].id,
-          mintResult.toAddress, total_supply, contract.blockchain,
-          mintResult.txHash, mintResult.blockNumber, user.id
-        ]
-      );
-      
-    } catch (blockchainError) {
-      // Si falla el mint, mantener en draft
-      console.error('Error en mint blockchain:', blockchainError);
-      await dbClient.query(
-        `UPDATE tokenized_assets SET notes = $1 WHERE id = $2`,
-        [`Error de blockchain: ${blockchainError.message}`, tokenizedAsset.id]
-      );
-    }
+    // NOTA: El modelo Fideitec NO usa tokens ERC-1155 en blockchain.
+    // Los tokens se gestionan en base de datos y el blockchain solo se usa
+    // para CERTIFICAR transacciones (anclar hash de certificados PDF).
+    // 
+    // Por lo tanto, activamos el token directamente sin "mint" on-chain.
+    
+    await dbClient.query(
+      `UPDATE tokenized_assets 
+       SET status = 'active', 
+           tokenization_date = CURRENT_TIMESTAMP,
+           notes = 'Tokens gestionados en base de datos. Blockchain usado para certificación de compras.'
+       WHERE id = $1`,
+      [tokenizedAsset.id]
+    );
+    
+    // Registrar transacción de emisión (solo en DB, no blockchain)
+    const fideitecHolder = await dbClient.query(
+      `SELECT id FROM token_holders WHERE tokenized_asset_id = $1 AND holder_type = 'fideitec'`,
+      [tokenizedAsset.id]
+    );
+    
+    await dbClient.query(
+      `INSERT INTO token_transactions (
+        tenant_id, tokenized_asset_id, transaction_type, to_holder_id,
+        amount, status, initiated_by, notes
+      ) VALUES ($1, $2, 'mint', $3, $4, 'confirmed', $5, 'Emisión inicial - Tokens bajo custodia de Fideitec')`,
+      [tenantId, tokenizedAsset.id, fideitecHolder.rows[0].id, total_supply, user.id]
+    );
     
     // Actualizar el activo original como tokenizado
     if (asset_type === 'asset') {
@@ -450,7 +431,7 @@ const tokenizeAsset = async (req, res) => {
     
     res.status(201).json({
       success: true,
-      message: mintResult ? 'Activo tokenizado exitosamente' : 'Activo registrado (pendiente de mint)',
+      message: '✅ Activo tokenizado exitosamente. Listo para vender tokens a clientes.',
       data: {
         tokenizedAsset: finalResult.rows[0],
         mintTransaction: mintResult || null
