@@ -101,8 +101,8 @@ const PortalDashboard = () => {
     setLoadingData(true);
     try {
       const [tokensRes, certsRes] = await Promise.all([
-        api.get(`/tokenization/clients/${client.id}/tokens`),
-        api.get(`/tokenization/clients/${client.id}/certificates`)
+        api.get('/portal/client/tokens'),
+        api.get('/portal/client/certificates')
       ]);
       
       const tokenData = tokensRes.data.data.tokens || [];
@@ -130,7 +130,7 @@ const PortalDashboard = () => {
   const loadAvailableTokens = useCallback(async () => {
     setLoadingAvailable(true);
     try {
-      const res = await api.get('/tokenization/available-tokens');
+      const res = await api.get('/portal/client/tokens/available');
       setAvailableTokens(res.data.data.tokens || []);
     } catch (error) {
       console.error('Error cargando tokens disponibles:', error);
@@ -153,9 +153,8 @@ const PortalDashboard = () => {
     setPurchaseResult(null);
     
     try {
-      const res = await api.post('/tokenization/instant-buy', {
+      const res = await api.post('/portal/client/tokens/buy', {
         tokenizedAssetId: buyModal.token.id,
-        clientId: client.id,
         tokenAmount: buyAmount
       });
       
@@ -185,7 +184,7 @@ const PortalDashboard = () => {
   // Descargar certificado PDF
   const handleDownloadCertificate = async (certId) => {
     try {
-      const res = await api.get(`/tokenization/certificates/${certId}/html`, {
+      const res = await api.get(`/portal/client/certificates/${certId}/html`, {
         responseType: 'text'
       });
       

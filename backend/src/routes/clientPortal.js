@@ -437,5 +437,288 @@ router.put('/client/change-password', authenticateClientToken, async (req, res) 
   }
 });
 
+// ===========================================
+// TOKENIZACIÓN - RUTAS PARA CLIENTES
+// ===========================================
+
+/**
+ * GET /api/portal/client/tokens/available
+ * Lista tokens disponibles para comprar en el tenant
+ */
+router.get('/client/tokens/available', authenticateClientToken, async (req, res) => {
+  const { query } = require('../config/database');
+  
+  try {
+    const tenantId = req.client.tenant_id;
+    
+    const result = await query(
+      `SELECT ta.id, ta.token_name, ta.token_symbol, ta.token_price, 
+              ta.total_supply, ta.fideitec_balance as available,
+              ta.currency, ta.status, ta.asset_type, ta.token_uri,
+              CASE 
+                WHEN ta.asset_type = 'asset' THEN a.name
+                WHEN ta.asset_type = 'asset_unit' THEN au.unit_name
+                WHEN ta.asset_type = 'trust' THEN t.name
+              END as asset_name,
+              CASE 
+                WHEN ta.asset_type = 'asset' THEN a.description
+                WHEN ta.asset_type = 'trust' THEN t.description
+              END as asset_description
+       FROM tokenized_assets ta
+       LEFT JOIN assets a ON ta.asset_id = a.id
+       LEFT JOIN asset_units au ON ta.asset_unit_id = au.id
+       LEFT JOIN trusts t ON ta.trust_id = t.id
+       WHERE ta.tenant_id = $1 AND ta.status = 'active' AND ta.fideitec_balance > 0
+       ORDER BY ta.created_at DESC`,
+      [tenantId]
+    );
+    
+    res.json({
+      success: true,
+      data: { tokens: result.rows }
+    });
+  } catch (error) {
+    console.error('Error obteniendo tokens disponibles:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /api/portal/client/tokens
+ * Lista tokens que posee el cliente
+ */
+router.get('/client/tokens', authenticateClientToken, async (req, res) => {
+  const { query } = require('../config/database');
+  
+  try {
+    const clientId = req.client.id;
+    
+    const result = await query(
+      `SELECT th.id as holder_id, th.balance,
+              ta.id as tokenized_asset_id, ta.token_name, ta.token_symbol, 
+              ta.token_price, ta.currency, ta.asset_type,
+              (th.balance * ta.token_price) as balance_value,
+              CASE 
+                WHEN ta.asset_type = 'asset' THEN a.name
+                WHEN ta.asset_type = 'asset_unit' THEN au.unit_name
+                WHEN ta.asset_type = 'trust' THEN t.name
+              END as asset_name
+       FROM token_holders th
+       JOIN tokenized_assets ta ON th.tokenized_asset_id = ta.id
+       LEFT JOIN assets a ON ta.asset_id = a.id
+       LEFT JOIN asset_units au ON ta.asset_unit_id = au.id
+       LEFT JOIN trusts t ON ta.trust_id = t.id
+       WHERE th.client_id = $1 AND th.balance > 0
+       ORDER BY ta.token_name`,
+      [clientId]
+    );
+    
+    res.json({
+      success: true,
+      data: { tokens: result.rows }
+    });
+  } catch (error) {
+    console.error('Error obteniendo tokens del cliente:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /api/portal/client/certificates
+ * Lista certificados del cliente
+ */
+router.get('/client/certificates', authenticateClientToken, async (req, res) => {
+  const { query } = require('../config/database');
+  
+  try {
+    const clientId = req.client.id;
+    
+    const result = await query(
+      `SELECT c.id, c.certificate_number, c.certificate_type, c.status,
+              c.token_amount, c.token_value_at_issue, c.total_value_at_issue,
+              c.currency, c.title, c.issued_at, c.expires_at,
+              c.is_blockchain_certified, c.blockchain, c.blockchain_tx_hash,
+              c.verification_code, c.pdf_url,
+              ta.token_name, ta.token_symbol, ta.asset_type,
+              CASE 
+                WHEN ta.asset_type = 'asset' THEN a.name
+                WHEN ta.asset_type = 'asset_unit' THEN au.unit_name
+                WHEN ta.asset_type = 'trust' THEN t.name
+              END as asset_name
+       FROM certificates c
+       JOIN tokenized_assets ta ON c.tokenized_asset_id = ta.id
+       LEFT JOIN assets a ON ta.asset_id = a.id
+       LEFT JOIN asset_units au ON ta.asset_unit_id = au.id
+       LEFT JOIN trusts t ON ta.trust_id = t.id
+       WHERE c.client_id = $1
+       ORDER BY c.issued_at DESC`,
+      [clientId]
+    );
+    
+    res.json({
+      success: true,
+      data: { certificates: result.rows }
+    });
+  } catch (error) {
+    console.error('Error obteniendo certificados:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * POST /api/portal/client/tokens/buy
+ * Compra instantánea de tokens (sin KYC por ahora para testing)
+ */
+router.post('/client/tokens/buy', authenticateClientToken, async (req, res) => {
+  const { query, getClient } = require('../config/database');
+  const orderService = require('../services/orderService');
+  const certificateService = require('../services/certificateService');
+  const blockchainService = require('../services/blockchainService');
+  
+  const dbClient = await getClient();
+  
+  try {
+    const clientId = req.client.id;
+    const tenantId = req.client.tenant_id;
+    const { tokenizedAssetId, tokenAmount, paymentMethod = 'transfer' } = req.body;
+
+    if (!tokenizedAssetId || !tokenAmount || tokenAmount < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos incompletos. Se requiere tokenizedAssetId y tokenAmount >= 1'
+      });
+    }
+
+    // Verificar que el token existe y tiene disponibilidad
+    const tokenResult = await query(
+      `SELECT * FROM tokenized_assets 
+       WHERE id = $1 AND tenant_id = $2 AND status = 'active' AND fideitec_balance >= $3`,
+      [tokenizedAssetId, tenantId, tokenAmount]
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token no disponible o sin stock suficiente'
+      });
+    }
+
+    const tokenAsset = tokenResult.rows[0];
+
+    // Crear la orden de compra
+    const order = await orderService.createBuyOrder({
+      tenantId,
+      tokenizedAssetId,
+      clientId,
+      tokenAmount: parseInt(tokenAmount),
+      paymentMethod,
+      notes: 'Compra desde portal de cliente'
+    });
+
+    // Confirmar el pago automáticamente (para testing)
+    const confirmedOrder = await orderService.confirmPayment(
+      order.id,
+      { 
+        paymentReference: `PORTAL_${Date.now()}`, 
+        paymentProofUrl: null 
+      },
+      null // Sin usuario admin, es self-service
+    );
+
+    // Completar la orden (transferir tokens y generar certificado)
+    const result = await orderService.completeBuyOrder(confirmedOrder.id, null);
+
+    // Anclar el certificado en blockchain
+    let blockchainResult = null;
+    try {
+      blockchainResult = await blockchainService.anchorCertificateHash({
+        certificateHash: result.certificate.pdf_hash || result.certificate.verification_code,
+        certificateId: result.certificate.id,
+        certificateNumber: result.certificate.certificate_number
+      });
+
+      // Actualizar certificado con info de blockchain
+      await certificateService.setCertificateBlockchainInfo(result.certificate.id, {
+        blockchain: blockchainResult.network,
+        txHash: blockchainResult.txHash,
+        blockNumber: blockchainResult.blockNumber,
+        timestamp: blockchainResult.timestamp
+      });
+    } catch (blockchainError) {
+      console.error('Error anclando en blockchain (continuando sin):', blockchainError);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: '¡Compra completada exitosamente!',
+      data: {
+        order: {
+          id: result.order.id,
+          order_number: result.order.order_number,
+          status: result.order.status,
+          token_amount: result.order.token_amount,
+          total_amount: result.order.total_amount
+        },
+        certificate: {
+          id: result.certificate.id,
+          certificate_number: result.certificate.certificate_number,
+          token_amount: result.certificate.token_amount,
+          is_blockchain_certified: !!blockchainResult,
+          blockchain_tx_hash: blockchainResult?.txHash || null,
+          explorer_link: blockchainResult?.explorerLink || null,
+          verification_code: result.certificate.verification_code
+        },
+        token: {
+          name: tokenAsset.token_name,
+          symbol: tokenAsset.token_symbol,
+          amount_purchased: tokenAmount
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en compra de token:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Error al procesar la compra'
+    });
+  } finally {
+    dbClient.release();
+  }
+});
+
+/**
+ * GET /api/portal/client/certificates/:id/html
+ * Obtener HTML del certificado para vista previa
+ */
+router.get('/client/certificates/:id/html', authenticateClientToken, async (req, res) => {
+  const certificateService = require('../services/certificateService');
+  
+  try {
+    const { id } = req.params;
+    const clientId = req.client.id;
+    
+    // Verificar que el certificado pertenece al cliente
+    const { query } = require('../config/database');
+    const certCheck = await query(
+      'SELECT id FROM certificates WHERE id = $1 AND client_id = $2',
+      [id, clientId]
+    );
+    
+    if (certCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Certificado no encontrado' });
+    }
+    
+    const html = await certificateService.generateCertificateHTML(id);
+    
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+    
+  } catch (error) {
+    console.error('Error generando HTML de certificado:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
 
