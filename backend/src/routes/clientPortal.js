@@ -536,7 +536,7 @@ router.get('/client/certificates', authenticateClientToken, async (req, res) => 
     const result = await query(
       `SELECT c.id, c.certificate_number, c.certificate_type, c.status,
               c.token_amount, c.token_value_at_issue, c.total_value_at_issue,
-              c.currency, c.title, c.issued_at, c.expires_at,
+              c.currency, c.title, c.issued_at, c.valid_until,
               c.is_blockchain_certified, c.blockchain, c.blockchain_tx_hash,
               c.verification_code, c.pdf_url,
               ta.token_name, ta.token_symbol, ta.asset_type,
