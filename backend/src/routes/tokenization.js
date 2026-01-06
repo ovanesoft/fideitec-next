@@ -69,6 +69,16 @@ router.get('/assets', tokenizationController.listTokenizedAssets);
 router.get('/assets/:id', tokenizationController.getTokenizedAsset);
 
 /**
+ * POST /api/tokenization/assets/:id/activate
+ * Activar un token (cambiar de draft a active)
+ */
+router.post(
+  '/assets/:id/activate',
+  requireRole(['admin', 'root', 'manager']),
+  tokenizationController.activateToken
+);
+
+/**
  * POST /api/tokenization/assets
  * Tokenizar un activo
  * Body: {

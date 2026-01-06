@@ -1203,6 +1203,67 @@ const getTokenizationStats = async (req, res) => {
   }
 };
 
+/**
+ * Activar un token (cambiar estado de draft a active)
+ */
+const activateToken = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.user.tenant_id;
+    
+    // Verificar que el token existe y está en draft
+    const tokenResult = await query(
+      `SELECT * FROM tokenized_assets WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId]
+    );
+    
+    if (tokenResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Token no encontrado'
+      });
+    }
+    
+    const token = tokenResult.rows[0];
+    
+    if (token.status === 'active') {
+      return res.status(400).json({
+        success: false,
+        message: 'El token ya está activo'
+      });
+    }
+    
+    // Activar el token
+    await query(
+      `UPDATE tokenized_assets 
+       SET status = 'active', 
+           tokenization_date = COALESCE(tokenization_date, CURRENT_TIMESTAMP),
+           notes = COALESCE(notes, 'Token activado manualmente')
+       WHERE id = $1`,
+      [id]
+    );
+    
+    // Obtener token actualizado
+    const updatedResult = await query(
+      `SELECT * FROM v_tokenized_assets_summary WHERE id = $1`,
+      [id]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Token activado correctamente',
+      data: { tokenizedAsset: updatedResult.rows[0] }
+    });
+    
+  } catch (error) {
+    console.error('Error activando token:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al activar token'
+    });
+  }
+};
+
 module.exports = {
   // Blockchain status
   getBlockchainStatus,
@@ -1215,6 +1276,7 @@ module.exports = {
   tokenizeAsset,
   listTokenizedAssets,
   getTokenizedAsset,
+  activateToken,
   
   // Operaciones de tokens
   transferToClient,

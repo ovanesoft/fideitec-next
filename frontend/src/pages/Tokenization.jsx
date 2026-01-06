@@ -10,7 +10,7 @@ import {
   Building2, Home, Briefcase, RefreshCw, Settings,
   TrendingUp, Users, Layers, Copy, Check, ArrowLeft,
   FileText, Download, ShoppingCart, DollarSign, 
-  CreditCard, ShieldCheck, QrCode, Link2
+  CreditCard, ShieldCheck, QrCode, Link2, Zap
 } from 'lucide-react';
 
 // Estados de tokenización
@@ -340,6 +340,17 @@ const Tokenization = () => {
       
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error al emitir tokens');
+    }
+  };
+
+  // Activar token (cambiar de draft a active)
+  const handleActivate = async (assetId) => {
+    try {
+      const res = await api.post(`/tokenization/assets/${assetId}/activate`);
+      toast.success(res.data.message || '¡Token activado! Ya está disponible para la venta.');
+      loadData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error al activar token');
     }
   };
 
@@ -748,6 +759,15 @@ const Tokenization = () => {
                       >
                         <Eye className="w-4 h-4" />
                       </button>
+                      {asset.status === 'draft' && (
+                        <button
+                          onClick={() => handleActivate(asset.id)}
+                          className="p-2 hover:bg-green-100 rounded-lg text-green-600"
+                          title="Activar token"
+                        >
+                          <Zap className="w-4 h-4" />
+                        </button>
+                      )}
                       {asset.status === 'active' && asset.fideitec_balance > 0 && (
                         <button
                           onClick={() => openTransferModal(asset)}
