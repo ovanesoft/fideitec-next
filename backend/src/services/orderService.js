@@ -322,6 +322,28 @@ const completeBuyOrder = async (orderId, processedBy) => {
       ]
     );
 
+    // Actualizar balances manualmente (por si el trigger no existe)
+    // Restar del holder de Fideitec
+    await dbClient.query(
+      `UPDATE token_holders SET balance = balance - $1 WHERE id = $2`,
+      [order.token_amount, fideitecHolder.rows[0].id]
+    );
+    
+    // Sumar al holder del cliente
+    await dbClient.query(
+      `UPDATE token_holders SET balance = balance + $1 WHERE id = $2`,
+      [order.token_amount, clientHolderId]
+    );
+    
+    // Actualizar el activo tokenizado
+    await dbClient.query(
+      `UPDATE tokenized_assets 
+       SET fideitec_balance = fideitec_balance - $1,
+           circulating_supply = circulating_supply + $1
+       WHERE id = $2`,
+      [order.token_amount, order.tokenized_asset_id]
+    );
+
     // Generar certificado (pasamos dbClient para usar la misma transacción)
     const certificate = await certificateService.createCertificate({
       tenantId: order.tenant_id,

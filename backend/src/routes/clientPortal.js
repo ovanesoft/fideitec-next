@@ -545,7 +545,7 @@ router.get('/client/certificates', authenticateClientToken, async (req, res) => 
                 WHEN ta.asset_type = 'asset_unit' THEN au.unit_name
                 WHEN ta.asset_type = 'trust' THEN t.name
               END as asset_name
-       FROM certificates c
+       FROM token_certificates c
        JOIN tokenized_assets ta ON c.tokenized_asset_id = ta.id
        LEFT JOIN assets a ON ta.asset_id = a.id
        LEFT JOIN asset_units au ON ta.asset_unit_id = au.id
