@@ -299,11 +299,26 @@ const completeBuyOrder = async (orderId, processedBy) => {
       clientHolderId = holderResult.rows[0].id;
     }
 
-    // Obtener holder de Fideitec
-    const fideitecHolder = await dbClient.query(
-      `SELECT id FROM token_holders WHERE tokenized_asset_id = $1 AND holder_type = 'fideitec'`,
+    // Obtener o crear holder de Fideitec
+    let fideitecHolder = await dbClient.query(
+      `SELECT id, balance FROM token_holders WHERE tokenized_asset_id = $1 AND holder_type = 'fideitec'`,
       [order.tokenized_asset_id]
     );
+    
+    // Si no existe el holder de Fideitec, crearlo con el balance actual del activo
+    if (fideitecHolder.rows.length === 0) {
+      console.log('⚠️ Holder de Fideitec no existe, creándolo...');
+      fideitecHolder = await dbClient.query(
+        `INSERT INTO token_holders (tenant_id, tokenized_asset_id, holder_type, balance)
+         VALUES ($1, $2, 'fideitec', $3)
+         RETURNING id, balance`,
+        [order.tenant_id, order.tokenized_asset_id, order.fideitec_balance || order.total_supply]
+      );
+    }
+    
+    console.log(`📊 Holder Fideitec: ${fideitecHolder.rows[0].id}, Balance: ${fideitecHolder.rows[0].balance}`);
+    console.log(`📊 Holder Cliente: ${clientHolderId}`);
+    console.log(`📊 Cantidad a transferir: ${order.token_amount}`);
 
     // Registrar transacción de transferencia
     const txResult = await dbClient.query(
@@ -324,25 +339,30 @@ const completeBuyOrder = async (orderId, processedBy) => {
 
     // Actualizar balances manualmente (por si el trigger no existe)
     // Restar del holder de Fideitec
-    await dbClient.query(
-      `UPDATE token_holders SET balance = balance - $1 WHERE id = $2`,
+    const updateFideitec = await dbClient.query(
+      `UPDATE token_holders SET balance = balance - $1, updated_at = NOW() WHERE id = $2 RETURNING balance`,
       [order.token_amount, fideitecHolder.rows[0].id]
     );
+    console.log(`✅ Balance Fideitec actualizado: ${updateFideitec.rows[0]?.balance}`);
     
     // Sumar al holder del cliente
-    await dbClient.query(
-      `UPDATE token_holders SET balance = balance + $1 WHERE id = $2`,
+    const updateClient = await dbClient.query(
+      `UPDATE token_holders SET balance = balance + $1, updated_at = NOW() WHERE id = $2 RETURNING balance`,
       [order.token_amount, clientHolderId]
     );
+    console.log(`✅ Balance Cliente actualizado: ${updateClient.rows[0]?.balance}`);
     
     // Actualizar el activo tokenizado
-    await dbClient.query(
+    const updateAsset = await dbClient.query(
       `UPDATE tokenized_assets 
        SET fideitec_balance = fideitec_balance - $1,
-           circulating_supply = circulating_supply + $1
-       WHERE id = $2`,
+           circulating_supply = circulating_supply + $1,
+           updated_at = NOW()
+       WHERE id = $2
+       RETURNING fideitec_balance, circulating_supply`,
       [order.token_amount, order.tokenized_asset_id]
     );
+    console.log(`✅ Activo actualizado - Fideitec: ${updateAsset.rows[0]?.fideitec_balance}, Circulando: ${updateAsset.rows[0]?.circulating_supply}`);
 
     // Generar certificado (pasamos dbClient para usar la misma transacción)
     const certificate = await certificateService.createCertificate({

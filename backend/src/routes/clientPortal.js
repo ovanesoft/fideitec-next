@@ -624,16 +624,20 @@ router.post('/client/tokens/buy', authenticateClientToken, async (req, res) => {
     );
 
     // Completar la orden (transferir tokens y generar certificado)
+    console.log(`🛒 Completando orden ${confirmedOrder.id}...`);
     const result = await orderService.completeBuyOrder(confirmedOrder.id, null);
+    console.log(`✅ Orden completada. Certificado: ${result.certificate.certificate_number}`);
 
     // Anclar el certificado en blockchain
     let blockchainResult = null;
     try {
+      console.log(`⛓️ Anclando certificado en blockchain...`);
       blockchainResult = await blockchainService.anchorCertificateHash({
         certificateHash: result.certificate.pdf_hash || result.certificate.verification_code,
         certificateId: result.certificate.id,
         certificateNumber: result.certificate.certificate_number
       });
+      console.log(`✅ Blockchain OK: ${blockchainResult.txHash}`);
 
       // Actualizar certificado con info de blockchain
       await certificateService.setCertificateBlockchainInfo(result.certificate.id, {
@@ -643,7 +647,7 @@ router.post('/client/tokens/buy', authenticateClientToken, async (req, res) => {
         timestamp: blockchainResult.timestamp
       });
     } catch (blockchainError) {
-      console.error('Error anclando en blockchain (continuando sin):', blockchainError);
+      console.error('❌ Error anclando en blockchain:', blockchainError.message);
     }
 
     res.status(201).json({
