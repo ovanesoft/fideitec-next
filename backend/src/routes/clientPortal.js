@@ -701,7 +701,7 @@ router.get('/client/certificates/:id/html', authenticateClientToken, async (req,
     // Verificar que el certificado pertenece al cliente
     const { query } = require('../config/database');
     const certCheck = await query(
-      'SELECT id FROM certificates WHERE id = $1 AND client_id = $2',
+      'SELECT id FROM token_certificates WHERE id = $1 AND client_id = $2',
       [id, clientId]
     );
     
