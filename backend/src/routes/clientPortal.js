@@ -575,8 +575,6 @@ router.post('/client/tokens/buy', authenticateClientToken, async (req, res) => {
   const certificateService = require('../services/certificateService');
   const blockchainService = require('../services/blockchainService');
   
-  const dbClient = await getClient();
-  
   try {
     const clientId = req.client.id;
     const tenantId = req.client.tenant_id;
@@ -682,8 +680,6 @@ router.post('/client/tokens/buy', authenticateClientToken, async (req, res) => {
       success: false, 
       message: error.message || 'Error al procesar la compra'
     });
-  } finally {
-    dbClient.release();
   }
 });
 

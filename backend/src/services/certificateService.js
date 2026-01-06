@@ -117,10 +117,14 @@ const generateVerificationCode = () => {
 /**
  * Crea un nuevo certificado en la base de datos
  * @param {object} params - Parámetros del certificado
+ * @param {object} existingClient - Cliente de BD existente (opcional, para usar misma transacción)
  * @returns {object} Certificado creado
  */
-const createCertificate = async (params) => {
-  const dbClient = await getClient();
+const createCertificate = async (params, existingClient = null) => {
+  // Si nos pasan un cliente existente, usamos ese (misma transacción)
+  // Si no, creamos uno nuevo y manejamos nuestra propia transacción
+  const dbClient = existingClient || await getClient();
+  const manageTransaction = !existingClient;
   
   try {
     const {
@@ -144,7 +148,9 @@ const createCertificate = async (params) => {
       createdBy
     } = params;
 
-    await dbClient.query('BEGIN');
+    if (manageTransaction) {
+      await dbClient.query('BEGIN');
+    }
 
     // Generar número de certificado
     const certNumberResult = await dbClient.query(
@@ -223,7 +229,9 @@ const createCertificate = async (params) => {
       [pdfHash, certificate.id]
     );
 
-    await dbClient.query('COMMIT');
+    if (manageTransaction) {
+      await dbClient.query('COMMIT');
+    }
 
     return {
       ...certificate,
@@ -232,11 +240,15 @@ const createCertificate = async (params) => {
     };
 
   } catch (error) {
-    await dbClient.query('ROLLBACK');
+    if (manageTransaction) {
+      await dbClient.query('ROLLBACK');
+    }
     console.error('Error creando certificado:', error);
     throw error;
   } finally {
-    dbClient.release();
+    if (manageTransaction) {
+      dbClient.release();
+    }
   }
 };
 

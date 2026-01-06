@@ -322,7 +322,7 @@ const completeBuyOrder = async (orderId, processedBy) => {
       ]
     );
 
-    // Generar certificado
+    // Generar certificado (pasamos dbClient para usar la misma transacción)
     const certificate = await certificateService.createCertificate({
       tenantId: order.tenant_id,
       tokenizedAssetId: order.tokenized_asset_id,
@@ -340,7 +340,7 @@ const completeBuyOrder = async (orderId, processedBy) => {
       beneficiaryDocumentNumber: order.document_number,
       beneficiaryAddress: `${order.address_street || ''}, ${order.address_city || ''}`,
       createdBy: processedBy
-    });
+    }, dbClient); // Pasamos el cliente de BD para usar la misma transacción
 
     // Actualizar orden como completada
     const updatedOrder = await dbClient.query(
