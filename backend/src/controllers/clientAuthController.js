@@ -405,7 +405,9 @@ const getCurrentClient = async (req, res) => {
     const clientId = req.client.id;
 
     const result = await query(
-      `SELECT c.*, t.name as tenant_name, t.logo_url as tenant_logo
+      `SELECT c.*, 
+              t.id as tenant_id, t.name as tenant_name, t.slug as tenant_slug, 
+              t.logo_url as tenant_logo, t.client_portal_settings
        FROM clients c
        JOIN tenants t ON c.tenant_id = t.id
        WHERE c.id = $1`,
@@ -419,12 +421,30 @@ const getCurrentClient = async (req, res) => {
       });
     }
 
-    const clientData = result.rows[0];
+    const row = result.rows[0];
+    
+    // Separar datos del cliente y del tenant
+    const clientData = { ...row };
     delete clientData.password_hash;
+    delete clientData.tenant_slug;
+    delete clientData.tenant_logo;
+    delete clientData.client_portal_settings;
+    
+    // Crear objeto tenant separado (el frontend lo espera)
+    const tenantData = {
+      id: row.tenant_id,
+      name: row.tenant_name,
+      slug: row.tenant_slug,
+      logo_url: row.tenant_logo,
+      settings: row.client_portal_settings
+    };
 
     res.json({
       success: true,
-      data: { client: clientData }
+      data: { 
+        client: clientData,
+        tenant: tenantData  // Incluir tenant para que el frontend lo use
+      }
     });
 
   } catch (error) {
