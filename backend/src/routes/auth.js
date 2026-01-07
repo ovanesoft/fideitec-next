@@ -200,9 +200,15 @@ router.get('/google/callback', async (req, res) => {
         client = insertResult.rows[0];
       }
 
-      // Generar tokens JWT para cliente
+      // Generar tokens JWT para cliente (misma estructura que loginClient)
       const accessToken = jwt.sign(
-        { clientId: client.id, tenantId: tenant.id, type: 'client' },
+        { 
+          id: client.id,  // Debe ser 'id' para coincidir con el middleware
+          email: client.email,
+          tenantId: tenant.id,
+          tenantName: tenant.name,
+          type: 'client'
+        },
         process.env.JWT_SECRET,
         { expiresIn: '15m' }
       );

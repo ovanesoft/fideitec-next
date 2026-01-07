@@ -204,9 +204,15 @@ router.post('/:portal_token/setup/:invite_token', async (req, res) => {
       [passwordHash, client.id]
     );
     
-    // Generar tokens
+    // Generar tokens (misma estructura que loginClient para consistencia)
     const accessToken = jwt.sign(
-      { clientId: client.id, tenantId: tenant.id, type: 'client' },
+      { 
+        id: client.id,  // Debe ser 'id' para coincidir con el middleware
+        email: client.email,
+        tenantId: tenant.id,
+        tenantName: tenant.name,
+        type: 'client'
+      },
       process.env.JWT_SECRET,
       { expiresIn: '15m' }
     );
@@ -306,9 +312,12 @@ router.post('/client/refresh', async (req, res) => {
       });
     }
     
-    // Obtener datos del cliente
+    // Obtener datos del cliente con info del tenant
     const clientResult = await query(
-      `SELECT id, tenant_id FROM clients WHERE id = $1 AND is_active = true`,
+      `SELECT c.id, c.email, c.tenant_id, t.name as tenant_name 
+       FROM clients c 
+       JOIN tenants t ON c.tenant_id = t.id
+       WHERE c.id = $1 AND c.is_active = true`,
       [decoded.clientId]
     );
     
@@ -321,9 +330,15 @@ router.post('/client/refresh', async (req, res) => {
     
     const client = clientResult.rows[0];
     
-    // Generar nuevo access token
+    // Generar nuevo access token (misma estructura que loginClient)
     const accessToken = jwt.sign(
-      { clientId: client.id, tenantId: client.tenant_id, type: 'client' },
+      { 
+        id: client.id,  // Debe ser 'id' para coincidir con el middleware
+        email: client.email,
+        tenantId: client.tenant_id,
+        tenantName: client.tenant_name,
+        type: 'client'
+      },
       process.env.JWT_SECRET,
       { expiresIn: '15m' }
     );
