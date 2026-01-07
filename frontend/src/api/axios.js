@@ -24,10 +24,24 @@ const api = axios.create({
   },
 });
 
+// Detectar si estamos en el portal de clientes
+const isClientPortal = () => {
+  return window.location.pathname.includes('/portal/') && 
+         !window.location.pathname.includes('/supplier-portal/');
+};
+
+// Obtener el token correcto según el contexto
+const getToken = () => {
+  if (isClientPortal()) {
+    return localStorage.getItem('clientAccessToken');
+  }
+  return localStorage.getItem('accessToken');
+};
+
 // Interceptor para agregar token a las requests
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -63,27 +77,57 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Intentar refresh del token
-        const response = await axios.post(`${API_URL}/auth/refresh`, {}, {
-          withCredentials: true
-        });
+        // Determinar qué tipo de refresh hacer
+        const isClient = isClientPortal();
+        const refreshToken = isClient 
+          ? localStorage.getItem('clientRefreshToken')
+          : null;
+        
+        // Endpoint de refresh según el tipo de usuario
+        const refreshUrl = isClient 
+          ? `${API_URL}/portal/client/refresh`
+          : `${API_URL}/auth/refresh`;
+        
+        const response = await axios.post(refreshUrl, 
+          isClient ? { refreshToken } : {},
+          { withCredentials: true }
+        );
 
         const { accessToken } = response.data.data;
         
-        // Guardar nuevo token
-        localStorage.setItem('accessToken', accessToken);
+        // Guardar nuevo token en el storage correcto
+        if (isClient) {
+          localStorage.setItem('clientAccessToken', accessToken);
+        } else {
+          localStorage.setItem('accessToken', accessToken);
+        }
         
         // Reintentar request original
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         // Si falla el refresh, limpiar tokens
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('user');
+        if (isClientPortal()) {
+          localStorage.removeItem('clientAccessToken');
+          localStorage.removeItem('clientRefreshToken');
+          localStorage.removeItem('portalTenant');
+        } else {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('user');
+        }
         
         // Solo redirigir al login si NO estamos en una ruta pública
         if (!isPublicPath()) {
-          window.location.href = '/login';
+          // Redirigir al login correcto
+          if (isClientPortal()) {
+            // Extraer el portal token de la URL
+            const match = window.location.pathname.match(/\/portal\/([^/]+)/);
+            if (match) {
+              window.location.href = `/portal/${match[1]}/login`;
+            }
+          } else {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(refreshError);
       }

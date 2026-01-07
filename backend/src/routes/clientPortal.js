@@ -257,6 +257,91 @@ router.get('/client/me', authenticateClientToken, getCurrentClient);
 // POST /api/portal/client/logout - Cerrar sesión
 router.post('/client/logout', authenticateClientToken, logoutClient);
 
+// POST /api/portal/client/refresh - Refrescar token de cliente
+router.post('/client/refresh', async (req, res) => {
+  const { query } = require('../config/database');
+  const jwt = require('jsonwebtoken');
+  const crypto = require('crypto');
+  
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token no proporcionado'
+      });
+    }
+    
+    // Verificar el refresh token
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    } catch (err) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token inválido o expirado'
+      });
+    }
+    
+    if (decoded.type !== 'client_refresh') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token de tipo incorrecto'
+      });
+    }
+    
+    // Verificar que el token existe en la base de datos
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const tokenResult = await query(
+      `SELECT * FROM client_refresh_tokens 
+       WHERE token_hash = $1 AND client_id = $2 AND is_revoked = false AND expires_at > NOW()`,
+      [tokenHash, decoded.clientId]
+    );
+    
+    if (tokenResult.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token revocado o expirado'
+      });
+    }
+    
+    // Obtener datos del cliente
+    const clientResult = await query(
+      `SELECT id, tenant_id FROM clients WHERE id = $1 AND is_active = true`,
+      [decoded.clientId]
+    );
+    
+    if (clientResult.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'Cliente no encontrado o inactivo'
+      });
+    }
+    
+    const client = clientResult.rows[0];
+    
+    // Generar nuevo access token
+    const accessToken = jwt.sign(
+      { clientId: client.id, tenantId: client.tenant_id, type: 'client' },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+    
+    res.json({
+      success: true,
+      data: { accessToken }
+    });
+    
+  } catch (error) {
+    console.error('Error en refresh de cliente:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al refrescar token'
+    });
+  }
+});
+
 // PUT /api/portal/client/profile - Actualizar perfil del cliente
 router.put('/client/profile', authenticateClientToken, async (req, res) => {
   const { query } = require('../config/database');
