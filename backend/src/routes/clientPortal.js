@@ -50,10 +50,11 @@ router.get('/:portal_token/auth/google', async (req, res) => {
     const scope = encodeURIComponent('profile email');
     
     // Guardar el portal_token en una cookie para recuperarlo en el callback
+    // sameSite: 'none' permite que la cookie se envíe en redirects cross-site (desde Google)
     res.cookie('oauth_portal_token', portal_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true, // Requerido para sameSite: 'none'
+      sameSite: 'none',
       maxAge: 5 * 60 * 1000 // 5 minutos
     });
     
