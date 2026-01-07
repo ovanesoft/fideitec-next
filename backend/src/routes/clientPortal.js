@@ -25,6 +25,186 @@ router.post('/:portal_token/register', registerClient);
 // POST /api/portal/:portal_token/login - Login de cliente
 router.post('/:portal_token/login', loginClient);
 
+// ===========================================
+// Google OAuth para Portal de Clientes
+// ===========================================
+
+// GET /api/portal/:portal_token/auth/google - Iniciar flujo de Google OAuth
+router.get('/:portal_token/auth/google', async (req, res) => {
+  const { query } = require('../config/database');
+  const { portal_token } = req.params;
+  
+  try {
+    // Verificar que el portal existe
+    const tenantResult = await query(
+      `SELECT id, name, client_portal_enabled FROM tenants WHERE client_portal_token = $1`,
+      [portal_token]
+    );
+    
+    if (tenantResult.rows.length === 0 || !tenantResult.rows[0].client_portal_enabled) {
+      return res.redirect(`${process.env.FRONTEND_URL}/portal/${portal_token}/login?error=portal_not_found`);
+    }
+    
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const redirectUri = `${process.env.API_URL || process.env.BACKEND_URL}/api/portal/auth/google/callback`;
+    const scope = encodeURIComponent('profile email');
+    
+    // Guardar el portal_token en el state para recuperarlo en el callback
+    const state = Buffer.from(JSON.stringify({ portal_token })).toString('base64');
+    
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`;
+    
+    res.redirect(authUrl);
+  } catch (error) {
+    console.error('Error iniciando Google OAuth:', error);
+    res.redirect(`${process.env.FRONTEND_URL}/portal/${portal_token}/login?error=oauth_error`);
+  }
+});
+
+// GET /api/portal/auth/google/callback - Callback de Google OAuth para clientes
+router.get('/auth/google/callback', async (req, res) => {
+  const { query } = require('../config/database');
+  const jwt = require('jsonwebtoken');
+  const crypto = require('crypto');
+  
+  const ua = req.headers['user-agent'] || '';
+  
+  // Ignorar bots
+  if (ua.includes('got') || ua.includes('Bot') || ua.includes('Crawl') || req.method === 'HEAD') {
+    return res.status(204).end();
+  }
+
+  const { code, error, state } = req.query;
+  
+  // Recuperar portal_token del state
+  let portal_token = '';
+  try {
+    const stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+    portal_token = stateData.portal_token;
+  } catch (e) {
+    console.error('Error decodificando state:', e);
+    return res.redirect(`${process.env.FRONTEND_URL}?error=invalid_state`);
+  }
+  
+  const frontendUrl = `${process.env.FRONTEND_URL}/portal/${portal_token}`;
+  
+  if (error) {
+    return res.redirect(`${frontendUrl}/login?error=google_denied`);
+  }
+
+  if (!code) {
+    return res.redirect(`${frontendUrl}/login?error=no_code`);
+  }
+
+  try {
+    // Verificar que el portal existe
+    const tenantResult = await query(
+      `SELECT id, name, client_portal_enabled FROM tenants WHERE client_portal_token = $1`,
+      [portal_token]
+    );
+    
+    if (tenantResult.rows.length === 0 || !tenantResult.rows[0].client_portal_enabled) {
+      return res.redirect(`${frontendUrl}/login?error=portal_not_found`);
+    }
+    
+    const tenant = tenantResult.rows[0];
+
+    // Obtener código raw de la URL
+    const urlParams = new URL(req.originalUrl, `https://${req.headers.host}`).searchParams;
+    const rawCode = urlParams.get('code');
+
+    // Intercambiar código por tokens
+    const redirectUri = `${process.env.API_URL || process.env.BACKEND_URL}/api/portal/auth/google/callback`;
+    
+    const bodyParams = new URLSearchParams({
+      code: rawCode,
+      client_id: process.env.GOOGLE_CLIENT_ID.trim(),
+      client_secret: process.env.GOOGLE_CLIENT_SECRET.trim(),
+      redirect_uri: redirectUri,
+      grant_type: 'authorization_code',
+    });
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: bodyParams,
+    });
+
+    const tokenData = await tokenResponse.json();
+    
+    if (tokenData.error) {
+      console.error('Google token error:', tokenData);
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
+    }
+
+    // Obtener información del usuario
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+
+    const googleUser = await userInfoResponse.json();
+    const email = googleUser.email.toLowerCase();
+    console.log('Portal Google OAuth - User:', email, 'Tenant:', tenant.name);
+
+    // Buscar o crear cliente
+    let clientResult = await query(
+      `SELECT * FROM clients WHERE tenant_id = $1 AND (LOWER(email) = $2 OR google_id = $3)`,
+      [tenant.id, email, googleUser.id]
+    );
+
+    let client = clientResult.rows[0];
+
+    if (client) {
+      // Cliente existe, actualizar google_id si no lo tiene
+      if (!client.google_id) {
+        await query(
+          `UPDATE clients SET google_id = $1, email_verified = true WHERE id = $2`,
+          [googleUser.id, client.id]
+        );
+      }
+    } else {
+      // Crear nuevo cliente
+      const insertResult = await query(
+        `INSERT INTO clients (
+          tenant_id, email, first_name, last_name, google_id,
+          auth_provider, email_verified, is_active, kyc_status
+        ) VALUES ($1, $2, $3, $4, $5, 'google', true, true, 'pending')
+        RETURNING *`,
+        [tenant.id, email, googleUser.given_name || 'Usuario', googleUser.family_name || '', googleUser.id]
+      );
+      client = insertResult.rows[0];
+    }
+
+    // Generar tokens JWT
+    const accessToken = jwt.sign(
+      { clientId: client.id, tenantId: tenant.id, type: 'client' },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+    
+    const refreshToken = jwt.sign(
+      { clientId: client.id, tenantId: tenant.id, type: 'client_refresh' },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    // Guardar refresh token
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    await query(
+      `INSERT INTO client_refresh_tokens (client_id, token_hash, expires_at, ip_address)
+       VALUES ($1, $2, NOW() + INTERVAL '7 days', $3)`,
+      [client.id, tokenHash, req.ip]
+    );
+
+    // Redirigir con token
+    res.redirect(`${frontendUrl}/dashboard?token=${accessToken}&refresh=${refreshToken}`);
+
+  } catch (err) {
+    console.error('Portal Google OAuth error:', err);
+    res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(err.message)}`);
+  }
+});
+
 // GET /api/portal/verify-email/:token - Verificar email
 router.get('/verify-email/:token', verifyClientEmail);
 

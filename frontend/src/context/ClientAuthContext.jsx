@@ -12,10 +12,25 @@ export const ClientAuthProvider = ({ children }) => {
   // Verificar si hay una sesión activa al cargar
   useEffect(() => {
     const checkAuth = async () => {
+      // Check for OAuth callback tokens in URL FIRST
+      const params = new URLSearchParams(window.location.search);
+      const oauthToken = params.get('token');
+      const oauthRefresh = params.get('refresh');
+      
+      if (oauthToken) {
+        console.log('Client OAuth token detected, saving...');
+        localStorage.setItem('clientAccessToken', oauthToken);
+        if (oauthRefresh) {
+          localStorage.setItem('clientRefreshToken', oauthRefresh);
+        }
+        // Limpiar URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
       const token = localStorage.getItem('clientAccessToken');
       const savedTenant = localStorage.getItem('portalTenant');
       
-      if (token && savedTenant) {
+      if (token) {
         try {
           // Configurar el token para las peticiones
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -23,7 +38,13 @@ export const ClientAuthProvider = ({ children }) => {
           const response = await api.get('/portal/client/me');
           if (response.data.success) {
             setClient(response.data.data.client);
-            setTenant(JSON.parse(savedTenant));
+            // Si hay savedTenant, usar ese, si no, guardar el del response
+            if (savedTenant) {
+              setTenant(JSON.parse(savedTenant));
+            } else if (response.data.data.tenant) {
+              setTenant(response.data.data.tenant);
+              localStorage.setItem('portalTenant', JSON.stringify(response.data.data.tenant));
+            }
           }
         } catch (err) {
           console.error('Error verificando sesión de cliente:', err);
@@ -148,6 +169,12 @@ export const ClientAuthProvider = ({ children }) => {
     }
   };
 
+  // Google OAuth login
+  const googleLogin = (portalToken) => {
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    window.location.href = `${baseUrl}/api/portal/${portalToken}/auth/google`;
+  };
+
   const value = {
     client,
     tenant,
@@ -160,6 +187,7 @@ export const ClientAuthProvider = ({ children }) => {
     getTenantInfo,
     forgotPassword,
     resetPassword,
+    googleLogin,
     isAuthenticated: !!client
   };
 
