@@ -67,6 +67,7 @@ const Trusts = () => {
   const [showPartyModal, setShowPartyModal] = useState(false);
   const [selectedTrust, setSelectedTrust] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   
   // Debounce del search para no buscar en cada tecla
   const search = useDebounce(searchInput, 300);
@@ -199,13 +200,53 @@ const Trusts = () => {
       if (response.data.success) {
         setSelectedTrust(response.data.data.trust);
         setShowDetailModal(true);
+      } else {
+        toast.error(response.data.message || 'Error al cargar detalle');
       }
     } catch (error) {
-      toast.error('Error al cargar detalle');
+      console.error('Error cargando detalle del fideicomiso:', error);
+      const errorMsg = error.response?.data?.message || 'Error al cargar detalle del fideicomiso';
+      toast.error(errorMsg);
     }
   };
 
-  // Crear fideicomiso
+  // Abrir modal de edición
+  const handleEditTrust = async (trust) => {
+    try {
+      const response = await api.get(`/trusts/${trust.id}`);
+      if (response.data.success) {
+        const trustData = response.data.data.trust;
+        setFormData({
+          name: trustData.name || '',
+          code: trustData.code || '',
+          description: trustData.description || '',
+          trust_type: trustData.trust_type || 'real_estate',
+          constitution_date: trustData.constitution_date ? trustData.constitution_date.split('T')[0] : '',
+          start_date: trustData.start_date ? trustData.start_date.split('T')[0] : '',
+          end_date: trustData.end_date ? trustData.end_date.split('T')[0] : '',
+          contract_number: trustData.contract_number || '',
+          notary_name: trustData.notary_name || '',
+          notary_registry: trustData.notary_registry || '',
+          initial_patrimony: trustData.initial_patrimony || '',
+          currency: trustData.currency || 'ARS',
+          is_tokenizable: trustData.is_tokenizable || false,
+          total_tokens: trustData.total_tokens || '',
+          token_value: trustData.token_value || '',
+          notes: trustData.notes || ''
+        });
+        setSelectedTrust(trustData);
+        setIsEditing(true);
+        setShowAddModal(true);
+      } else {
+        toast.error(response.data.message || 'Error al cargar datos del fideicomiso');
+      }
+    } catch (error) {
+      console.error('Error cargando fideicomiso para editar:', error);
+      toast.error(error.response?.data?.message || 'Error al cargar datos para edición');
+    }
+  };
+
+  // Crear o actualizar fideicomiso
   const handleCreateTrust = async (e) => {
     e.preventDefault();
     if (!formData.name) {
@@ -215,22 +256,38 @@ const Trusts = () => {
 
     setSubmitting(true);
     try {
-      const response = await api.post('/trusts', {
+      const payload = {
         ...formData,
         initial_patrimony: formData.initial_patrimony ? parseFloat(formData.initial_patrimony) : 0,
         total_tokens: formData.total_tokens ? parseInt(formData.total_tokens) : 0,
         token_value: formData.token_value ? parseFloat(formData.token_value) : 0
-      });
+      };
+
+      let response;
+      if (isEditing && selectedTrust) {
+        // Actualizar
+        response = await api.put(`/trusts/${selectedTrust.id}`, payload);
+        if (response.data.success) {
+          toast.success('Fideicomiso actualizado exitosamente');
+        }
+      } else {
+        // Crear nuevo
+        response = await api.post('/trusts', payload);
+        if (response.data.success) {
+          toast.success('Fideicomiso creado exitosamente');
+        }
+      }
       
       if (response.data.success) {
-        toast.success('Fideicomiso creado exitosamente');
         setShowAddModal(false);
         resetForm();
+        setIsEditing(false);
+        setSelectedTrust(null);
         loadTrusts();
         loadStats();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Error al crear fideicomiso');
+      toast.error(error.response?.data?.message || `Error al ${isEditing ? 'actualizar' : 'crear'} fideicomiso`);
     } finally {
       setSubmitting(false);
     }
@@ -331,7 +388,12 @@ const Trusts = () => {
           <p className="text-slate-500">Gestiona los contratos de fideicomiso</p>
         </div>
         <button 
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            resetForm();
+            setIsEditing(false);
+            setSelectedTrust(null);
+            setShowAddModal(true);
+          }}
           className="btn-primary flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
@@ -458,7 +520,12 @@ const Trusts = () => {
               Comienza creando tu primer fideicomiso
             </p>
             <button 
-              onClick={() => setShowAddModal(true)}
+              onClick={() => {
+                resetForm();
+                setIsEditing(false);
+                setSelectedTrust(null);
+                setShowAddModal(true);
+              }}
               className="btn-primary inline-flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -551,7 +618,11 @@ const Trusts = () => {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            <button className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+                            <button 
+                              onClick={() => handleEditTrust(trust)}
+                              className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                              title="Editar fideicomiso"
+                            >
                               <Edit className="w-4 h-4" />
                             </button>
                           </div>
@@ -591,19 +662,29 @@ const Trusts = () => {
         )}
       </div>
 
-      {/* Modal Crear Fideicomiso */}
+      {/* Modal Crear/Editar Fideicomiso */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-900/50" onClick={() => setShowAddModal(false)} />
+          <div className="fixed inset-0 bg-slate-900/50" onClick={() => {
+            setShowAddModal(false);
+            setIsEditing(false);
+            setSelectedTrust(null);
+          }} />
           <div className="relative bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 animate-fade-in">
             <button 
-              onClick={() => setShowAddModal(false)}
+              onClick={() => {
+                setShowAddModal(false);
+                setIsEditing(false);
+                setSelectedTrust(null);
+              }}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
             >
               <X className="w-5 h-5" />
             </button>
             
-            <h2 className="text-xl font-bold text-slate-800 mb-6">Nuevo Fideicomiso</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-6">
+              {isEditing ? 'Editar Fideicomiso' : 'Nuevo Fideicomiso'}
+            </h2>
             
             <form onSubmit={handleCreateTrust} className="space-y-6">
               {/* Información básica */}
@@ -823,7 +904,11 @@ const Trusts = () => {
               <div className="flex justify-end gap-3 pt-4">
                 <button 
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setIsEditing(false);
+                    setSelectedTrust(null);
+                  }}
                   className="btn-secondary"
                 >
                   Cancelar
@@ -833,7 +918,9 @@ const Trusts = () => {
                   className="btn-primary"
                   disabled={submitting}
                 >
-                  {submitting ? 'Creando...' : 'Crear Fideicomiso'}
+                  {submitting 
+                    ? (isEditing ? 'Guardando...' : 'Creando...') 
+                    : (isEditing ? 'Guardar Cambios' : 'Crear Fideicomiso')}
                 </button>
               </div>
             </form>
