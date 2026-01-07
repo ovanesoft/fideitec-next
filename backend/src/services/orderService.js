@@ -204,7 +204,7 @@ const confirmPayment = async (orderId, paymentData, processedBy) => {
 
     // Verificar orden
     const orderResult = await dbClient.query(
-      `SELECT * FROM token_orders WHERE id = $1 AND status IN ('pending', 'payment_pending')`,
+      `SELECT * FROM token_orders WHERE id = $1 AND status IN ('pending', 'pending_payment', 'payment_pending')`,
       [orderId]
     );
 
