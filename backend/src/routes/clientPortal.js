@@ -647,14 +647,15 @@ router.post('/client/tokens/buy', authenticateClientToken, async (req, res) => {
 
     const tokenAsset = tokenResult.rows[0];
 
-    // Crear la orden de compra
+    // Crear la orden de compra (sin sistema de aprobación para autoservicio)
     const order = await orderService.createBuyOrder({
       tenantId,
       tokenizedAssetId,
       clientId,
       tokenAmount: parseInt(tokenAmount),
       paymentMethod,
-      notes: 'Compra desde portal de cliente'
+      notes: 'Compra desde portal de cliente',
+      status: 'pending_payment' // Bypass aprobación para autoservicio de clientes
     });
 
     // Confirmar el pago automáticamente (para testing)

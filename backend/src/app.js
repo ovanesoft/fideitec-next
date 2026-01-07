@@ -334,6 +334,7 @@ app.post('/api/migrate', async (req, res) => {
     await executeSQL(path.join(__dirname, 'database', 'migration_assets_trusts.sql'), 'Activos y Fideicomisos');
     await executeSQL(path.join(__dirname, 'database', 'migration_units.sql'), 'Unidades');
     await executeSQL(path.join(__dirname, 'database', 'migration_tokenization.sql'), 'Tokenización');
+    await executeSQL(path.join(__dirname, 'database', 'migration_approval_columns.sql'), 'Columnas de Aprobación');
     await executeSQL(path.join(__dirname, 'database', 'migration_approval_system.sql'), 'Sistema de Aprobaciones');
     
     res.json({ success: true, message: 'Migraciones procesadas', results });

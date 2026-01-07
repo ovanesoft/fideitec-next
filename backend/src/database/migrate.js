@@ -16,6 +16,7 @@ const runMigrations = async () => {
     'migration_assets_trusts.sql',
     'migration_units.sql',
     'migration_tokenization.sql',
+    'migration_approval_columns.sql',
     'migration_approval_system.sql'
   ];
 
