@@ -329,10 +329,12 @@ app.post('/api/migrate', async (req, res) => {
     // Ejecutar en orden
     await executeSQL(path.join(__dirname, 'database', 'schema.sql'), 'Schema');
     await executeSQL(path.join(__dirname, 'database', 'migration_clients.sql'), 'Clientes');
+    await executeSQL(path.join(__dirname, 'database', 'migration_clients_google.sql'), 'Clientes Google OAuth');
     await executeSQL(path.join(__dirname, 'database', 'migration_suppliers.sql'), 'Proveedores');
     await executeSQL(path.join(__dirname, 'database', 'migration_assets_trusts.sql'), 'Activos y Fideicomisos');
     await executeSQL(path.join(__dirname, 'database', 'migration_units.sql'), 'Unidades');
     await executeSQL(path.join(__dirname, 'database', 'migration_tokenization.sql'), 'Tokenización');
+    await executeSQL(path.join(__dirname, 'database', 'migration_approval_system.sql'), 'Sistema de Aprobaciones');
     
     res.json({ success: true, message: 'Migraciones procesadas', results });
   } catch (error) {
