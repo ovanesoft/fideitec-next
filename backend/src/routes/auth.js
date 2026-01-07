@@ -87,23 +87,18 @@ router.get('/google/callback', async (req, res) => {
     return res.status(204).end();
   }
 
-  const { code, error, state } = req.query;
+  const { code, error } = req.query;
   
-  // Verificar si viene del portal de clientes
-  let stateData = {};
-  if (state) {
-    try {
-      // El state puede venir URL-encoded, decodificar primero
-      const decodedState = decodeURIComponent(state);
-      stateData = JSON.parse(Buffer.from(decodedState, 'base64').toString('utf8'));
-      console.log('State decoded:', stateData);
-    } catch (e) {
-      console.log('State decode error (normal for enterprise login):', e.message);
-    }
+  // Verificar si viene del portal de clientes (por cookie)
+  const portalToken = req.cookies?.oauth_portal_token;
+  const isClientPortal = !!portalToken;
+  
+  console.log('Google OAuth callback - isClientPortal:', isClientPortal, 'portalToken:', portalToken);
+  
+  // Limpiar la cookie
+  if (portalToken) {
+    res.clearCookie('oauth_portal_token');
   }
-  
-  const isClientPortal = stateData.type === 'client_portal';
-  const portalToken = stateData.portal_token;
   
   // URLs de redirección según el origen
   const errorRedirectUrl = isClientPortal 

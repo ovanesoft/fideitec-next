@@ -49,13 +49,18 @@ router.get('/:portal_token/auth/google', async (req, res) => {
     const redirectUri = process.env.GOOGLE_CALLBACK_URL;
     const scope = encodeURIComponent('profile email');
     
-    // Guardar el portal_token en el state (URL-safe base64)
-    const stateData = JSON.stringify({ portal_token, type: 'client_portal' });
-    const state = encodeURIComponent(Buffer.from(stateData).toString('base64'));
+    // Guardar el portal_token en una cookie para recuperarlo en el callback
+    res.cookie('oauth_portal_token', portal_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000 // 5 minutos
+    });
     
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`;
+    // Usar exactamente la misma URL que funciona en empresa (sin state)
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
     
-    console.log('Portal Google OAuth redirect:', authUrl.substring(0, 100) + '...');
+    console.log('Portal Google OAuth - Cookie set, redirecting...');
     res.redirect(authUrl);
   } catch (error) {
     console.error('Error iniciando Google OAuth:', error);
