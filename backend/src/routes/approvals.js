@@ -192,13 +192,14 @@ router.post('/:orderId/approve', requireRole(['admin', 'root']), async (req, res
 
 /**
  * POST /api/approvals/:orderId/reject
- * Rechazar una operación
+ * Rechazar una operación y notificar al cliente
  * Body: { reason, notes? }
  */
 router.post('/:orderId/reject', requireRole(['admin', 'root']), async (req, res) => {
   try {
     const { orderId } = req.params;
     const { reason, notes } = req.body;
+    const tenantId = req.user.tenant_id;
 
     if (!reason) {
       return res.status(400).json({
@@ -207,9 +208,26 @@ router.post('/:orderId/reject', requireRole(['admin', 'root']), async (req, res)
       });
     }
 
+    // Obtener datos de la orden y cliente antes de rechazar
+    const orderResult = await query(
+      `SELECT o.*, c.email as client_email, c.first_name as client_first_name,
+              ta.token_name, ta.token_symbol
+       FROM token_orders o
+       JOIN clients c ON o.client_id = c.id
+       JOIN tokenized_assets ta ON o.tokenized_asset_id = ta.id
+       WHERE o.id = $1 AND o.tenant_id = $2`,
+      [orderId, tenantId]
+    );
+
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Orden no encontrada' });
+    }
+
+    const order = orderResult.rows[0];
+
     const result = await approvalService.rejectOperation(
       orderId,
-      req.user.tenant_id,
+      tenantId,
       req.user.id,
       {
         reason,
@@ -219,7 +237,42 @@ router.post('/:orderId/reject', requireRole(['admin', 'root']), async (req, res)
       }
     );
 
-    res.json(result);
+    // Enviar email al cliente notificando el rechazo
+    if (order.client_email) {
+      try {
+        const { sendTokenPurchaseRejectedEmail } = require('../utils/email');
+        
+        // Obtener portal URL del tenant
+        const tenantResult = await query(
+          `SELECT client_portal_token FROM tenants WHERE id = $1`,
+          [tenantId]
+        );
+        const portalToken = tenantResult.rows[0]?.client_portal_token;
+        const portalUrl = portalToken 
+          ? `${process.env.FRONTEND_URL}/portal/${portalToken}/dashboard`
+          : process.env.FRONTEND_URL;
+
+        await sendTokenPurchaseRejectedEmail(
+          order.client_email,
+          order.client_first_name || 'Estimado/a cliente',
+          {
+            tokenAmount: order.token_amount,
+            tokenName: order.token_name,
+            tokenSymbol: order.token_symbol,
+            reason,
+            portalUrl
+          }
+        );
+        console.log(`📧 Email de rechazo enviado a: ${order.client_email}`);
+      } catch (emailError) {
+        console.error('❌ Error enviando email de rechazo:', emailError.message);
+      }
+    }
+
+    res.json({
+      ...result,
+      message: 'Operación rechazada. Se ha notificado al cliente.'
+    });
   } catch (error) {
     console.error('Error rechazando operación:', error);
     res.status(400).json({ success: false, message: error.message });
@@ -232,7 +285,7 @@ router.post('/:orderId/reject', requireRole(['admin', 'root']), async (req, res)
 
 /**
  * POST /api/approvals/:orderId/execute
- * Ejecutar una operación aprobada (transferir tokens, generar certificado, firmar)
+ * Ejecutar una operación aprobada (transferir tokens, generar certificado, blockchain, enviar email)
  */
 router.post('/:orderId/execute', requireRole(['admin', 'root']), async (req, res) => {
   try {
@@ -240,9 +293,14 @@ router.post('/:orderId/execute', requireRole(['admin', 'root']), async (req, res
     const tenantId = req.user.tenant_id;
     const userId = req.user.id;
 
-    // Verificar que la orden está aprobada
+    // Verificar que la orden está aprobada y obtener datos del cliente
     const orderResult = await query(
-      `SELECT * FROM token_orders WHERE id = $1 AND tenant_id = $2`,
+      `SELECT o.*, c.email as client_email, c.first_name as client_first_name,
+              ta.token_name, ta.token_symbol
+       FROM token_orders o
+       JOIN clients c ON o.client_id = c.id
+       JOIN tokenized_assets ta ON o.tokenized_asset_id = ta.id
+       WHERE o.id = $1 AND o.tenant_id = $2`,
       [orderId, tenantId]
     );
 
@@ -262,6 +320,8 @@ router.post('/:orderId/execute', requireRole(['admin', 'root']), async (req, res
     // Importar servicios necesarios
     const orderService = require('../services/orderService');
     const certificateService = require('../services/certificateService');
+    const blockchainService = require('../services/blockchainService');
+    const { sendTokenPurchaseCompletedEmail } = require('../utils/email');
 
     // Ejecutar según tipo de orden
     let result;
@@ -271,8 +331,38 @@ router.post('/:orderId/execute', requireRole(['admin', 'root']), async (req, res
       result = await orderService.completeSellOrder(orderId, {}, userId);
     }
 
-    // Aplicar doble firma si hay certificado
+    // Anclar en blockchain con los timestamps
+    let blockchainResult = null;
     if (result.certificate?.id) {
+      try {
+        console.log(`⛓️ Anclando certificado en blockchain...`);
+        
+        // Crear hash que incluye ambos timestamps
+        const dataToAnchor = {
+          certificateHash: result.certificate.pdf_hash || result.certificate.verification_code,
+          certificateId: result.certificate.id,
+          certificateNumber: result.certificate.certificate_number,
+          // Incluir timestamps importantes
+          clientRequestedAt: order.created_at, // Momento de intención del cliente
+          approvedAt: order.approved_at,        // Momento de aprobación del tenant
+          executedAt: new Date().toISOString()  // Momento de ejecución
+        };
+        
+        blockchainResult = await blockchainService.anchorCertificateHash(dataToAnchor);
+        console.log(`✅ Blockchain OK: ${blockchainResult.txHash}`);
+
+        // Actualizar certificado con info de blockchain
+        await certificateService.setCertificateBlockchainInfo(result.certificate.id, {
+          blockchain: blockchainResult.network,
+          txHash: blockchainResult.txHash,
+          blockNumber: blockchainResult.blockNumber,
+          timestamp: blockchainResult.timestamp
+        });
+      } catch (blockchainError) {
+        console.error('❌ Error anclando en blockchain:', blockchainError.message);
+      }
+
+      // Aplicar doble firma
       try {
         const signResult = await approvalService.applyDualSignature(result.certificate.id, tenantId);
         result.dualSignature = signResult;
@@ -296,14 +386,56 @@ router.post('/:orderId/execute', requireRole(['admin', 'root']), async (req, res
       operationDetails: {
         orderNumber: order.order_number,
         tokenAmount: order.token_amount,
-        certificateId: result.certificate?.id
+        certificateId: result.certificate?.id,
+        blockchainTxHash: blockchainResult?.txHash
       }
     });
 
+    // Enviar email al cliente notificando que su compra fue completada
+    if (order.order_type === 'buy' && order.client_email) {
+      try {
+        // Obtener portal URL del tenant
+        const tenantResult = await query(
+          `SELECT client_portal_token FROM tenants WHERE id = $1`,
+          [tenantId]
+        );
+        const portalToken = tenantResult.rows[0]?.client_portal_token;
+        const portalUrl = portalToken 
+          ? `${process.env.FRONTEND_URL}/portal/${portalToken}/dashboard`
+          : process.env.FRONTEND_URL;
+
+        await sendTokenPurchaseCompletedEmail(
+          order.client_email,
+          order.client_first_name || 'Estimado/a cliente',
+          {
+            tokenAmount: order.token_amount,
+            tokenName: order.token_name,
+            tokenSymbol: order.token_symbol,
+            totalAmount: order.total_amount,
+            currency: order.currency,
+            certificateNumber: result.certificate?.certificate_number,
+            blockchainTxHash: blockchainResult?.txHash,
+            explorerLink: blockchainResult?.explorerLink,
+            portalUrl
+          }
+        );
+        console.log(`📧 Email de compra completada enviado a: ${order.client_email}`);
+      } catch (emailError) {
+        console.error('❌ Error enviando email de compra completada:', emailError.message);
+      }
+    }
+
     res.json({
       success: true,
-      message: 'Operación ejecutada exitosamente',
-      data: result
+      message: 'Operación ejecutada exitosamente. Se ha notificado al cliente.',
+      data: {
+        ...result,
+        blockchain: blockchainResult ? {
+          txHash: blockchainResult.txHash,
+          explorerLink: blockchainResult.explorerLink,
+          network: blockchainResult.network
+        } : null
+      }
     });
   } catch (error) {
     console.error('Error ejecutando operación:', error);

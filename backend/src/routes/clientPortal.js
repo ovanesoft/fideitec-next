@@ -711,13 +711,11 @@ router.get('/client/certificates', authenticateClientToken, async (req, res) => 
 
 /**
  * POST /api/portal/client/tokens/buy
- * Compra instantánea de tokens (sin KYC por ahora para testing)
+ * Solicitud de compra de tokens - Requiere aprobación del tenant antes de ejecutarse
  */
 router.post('/client/tokens/buy', authenticateClientToken, async (req, res) => {
-  const { query, getClient } = require('../config/database');
+  const { query } = require('../config/database');
   const orderService = require('../services/orderService');
-  const certificateService = require('../services/certificateService');
-  const blockchainService = require('../services/blockchainService');
   
   try {
     const clientId = req.client.id;
@@ -747,88 +745,94 @@ router.post('/client/tokens/buy', authenticateClientToken, async (req, res) => {
 
     const tokenAsset = tokenResult.rows[0];
 
-    // Crear la orden de compra (sin sistema de aprobación para autoservicio)
+    // Crear la orden de compra con estado pending_approval
+    // El timestamp de creación (created_at) es el momento de intención del cliente
     const order = await orderService.createBuyOrder({
       tenantId,
       tokenizedAssetId,
       clientId,
       tokenAmount: parseInt(tokenAmount),
       paymentMethod,
-      notes: 'Compra desde portal de cliente',
-      status: 'pending_payment' // Bypass aprobación para autoservicio de clientes
+      notes: 'Compra desde portal de cliente - Pendiente de aprobación',
+      status: 'pending_approval' // Requiere aprobación del tenant
     });
 
-    // Confirmar el pago automáticamente (para testing)
-    const confirmedOrder = await orderService.confirmPayment(
-      order.id,
-      { 
-        paymentReference: `PORTAL_${Date.now()}`, 
-        paymentProofUrl: null 
-      },
-      null // Sin usuario admin, es self-service
-    );
+    console.log(`📋 Orden de compra creada: ${order.order_number} - Pendiente de aprobación`);
 
-    // Completar la orden (transferir tokens y generar certificado)
-    console.log(`🛒 Completando orden ${confirmedOrder.id}...`);
-    const result = await orderService.completeBuyOrder(confirmedOrder.id, null);
-    console.log(`✅ Orden completada. Certificado: ${result.certificate.certificate_number}`);
-
-    // Anclar el certificado en blockchain
-    let blockchainResult = null;
-    try {
-      console.log(`⛓️ Anclando certificado en blockchain...`);
-      blockchainResult = await blockchainService.anchorCertificateHash({
-        certificateHash: result.certificate.pdf_hash || result.certificate.verification_code,
-        certificateId: result.certificate.id,
-        certificateNumber: result.certificate.certificate_number
-      });
-      console.log(`✅ Blockchain OK: ${blockchainResult.txHash}`);
-
-      // Actualizar certificado con info de blockchain
-      await certificateService.setCertificateBlockchainInfo(result.certificate.id, {
-        blockchain: blockchainResult.network,
-        txHash: blockchainResult.txHash,
-        blockNumber: blockchainResult.blockNumber,
-        timestamp: blockchainResult.timestamp
-      });
-    } catch (blockchainError) {
-      console.error('❌ Error anclando en blockchain:', blockchainError.message);
-    }
+    // NO se ejecuta blockchain ni certificado hasta que el tenant apruebe
 
     res.status(201).json({
       success: true,
-      message: '¡Compra completada exitosamente!',
+      message: 'Solicitud de compra enviada. Está pendiente de aprobación.',
       data: {
         order: {
-          id: result.order.id,
-          order_number: result.order.order_number,
-          status: result.order.status,
-          token_amount: result.order.token_amount,
-          total_amount: result.order.total_amount
-        },
-        certificate: {
-          id: result.certificate.id,
-          certificate_number: result.certificate.certificate_number,
-          token_amount: result.certificate.token_amount,
-          is_blockchain_certified: !!blockchainResult,
-          blockchain_tx_hash: blockchainResult?.txHash || null,
-          explorer_link: blockchainResult?.explorerLink || null,
-          verification_code: result.certificate.verification_code
+          id: order.id,
+          order_number: order.order_number,
+          status: order.status,
+          token_amount: order.token_amount,
+          total_amount: order.total_amount,
+          price_per_token: order.price_per_token,
+          currency: order.currency,
+          created_at: order.created_at
         },
         token: {
           name: tokenAsset.token_name,
           symbol: tokenAsset.token_symbol,
-          amount_purchased: tokenAmount
-        }
+          amount_requested: tokenAmount
+        },
+        message_detail: 'Tu solicitud será revisada por el administrador. Recibirás un email cuando sea procesada.'
       }
     });
 
   } catch (error) {
-    console.error('Error en compra de token:', error);
+    console.error('Error en solicitud de compra:', error);
     res.status(500).json({ 
       success: false, 
-      message: error.message || 'Error al procesar la compra'
+      message: error.message || 'Error al procesar la solicitud'
     });
+  }
+});
+
+/**
+ * GET /api/portal/client/orders
+ * Lista órdenes del cliente (pendientes, aprobadas, completadas, rechazadas)
+ */
+router.get('/client/orders', authenticateClientToken, async (req, res) => {
+  const { query } = require('../config/database');
+  
+  try {
+    const clientId = req.client.id;
+    
+    const result = await query(
+      `SELECT o.id, o.order_number, o.order_type, o.status, o.token_amount,
+              o.price_per_token, o.total_amount, o.currency, o.payment_method,
+              o.created_at, o.approved_at, o.rejected_at, o.completed_at,
+              o.rejection_reason,
+              ta.token_name, ta.token_symbol, ta.asset_type,
+              CASE 
+                WHEN ta.asset_type = 'asset' THEN a.name
+                WHEN ta.asset_type = 'asset_unit' THEN au.unit_name
+                WHEN ta.asset_type = 'trust' THEN t.name
+              END as asset_name,
+              tc.certificate_number, tc.id as certificate_id
+       FROM token_orders o
+       JOIN tokenized_assets ta ON o.tokenized_asset_id = ta.id
+       LEFT JOIN assets a ON ta.asset_id = a.id
+       LEFT JOIN asset_units au ON ta.asset_unit_id = au.id
+       LEFT JOIN trusts t ON ta.trust_id = t.id
+       LEFT JOIN token_certificates tc ON o.certificate_id = tc.id
+       WHERE o.client_id = $1
+       ORDER BY o.created_at DESC`,
+      [clientId]
+    );
+    
+    res.json({
+      success: true,
+      data: { orders: result.rows }
+    });
+  } catch (error) {
+    console.error('Error obteniendo órdenes del cliente:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

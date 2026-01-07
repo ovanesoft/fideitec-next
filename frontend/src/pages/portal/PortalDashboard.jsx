@@ -73,9 +73,10 @@ const PortalDashboard = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const navigate = useNavigate();
 
-  // Estados para tokens y certificados
+  // Estados para tokens, certificados y órdenes
   const [tokens, setTokens] = useState([]);
   const [certificates, setCertificates] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [totalPortfolioValue, setTotalPortfolioValue] = useState(0);
 
@@ -94,20 +95,22 @@ const PortalDashboard = () => {
     }
   }, [isAuthenticated, loading, navigate, portalToken]);
 
-  // Cargar tokens y certificados del cliente
+  // Cargar tokens, certificados y órdenes del cliente
   const loadClientData = useCallback(async () => {
     if (!client?.id) return;
     
     setLoadingData(true);
     try {
-      const [tokensRes, certsRes] = await Promise.all([
+      const [tokensRes, certsRes, ordersRes] = await Promise.all([
         api.get('/portal/client/tokens'),
-        api.get('/portal/client/certificates')
+        api.get('/portal/client/certificates'),
+        api.get('/portal/client/orders')
       ]);
       
       const tokenData = tokensRes.data.data.tokens || [];
       setTokens(tokenData);
       setCertificates(certsRes.data.data.certificates || []);
+      setOrders(ordersRes.data.data.orders || []);
       
       // Calcular valor total del portfolio
       const totalValue = tokenData.reduce((sum, t) => sum + (parseFloat(t.balance_value) || 0), 0);
@@ -145,7 +148,7 @@ const PortalDashboard = () => {
     }
   }, [isAuthenticated, activeSection, loadAvailableTokens]);
 
-  // Comprar token
+  // Comprar token (crear solicitud pendiente de aprobación)
   const handleBuyToken = async () => {
     if (!buyModal.token || !client?.id) return;
     
@@ -159,15 +162,15 @@ const PortalDashboard = () => {
       });
       
       setPurchaseResult(res.data);
-      toast.success('🎉 ¡Compra completada exitosamente!');
+      toast.success('📋 Solicitud enviada. Pendiente de aprobación.');
       
-      // Recargar datos del cliente
+      // Recargar datos del cliente (incluyendo órdenes)
       loadClientData();
       loadAvailableTokens();
       
     } catch (error) {
-      console.error('Error en compra:', error);
-      toast.error(error.response?.data?.message || 'Error al procesar la compra');
+      console.error('Error en solicitud:', error);
+      toast.error(error.response?.data?.message || 'Error al procesar la solicitud');
       setPurchaseResult({ success: false, message: error.response?.data?.message || 'Error' });
     } finally {
       setPurchasing(false);
@@ -215,9 +218,13 @@ const PortalDashboard = () => {
     return null;
   }
 
+  // Contar órdenes pendientes para el badge
+  const pendingOrdersCount = orders.filter(o => o.status === 'pending_approval').length;
+
   const navigation = [
     { name: 'Dashboard', key: 'dashboard', icon: LayoutDashboard },
     { name: 'Comprar Tokens', key: 'buy', icon: ShoppingCart, highlight: true },
+    { name: 'Mis Órdenes', key: 'orders', icon: Clock, badge: pendingOrdersCount > 0 ? pendingOrdersCount : null },
     { name: 'Mis Tokens', key: 'tokens', icon: Coins, badge: tokens.length > 0 ? tokens.length : null },
     { name: 'Certificados', key: 'certificates', icon: FileText, badge: certificates.length > 0 ? certificates.length : null },
     { name: 'Mi Perfil', key: 'profile', icon: User },
@@ -545,6 +552,31 @@ const PortalDashboard = () => {
           {/* Contenido según sección activa */}
           {activeSection === 'dashboard' && (
             <>
+              {/* Alerta de órdenes pendientes */}
+              {pendingOrdersCount > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-amber-800">
+                        {pendingOrdersCount === 1 
+                          ? 'Tenés 1 orden pendiente de aprobación'
+                          : `Tenés ${pendingOrdersCount} órdenes pendientes de aprobación`}
+                      </p>
+                      <p className="text-sm text-amber-600">Te notificaremos por email cuando sean procesadas</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setActiveSection('orders')}
+                    className="px-4 py-2 bg-amber-100 text-amber-700 rounded-xl hover:bg-amber-200 text-sm font-medium"
+                  >
+                    Ver órdenes
+                  </button>
+                </div>
+              )}
+
               {/* Resumen de tokens */}
               {tokens.length > 0 && (
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 mb-6">
@@ -822,6 +854,163 @@ const PortalDashboard = () => {
             </div>
           )}
 
+          {/* Sección: Mis Órdenes */}
+          {activeSection === 'orders' && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-6 text-white">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Clock className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold">Mis Órdenes</h2>
+                    <p className="text-white/80">Seguí el estado de tus solicitudes de compra de tokens.</p>
+                  </div>
+                </div>
+              </div>
+
+              {loadingData ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                </div>
+              ) : orders.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-2xl border">
+                  <Clock className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-slate-800 mb-2">Sin órdenes</h3>
+                  <p className="text-slate-500 mb-4">Aún no has realizado ninguna solicitud de compra</p>
+                  <button
+                    onClick={() => setActiveSection('buy')}
+                    className="px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700"
+                  >
+                    Comprar Tokens
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {orders.map((order) => {
+                    const statusConfig = {
+                      pending_approval: { 
+                        bg: 'bg-amber-100', 
+                        text: 'text-amber-700', 
+                        label: 'Pendiente de Aprobación',
+                        icon: Clock 
+                      },
+                      approved: { 
+                        bg: 'bg-blue-100', 
+                        text: 'text-blue-700', 
+                        label: 'Aprobada',
+                        icon: CheckCircle2 
+                      },
+                      completed: { 
+                        bg: 'bg-green-100', 
+                        text: 'text-green-700', 
+                        label: 'Completada',
+                        icon: CheckCircle2 
+                      },
+                      rejected: { 
+                        bg: 'bg-red-100', 
+                        text: 'text-red-700', 
+                        label: 'Rechazada',
+                        icon: AlertCircle 
+                      },
+                      cancelled: { 
+                        bg: 'bg-slate-100', 
+                        text: 'text-slate-700', 
+                        label: 'Cancelada',
+                        icon: X 
+                      }
+                    };
+                    const status = statusConfig[order.status] || statusConfig.pending_approval;
+                    const StatusIcon = status.icon;
+
+                    return (
+                      <div key={order.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-3 rounded-xl ${status.bg}`}>
+                              <StatusIcon className={`w-6 h-6 ${status.text}`} />
+                            </div>
+                            <div>
+                              <p className="font-mono text-sm font-semibold text-slate-800">{order.order_number}</p>
+                              <p className="text-xs text-slate-500">
+                                {new Date(order.created_at).toLocaleDateString('es-AR', { 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${status.bg} ${status.text}`}>
+                            {status.label}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                          <div>
+                            <p className="text-xs text-slate-500">Token</p>
+                            <p className="font-medium text-slate-800">{order.token_name}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500">Cantidad</p>
+                            <p className="font-semibold text-slate-800">{formatNumber(order.token_amount)} {order.token_symbol}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500">Total</p>
+                            <p className="font-semibold text-green-600">{formatCurrency(order.total_amount, order.currency)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500">Tipo</p>
+                            <p className="font-medium text-slate-800">
+                              {order.order_type === 'buy' ? 'Compra' : 'Venta'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Mostrar info adicional según estado */}
+                        {order.status === 'rejected' && order.rejection_reason && (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                            <p className="text-sm text-red-800">
+                              <strong>Motivo del rechazo:</strong> {order.rejection_reason}
+                            </p>
+                          </div>
+                        )}
+
+                        {order.status === 'completed' && order.certificate_number && (
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
+                            <div>
+                              <p className="text-sm text-green-800">
+                                <strong>Certificado:</strong> {order.certificate_number}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setActiveSection('certificates');
+                              }}
+                              className="text-sm text-green-700 hover:text-green-800 font-medium"
+                            >
+                              Ver certificado →
+                            </button>
+                          </div>
+                        )}
+
+                        {order.status === 'pending_approval' && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                            <p className="text-sm text-amber-800">
+                              Tu solicitud está siendo revisada. Recibirás un email cuando sea procesada.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Sección: Comprar Tokens */}
           {activeSection === 'buy' && (
             <div className="space-y-6">
@@ -832,7 +1021,7 @@ const PortalDashboard = () => {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold">Comprar Tokens</h2>
-                    <p className="text-white/80">Seleccioná un activo y comprá tus cuotas partes. Certificación instantánea en blockchain.</p>
+                    <p className="text-white/80">Seleccioná un activo y enviá tu solicitud de compra.</p>
                   </div>
                 </div>
               </div>
@@ -919,73 +1108,65 @@ const PortalDashboard = () => {
             {/* Content */}
             <div className="p-6">
               {purchaseResult ? (
-                // Resultado de la compra
+                // Resultado de la solicitud de compra
                 <div className="text-center">
                   {purchaseResult.success ? (
                     <>
-                      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <CheckCircle2 className="w-10 h-10 text-green-600" />
+                      <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Clock className="w-10 h-10 text-amber-600" />
                       </div>
-                      <h4 className="text-2xl font-bold text-slate-800 mb-2">¡Compra Exitosa!</h4>
-                      <p className="text-slate-600 mb-6">Tu certificado ha sido generado</p>
+                      <h4 className="text-2xl font-bold text-slate-800 mb-2">Solicitud Enviada</h4>
+                      <p className="text-slate-600 mb-6">Tu solicitud está pendiente de aprobación</p>
                       
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-left">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <div className="text-sm text-amber-800">
+                            <p className="font-medium mb-1">¿Qué sigue?</p>
+                            <p>El administrador revisará tu solicitud. Recibirás un email cuando sea procesada.</p>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="bg-slate-50 rounded-xl p-4 mb-4 text-left">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-xs text-slate-500">Certificado N°</p>
+                            <p className="text-xs text-slate-500">Orden N°</p>
                             <p className="font-mono font-semibold text-slate-800">
-                              {purchaseResult.data?.certificate?.certificateNumber}
+                              {purchaseResult.data?.order?.order_number}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500">Tokens</p>
+                            <p className="text-xs text-slate-500">Tokens solicitados</p>
                             <p className="font-semibold text-slate-800">
-                              {purchaseResult.data?.order?.tokenAmount}
+                              {purchaseResult.data?.order?.token_amount}
                             </p>
                           </div>
                           <div>
                             <p className="text-xs text-slate-500">Total</p>
                             <p className="font-semibold text-green-600">
-                              {formatCurrency(purchaseResult.data?.order?.totalAmount, purchaseResult.data?.order?.currency)}
+                              {formatCurrency(purchaseResult.data?.order?.total_amount, purchaseResult.data?.order?.currency)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500">Blockchain</p>
-                            <p className="font-semibold text-slate-800">
-                              {purchaseResult.data?.certificate?.isBlockchainCertified ? (
-                                <span className="flex items-center gap-1 text-green-600">
-                                  <ShieldCheck className="w-4 h-4" /> Certificado
-                                </span>
-                              ) : (
-                                <span className="text-yellow-600">Pendiente</span>
-                              )}
-                            </p>
+                            <p className="text-xs text-slate-500">Estado</p>
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+                              <Clock className="w-3 h-3" />
+                              Pendiente
+                            </span>
                           </div>
                         </div>
                       </div>
-
-                      {purchaseResult.data?.certificate?.blockchain?.explorerLink && (
-                        <a
-                          href={purchaseResult.data.certificate.blockchain.explorerLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 text-sm mb-4"
-                        >
-                          <LinkIcon className="w-4 h-4" />
-                          Ver en BaseScan
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
 
                       <div className="flex gap-3 mt-4">
                         <button
                           onClick={() => {
                             closeBuyModal();
-                            setActiveSection('certificates');
+                            setActiveSection('orders');
                           }}
                           className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700"
                         >
-                          Ver Certificados
+                          Ver Mis Órdenes
                         </button>
                         <button
                           onClick={closeBuyModal}
@@ -1071,7 +1252,7 @@ const PortalDashboard = () => {
 
                   <div className="flex items-center gap-2 text-sm text-slate-500 mb-6">
                     <Sparkles className="w-4 h-4 text-amber-500" />
-                    <span>Se generará un certificado y se registrará en blockchain</span>
+                    <span>Tu solicitud será revisada antes de registrarse en blockchain</span>
                   </div>
 
                   <button

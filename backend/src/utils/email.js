@@ -264,10 +264,137 @@ const sendPasswordChangedEmail = async (email, firstName) => {
   }
 };
 
+// Enviar notificación de compra de tokens completada
+const sendTokenPurchaseCompletedEmail = async (email, firstName, purchaseDetails) => {
+  const {
+    tokenAmount,
+    tokenName,
+    tokenSymbol,
+    totalAmount,
+    currency,
+    certificateNumber,
+    blockchainTxHash,
+    explorerLink,
+    portalUrl
+  } = purchaseDetails;
+
+  const formatCurrency = (amount, curr) => {
+    return new Intl.NumberFormat('es-AR', { 
+      style: 'currency', 
+      currency: curr || 'ARS' 
+    }).format(amount);
+  };
+
+  const blockchainSection = blockchainTxHash ? `
+    <div style="background: linear-gradient(135deg, #667eea15, #764ba215); border-radius: 8px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0 0 8px 0; font-weight: 600; color: #667eea;">⛓️ Registro en Blockchain</p>
+      <p style="margin: 0; font-size: 14px; color: #666;">
+        Tu certificado ha sido registrado de forma inmutable en blockchain.
+        ${explorerLink ? `<br><a href="${explorerLink}" style="color: #667eea;">Ver transacción en explorador →</a>` : ''}
+      </p>
+    </div>
+  ` : '';
+
+  const content = `
+    <h2>¡Tu compra ha sido completada! 🎉</h2>
+    <p>Hola ${firstName},</p>
+    <p>Tu solicitud de compra de tokens ha sido <strong style="color: #10b981;">aprobada y procesada exitosamente</strong>.</p>
+    
+    <div style="background-color: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #1e293b;">📋 Detalles de tu compra</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0; color: #64748b;">Certificado:</td>
+          <td style="padding: 8px 0; font-weight: 600; text-align: right;">#${certificateNumber}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #64748b;">Tokens adquiridos:</td>
+          <td style="padding: 8px 0; font-weight: 600; text-align: right;">${tokenAmount} ${tokenSymbol}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #64748b;">Activo:</td>
+          <td style="padding: 8px 0; text-align: right;">${tokenName}</td>
+        </tr>
+        <tr style="border-top: 1px solid #e2e8f0;">
+          <td style="padding: 12px 0 8px 0; color: #64748b; font-weight: 600;">Valor total:</td>
+          <td style="padding: 12px 0 8px 0; font-weight: 700; text-align: right; color: #667eea; font-size: 18px;">
+            ${formatCurrency(totalAmount, currency)}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    ${blockchainSection}
+
+    <p style="text-align: center;">
+      <a href="${portalUrl}" class="button">Ver mis certificados</a>
+    </p>
+    
+    <p style="color: #64748b; font-size: 14px;">
+      Gracias por confiar en nosotros. Si tienes alguna pregunta sobre tu inversión, 
+      no dudes en contactarnos.
+    </p>
+  `;
+
+  try {
+    return await sendEmail({
+      to: email,
+      subject: `✅ Compra completada: ${tokenAmount} ${tokenSymbol} - FIDEITEC`,
+      html: getEmailTemplate(content, 'Compra Completada'),
+      link: portalUrl
+    });
+  } catch (error) {
+    console.error('Error enviando email de compra completada:', error);
+    return false;
+  }
+};
+
+// Enviar notificación de compra rechazada
+const sendTokenPurchaseRejectedEmail = async (email, firstName, rejectionDetails) => {
+  const {
+    tokenAmount,
+    tokenName,
+    tokenSymbol,
+    reason,
+    portalUrl
+  } = rejectionDetails;
+
+  const content = `
+    <h2>Solicitud de compra no aprobada</h2>
+    <p>Hola ${firstName},</p>
+    <p>Lamentamos informarte que tu solicitud de compra de <strong>${tokenAmount} ${tokenSymbol}</strong> (${tokenName}) no ha sido aprobada.</p>
+    
+    ${reason ? `
+    <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0; color: #991b1b;"><strong>Motivo:</strong> ${reason}</p>
+    </div>
+    ` : ''}
+
+    <p>Si tienes alguna pregunta o crees que esto es un error, por favor contacta con nosotros.</p>
+    
+    <p style="text-align: center;">
+      <a href="${portalUrl}" class="button">Ir al portal</a>
+    </p>
+  `;
+
+  try {
+    return await sendEmail({
+      to: email,
+      subject: `Solicitud de compra no aprobada - FIDEITEC`,
+      html: getEmailTemplate(content, 'Solicitud No Aprobada')
+    });
+  } catch (error) {
+    console.error('Error enviando email de rechazo:', error);
+    return false;
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendInvitationEmail,
   sendWelcomeEmail,
-  sendPasswordChangedEmail
+  sendPasswordChangedEmail,
+  sendTokenPurchaseCompletedEmail,
+  sendTokenPurchaseRejectedEmail
 };
