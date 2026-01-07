@@ -11,6 +11,7 @@ const runMigrations = async () => {
   // Lista de migraciones en orden de dependencia
   const migrations = [
     'migration_clients.sql',
+    'migration_clients_google.sql',
     'migration_suppliers.sql',
     'migration_assets_trusts.sql',
     'migration_units.sql',
