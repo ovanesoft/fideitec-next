@@ -93,7 +93,10 @@ router.get('/google/callback', async (req, res) => {
   let stateData = {};
   if (state) {
     try {
-      stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+      // El state puede venir URL-encoded, decodificar primero
+      const decodedState = decodeURIComponent(state);
+      stateData = JSON.parse(Buffer.from(decodedState, 'base64').toString('utf8'));
+      console.log('State decoded:', stateData);
     } catch (e) {
       console.log('State decode error (normal for enterprise login):', e.message);
     }

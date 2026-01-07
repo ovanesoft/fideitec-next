@@ -46,15 +46,16 @@ router.get('/:portal_token/auth/google', async (req, res) => {
     }
     
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    // Usar el mismo callback que ya está autorizado en Google Console
     const redirectUri = process.env.GOOGLE_CALLBACK_URL;
     const scope = encodeURIComponent('profile email');
     
-    // Guardar el portal_token en el state para recuperarlo en el callback
-    const state = Buffer.from(JSON.stringify({ portal_token, type: 'client_portal' })).toString('base64');
+    // Guardar el portal_token en el state (URL-safe base64)
+    const stateData = JSON.stringify({ portal_token, type: 'client_portal' });
+    const state = encodeURIComponent(Buffer.from(stateData).toString('base64'));
     
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`;
     
+    console.log('Portal Google OAuth redirect:', authUrl.substring(0, 100) + '...');
     res.redirect(authUrl);
   } catch (error) {
     console.error('Error iniciando Google OAuth:', error);
