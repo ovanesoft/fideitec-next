@@ -110,6 +110,7 @@ const Assets = () => {
   const [selectedUnitId, setSelectedUnitId] = useState(null);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   
   // Papelera
   const [showTrashModal, setShowTrashModal] = useState(false);
@@ -334,7 +335,60 @@ const Assets = () => {
     }
   };
 
-  // Crear activo
+  // Abrir modal de edición de activo
+  const handleEditAsset = async (asset) => {
+    try {
+      const response = await api.get(`/assets/${asset.id}`);
+      if (response.data.success) {
+        const assetData = response.data.data.asset;
+        setFormData({
+          name: assetData.name || '',
+          code: assetData.code || '',
+          description: assetData.description || '',
+          asset_category: assetData.asset_category || 'real_estate',
+          asset_type: assetData.asset_type || '',
+          trust_id: assetData.trust_id || '',
+          status: assetData.status || 'draft',
+          address_street: assetData.address_street || '',
+          address_number: assetData.address_number || '',
+          address_floor: assetData.address_floor || '',
+          address_unit: assetData.address_unit || '',
+          address_city: assetData.address_city || '',
+          address_state: assetData.address_state || '',
+          address_postal_code: assetData.address_postal_code || '',
+          total_area_m2: assetData.total_area_m2 || '',
+          covered_area_m2: assetData.covered_area_m2 || '',
+          rooms: assetData.rooms || '',
+          bedrooms: assetData.bedrooms || '',
+          bathrooms: assetData.bathrooms || '',
+          parking_spaces: assetData.parking_spaces || '',
+          floors: assetData.floors || '',
+          year_built: assetData.year_built || '',
+          risk_level: assetData.risk_level || 5,
+          acquisition_value: assetData.acquisition_value || '',
+          acquisition_date: assetData.acquisition_date ? assetData.acquisition_date.split('T')[0] : '',
+          current_value: assetData.current_value || '',
+          valuation_date: assetData.valuation_date ? assetData.valuation_date.split('T')[0] : '',
+          currency: assetData.currency || 'USD',
+          is_tokenizable: assetData.is_tokenizable || false,
+          total_tokens: assetData.total_tokens || '',
+          token_value: assetData.token_value || '',
+          project_stage: assetData.project_stage || '',
+          notes: assetData.notes || ''
+        });
+        setSelectedAsset(assetData);
+        setIsEditing(true);
+        setShowAddModal(true);
+      } else {
+        toast.error(response.data.message || 'Error al cargar datos del activo');
+      }
+    } catch (error) {
+      console.error('Error cargando activo para editar:', error);
+      toast.error(error.response?.data?.message || 'Error al cargar datos para edición');
+    }
+  };
+
+  // Crear o actualizar activo
   const handleCreateAsset = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.asset_category) {
@@ -344,7 +398,7 @@ const Assets = () => {
 
     setSubmitting(true);
     try {
-      const response = await api.post('/assets', {
+      const payload = {
         ...formData,
         total_area_m2: formData.total_area_m2 ? parseFloat(formData.total_area_m2) : null,
         covered_area_m2: formData.covered_area_m2 ? parseFloat(formData.covered_area_m2) : null,
@@ -359,17 +413,33 @@ const Assets = () => {
         total_tokens: formData.total_tokens ? parseInt(formData.total_tokens) : 0,
         token_value: formData.token_value ? parseFloat(formData.token_value) : 0,
         trust_id: formData.trust_id || null
-      });
+      };
+
+      let response;
+      if (isEditing && selectedAsset) {
+        // Actualizar
+        response = await api.put(`/assets/${selectedAsset.id}`, payload);
+        if (response.data.success) {
+          toast.success('Activo actualizado exitosamente');
+        }
+      } else {
+        // Crear nuevo
+        response = await api.post('/assets', payload);
+        if (response.data.success) {
+          toast.success('Activo creado exitosamente');
+        }
+      }
       
       if (response.data.success) {
-        toast.success('Activo creado exitosamente');
         setShowAddModal(false);
         resetForm();
+        setIsEditing(false);
+        setSelectedAsset(null);
         loadAssets();
         loadStats();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Error al crear activo');
+      toast.error(error.response?.data?.message || `Error al ${isEditing ? 'actualizar' : 'crear'} activo`);
     } finally {
       setSubmitting(false);
     }
@@ -536,7 +606,12 @@ const Assets = () => {
             )}
           </button>
           <button 
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              resetForm();
+              setIsEditing(false);
+              setSelectedAsset(null);
+              setShowAddModal(true);
+            }}
             className="btn-primary flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -801,7 +876,11 @@ const Assets = () => {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            <button className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+                            <button 
+                              onClick={() => handleEditAsset(asset)}
+                              className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                              title="Editar activo"
+                            >
                               <Edit className="w-4 h-4" />
                             </button>
                           </div>
@@ -841,19 +920,29 @@ const Assets = () => {
         )}
       </div>
 
-      {/* Modal Crear Activo */}
+      {/* Modal Crear/Editar Activo */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-slate-900/50" onClick={() => setShowAddModal(false)} />
+          <div className="fixed inset-0 bg-slate-900/50" onClick={() => {
+            setShowAddModal(false);
+            setIsEditing(false);
+            setSelectedAsset(null);
+          }} />
           <div className="relative bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 animate-fade-in">
             <button 
-              onClick={() => setShowAddModal(false)}
+              onClick={() => {
+                setShowAddModal(false);
+                setIsEditing(false);
+                setSelectedAsset(null);
+              }}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
             >
               <X className="w-5 h-5" />
             </button>
             
-            <h2 className="text-xl font-bold text-slate-800 mb-6">Nuevo Activo</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-6">
+              {isEditing ? 'Editar Activo' : 'Nuevo Activo'}
+            </h2>
             
             <form onSubmit={handleCreateAsset} className="space-y-6">
               {/* Info básica */}
@@ -1252,7 +1341,11 @@ const Assets = () => {
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <button 
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setIsEditing(false);
+                    setSelectedAsset(null);
+                  }}
                   className="btn-secondary"
                 >
                   Cancelar
@@ -1262,7 +1355,9 @@ const Assets = () => {
                   className="btn-primary"
                   disabled={submitting}
                 >
-                  {submitting ? 'Creando...' : 'Crear Activo'}
+                  {submitting 
+                    ? (isEditing ? 'Guardando...' : 'Creando...') 
+                    : (isEditing ? 'Guardar Cambios' : 'Crear Activo')}
                 </button>
               </div>
             </form>
