@@ -116,6 +116,22 @@ const getTrustById = async (req, res) => {
     const user = req.user;
     const tenantId = user.tenant_id;
 
+    // Validar que el ID sea un UUID válido
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!id || !uuidRegex.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de fideicomiso inválido'
+      });
+    }
+
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario sin tenant asignado'
+      });
+    }
+
     // Obtener fideicomiso
     const result = await query(
       `SELECT t.*, 
