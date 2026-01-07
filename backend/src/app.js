@@ -437,6 +437,75 @@ app.post('/api/fix-trash-columns', async (req, res) => {
   }
 });
 
+// Debug: verificar tablas y datos de trusts
+app.post('/api/debug-trusts', async (req, res) => {
+  const { secret, tenantId } = req.body;
+  const ADMIN_SECRET = 'fdt_admin_2026_emergency';
+  if (secret !== ADMIN_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  
+  try {
+    const { pool } = require('./config/database');
+    const results = {};
+    
+    // Verificar si existe la tabla trusts
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = 'trusts'
+      ) as exists
+    `);
+    results.trustsTableExists = tableCheck.rows[0].exists;
+    
+    // Contar fideicomisos
+    if (results.trustsTableExists) {
+      const countAll = await pool.query('SELECT COUNT(*) as total FROM trusts');
+      results.totalTrusts = parseInt(countAll.rows[0].total);
+      
+      if (tenantId) {
+        const countTenant = await pool.query('SELECT COUNT(*) as total FROM trusts WHERE tenant_id = $1', [tenantId]);
+        results.trustsForTenant = parseInt(countTenant.rows[0].total);
+        
+        // Obtener lista de fideicomisos del tenant
+        const trustsList = await pool.query('SELECT id, name, status FROM trusts WHERE tenant_id = $1 LIMIT 10', [tenantId]);
+        results.trusts = trustsList.rows;
+      }
+      
+      // Verificar columnas de la tabla
+      const columns = await pool.query(`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'trusts'
+        ORDER BY ordinal_position
+      `);
+      results.trustsColumns = columns.rows.map(r => r.column_name);
+    }
+    
+    // Verificar trust_parties
+    const partiesCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = 'trust_parties'
+      ) as exists
+    `);
+    results.trustPartiesTableExists = partiesCheck.rows[0].exists;
+    
+    // Verificar assets
+    const assetsCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = 'assets'
+      ) as exists
+    `);
+    results.assetsTableExists = assetsCheck.rows[0].exists;
+    
+    res.json({ success: true, results });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message, stack: error.stack });
+  }
+});
+
 // Verificar rol de usuario (debug)
 app.post('/api/check-user-role', async (req, res) => {
   const { secret, email } = req.body;
