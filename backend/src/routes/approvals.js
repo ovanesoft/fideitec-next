@@ -46,6 +46,43 @@ router.get('/wallet-config', requireRole(['admin', 'root']), async (req, res) =>
 });
 
 /**
+ * POST /api/approvals/toggle-dual-signature
+ * Activar/desactivar doble firma
+ * Body: { enabled: boolean }
+ */
+router.post('/toggle-dual-signature', requireRole(['admin', 'root']), async (req, res) => {
+  try {
+    const { enabled } = req.body;
+
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'El campo "enabled" debe ser true o false'
+      });
+    }
+
+    const result = await approvalService.toggleDualSignature(
+      req.user.tenant_id,
+      enabled,
+      req.user.id
+    );
+
+    res.json({
+      success: true,
+      message: enabled 
+        ? '🔐 Doble firma activada. Los certificados ahora requieren firma del tenant + Fideitec.' 
+        : '✅ Doble firma desactivada. Los certificados solo llevarán firma de Fideitec.',
+      data: {
+        dual_signature_enabled: result.dual_signature_enabled
+      }
+    });
+  } catch (error) {
+    console.error('Error toggling dual signature:', error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+/**
  * POST /api/approvals/wallet-config
  * Configurar billetera del tenant
  * Body: { walletAddress, privateKey? }

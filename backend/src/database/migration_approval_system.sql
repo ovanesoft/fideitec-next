@@ -20,6 +20,9 @@ ALTER TABLE tenants ADD COLUMN IF NOT EXISTS approval_required BOOLEAN DEFAULT t
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS approval_notify_email BOOLEAN DEFAULT true;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS max_operations_per_hour INTEGER DEFAULT 3;
 
+-- Doble firma: deshabilitada por defecto, lista para activar
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS dual_signature_enabled BOOLEAN DEFAULT false;
+
 -- ===========================================
 -- NUEVOS ESTADOS PARA ÓRDENES
 -- ===========================================

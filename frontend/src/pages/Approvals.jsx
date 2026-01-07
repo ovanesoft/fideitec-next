@@ -80,6 +80,7 @@ const Approvals = () => {
     privateKey: ''
   });
   const [savingWallet, setSavingWallet] = useState(false);
+  const [togglingDualSig, setTogglingDualSig] = useState(false);
   
   // Auditoría
   const [auditHistory, setAuditHistory] = useState([]);
@@ -225,6 +226,25 @@ const Approvals = () => {
       toast.error(error.response?.data?.message || 'Error al configurar billetera');
     } finally {
       setSavingWallet(false);
+    }
+  };
+  
+  // Toggle doble firma
+  const handleToggleDualSignature = async () => {
+    const newValue = !walletConfig?.dual_signature_enabled;
+    
+    try {
+      setTogglingDualSig(true);
+      await api.post('/approvals/toggle-dual-signature', { enabled: newValue });
+      
+      toast.success(newValue 
+        ? '🔐 Doble firma activada' 
+        : '✅ Doble firma desactivada (solo firma Fideitec)');
+      loadData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Error al cambiar configuración');
+    } finally {
+      setTogglingDualSig(false);
     }
   };
   
@@ -447,26 +467,104 @@ const Approvals = () => {
       {activeTab === 'wallet' && (
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Configuración de Billetera Blockchain
+            Configuración de Firma Blockchain
           </h2>
           
+          {/* Estado actual de firma */}
+          <div className={`mb-6 p-6 rounded-xl border-2 ${
+            walletConfig?.dual_signature_enabled 
+              ? 'bg-purple-50 border-purple-200' 
+              : 'bg-green-50 border-green-200'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-full ${
+                  walletConfig?.dual_signature_enabled 
+                    ? 'bg-purple-100' 
+                    : 'bg-green-100'
+                }`}>
+                  <ShieldCheck className={`w-8 h-8 ${
+                    walletConfig?.dual_signature_enabled 
+                      ? 'text-purple-600' 
+                      : 'text-green-600'
+                  }`} />
+                </div>
+                <div>
+                  <h3 className={`text-lg font-bold ${
+                    walletConfig?.dual_signature_enabled 
+                      ? 'text-purple-900' 
+                      : 'text-green-900'
+                  }`}>
+                    {walletConfig?.dual_signature_enabled 
+                      ? '🔐 Doble Firma Activa' 
+                      : '✅ Firma Fideitec'}
+                  </h3>
+                  <p className={`text-sm ${
+                    walletConfig?.dual_signature_enabled 
+                      ? 'text-purple-700' 
+                      : 'text-green-700'
+                  }`}>
+                    {walletConfig?.dual_signature_enabled 
+                      ? 'Los certificados requieren firma del tenant + Fideitec' 
+                      : 'Los certificados son firmados solo por Fideitec (gas incluido)'}
+                  </p>
+                </div>
+              </div>
+              
+              <button
+                onClick={handleToggleDualSignature}
+                disabled={togglingDualSig}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                  walletConfig?.dual_signature_enabled
+                    ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                    : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                }`}
+              >
+                {togglingDualSig ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : walletConfig?.dual_signature_enabled ? (
+                  <>
+                    <Unlock className="w-4 h-4" />
+                    Desactivar Doble Firma
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Activar Doble Firma
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+          
+          {/* Configuración de billetera del tenant (solo si doble firma está activa o quieren configurarla) */}
           <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-gray-600" />
+              Billetera del Tenant
+              {!walletConfig?.dual_signature_enabled && (
+                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
+                  Solo necesaria si activas doble firma
+                </span>
+              )}
+            </h3>
+            
             {walletConfig?.blockchain_enabled ? (
               <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-3 rounded-full bg-green-100">
-                    <Wallet className="w-6 h-6 text-green-600" />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-full bg-green-100">
+                    <CheckCircle2 className="w-5 h-5 text-green-600" />
                   </div>
                   <div>
                     <p className="font-medium text-green-600">Billetera Configurada</p>
                     <p className="text-sm text-gray-500">
-                      Red: {walletConfig.blockchain_network || 'base'}
+                      Red: {walletConfig.blockchain_network || 'Base'}
                     </p>
                   </div>
                 </div>
                 
-                <div className="space-y-4">
-                  <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="space-y-3">
+                  <div className="p-3 bg-gray-50 rounded-lg">
                     <p className="text-xs text-gray-400 uppercase mb-1">Dirección</p>
                     <div className="flex items-center gap-2">
                       <code className="text-sm font-mono text-gray-900">
@@ -484,54 +582,53 @@ const Approvals = () => {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-gray-50 rounded-lg">
                       <p className="text-xs text-gray-400 uppercase mb-1">Clave Privada</p>
                       <div className="flex items-center gap-2">
                         {walletConfig.has_private_key ? (
                           <>
                             <Lock className="w-4 h-4 text-green-600" />
-                            <span className="text-green-600 font-medium">Almacenada (encriptada)</span>
+                            <span className="text-green-600 font-medium text-sm">Encriptada</span>
                           </>
                         ) : (
                           <>
                             <Unlock className="w-4 h-4 text-amber-600" />
-                            <span className="text-amber-600 font-medium">No configurada</span>
+                            <span className="text-amber-600 font-medium text-sm">No configurada</span>
                           </>
                         )}
                       </div>
                     </div>
                     
-                    <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="p-3 bg-gray-50 rounded-lg">
                       <p className="text-xs text-gray-400 uppercase mb-1">Configurada</p>
-                      <p className="text-gray-900">
+                      <p className="text-gray-900 text-sm">
                         {formatDateTime(walletConfig.blockchain_configured_at)}
                       </p>
-                      {walletConfig.configured_by_name && (
-                        <p className="text-xs text-gray-500">por {walletConfig.configured_by_name}</p>
-                      )}
                     </div>
                   </div>
                 </div>
                 
                 <button
                   onClick={() => setShowWalletForm(true)}
-                  className="mt-6 flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  className="mt-4 flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   <Settings className="w-4 h-4" />
-                  Reconfigurar Billetera
+                  Reconfigurar
                 </button>
               </div>
             ) : (
-              <div className="text-center py-8">
-                <Wallet className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 text-lg mb-2">Billetera no configurada</p>
-                <p className="text-gray-400 text-sm mb-6">
-                  Configura tu billetera para habilitar la doble firma en certificados
+              <div className="text-center py-6">
+                <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600 mb-1">Billetera no configurada</p>
+                <p className="text-gray-400 text-sm mb-4">
+                  {walletConfig?.dual_signature_enabled 
+                    ? 'Necesitas configurarla para que funcione la doble firma'
+                    : 'Configúrala cuando actives la doble firma'}
                 </p>
                 <button
                   onClick={() => setShowWalletForm(true)}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
                 >
                   <Key className="w-4 h-4" />
                   Configurar Billetera
@@ -540,28 +637,40 @@ const Approvals = () => {
             )}
           </div>
           
-          {/* Info de doble firma */}
+          {/* Info de cómo funciona */}
           <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-6">
-            <h3 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5" />
-              Sistema de Doble Firma
+            <h3 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              ¿Cómo funciona?
             </h3>
-            <p className="text-blue-700 text-sm mb-4">
-              Cada certificado requiere dos firmas para ser válido:
-            </p>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-lg p-4">
-                <p className="font-medium text-gray-900">1. Firma del Tenant</p>
-                <p className="text-sm text-gray-500">
-                  Tu billetera firma el certificado con tu clave privada
-                </p>
+            <div className="space-y-3 text-sm text-blue-700">
+              <div className="flex items-start gap-3">
+                <span className="font-bold text-blue-600">1.</span>
+                <p><strong>Cliente solicita compra:</strong> La orden queda pendiente de aprobación.</p>
               </div>
-              <div className="bg-white rounded-lg p-4">
-                <p className="font-medium text-gray-900">2. Firma de Fideitec</p>
-                <p className="text-sm text-gray-500">
-                  La billetera central de Fideitec co-firma el certificado
-                </p>
+              <div className="flex items-start gap-3">
+                <span className="font-bold text-blue-600">2.</span>
+                <p><strong>Admin del tenant aprueba:</strong> Revisa y aprueba la operación.</p>
               </div>
+              <div className="flex items-start gap-3">
+                <span className="font-bold text-blue-600">3.</span>
+                <p><strong>Ejecución y firma:</strong> Se genera el certificado y se firma en blockchain.</p>
+              </div>
+            </div>
+            
+            <div className="mt-4 p-3 bg-white rounded-lg">
+              <p className="text-sm text-gray-600">
+                <strong>Modo actual:</strong>{' '}
+                {walletConfig?.dual_signature_enabled ? (
+                  <span className="text-purple-600">
+                    Doble firma (Tenant + Fideitec) - El gas lo paga cada billetera
+                  </span>
+                ) : (
+                  <span className="text-green-600">
+                    Solo Fideitec - El gas lo paga Fideitec 🎁
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         </div>

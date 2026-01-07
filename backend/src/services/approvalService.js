@@ -141,6 +141,7 @@ const getTenantWalletConfig = async (tenantId) => {
        blockchain_wallet_address,
        blockchain_wallet_key_encrypted IS NOT NULL as has_private_key,
        blockchain_configured_at,
+       dual_signature_enabled,
        u.first_name || ' ' || u.last_name as configured_by_name
      FROM tenants t
      LEFT JOIN users u ON t.blockchain_configured_by = u.id
@@ -151,6 +152,32 @@ const getTenantWalletConfig = async (tenantId) => {
   if (result.rows.length === 0) {
     return null;
   }
+
+  return result.rows[0];
+};
+
+/**
+ * Activar/desactivar doble firma para un tenant
+ */
+const toggleDualSignature = async (tenantId, enabled, userId) => {
+  const result = await query(
+    `UPDATE tenants SET dual_signature_enabled = $1 WHERE id = $2 RETURNING id, name, dual_signature_enabled`,
+    [enabled, tenantId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new Error('Tenant no encontrado');
+  }
+
+  // Registrar en auditoría
+  await logAuditEntry({
+    tenantId,
+    entityType: 'tenant_config',
+    entityId: tenantId,
+    action: enabled ? 'dual_signature_enabled' : 'dual_signature_disabled',
+    decidedBy: userId,
+    operationDetails: { dual_signature_enabled: enabled }
+  });
 
   return result.rows[0];
 };
@@ -411,9 +438,18 @@ const signWithFideitecWallet = async (message) => {
 };
 
 /**
- * Aplicar doble firma a un certificado
+ * Aplicar firma(s) a un certificado
+ * Si dual_signature_enabled está activo, firma con tenant + Fideitec
+ * Si no, solo firma con Fideitec
  */
 const applyDualSignature = async (certificateId, tenantId) => {
+  // Verificar si la doble firma está habilitada para este tenant
+  const tenantResult = await query(
+    `SELECT dual_signature_enabled FROM tenants WHERE id = $1`,
+    [tenantId]
+  );
+  const dualSignatureEnabled = tenantResult.rows[0]?.dual_signature_enabled || false;
+
   // Obtener datos del certificado
   const certResult = await query(
     `SELECT * FROM token_certificates WHERE id = $1`,
@@ -436,20 +472,24 @@ const applyDualSignature = async (certificateId, tenantId) => {
     }))
     .digest('hex');
 
-  // Firma del tenant
+  // Firma del tenant (solo si doble firma está habilitada)
   let tenantSignature = null;
-  try {
-    tenantSignature = await signWithTenantWallet(tenantId, messageToSign);
-  } catch (error) {
-    console.warn('No se pudo obtener firma del tenant:', error.message);
+  if (dualSignatureEnabled) {
+    try {
+      tenantSignature = await signWithTenantWallet(tenantId, messageToSign);
+      console.log('✅ Firma del tenant aplicada');
+    } catch (error) {
+      console.warn('⚠️ No se pudo obtener firma del tenant:', error.message);
+    }
   }
 
-  // Firma de Fideitec
+  // Firma de Fideitec (siempre se aplica)
   let fideitecSignature = null;
   try {
     fideitecSignature = await signWithFideitecWallet(messageToSign);
+    console.log('✅ Firma de Fideitec aplicada');
   } catch (error) {
-    console.warn('No se pudo obtener firma de Fideitec:', error.message);
+    console.warn('⚠️ No se pudo obtener firma de Fideitec:', error.message);
   }
 
   // Actualizar certificado con las firmas
@@ -470,16 +510,18 @@ const applyDualSignature = async (certificateId, tenantId) => {
       fideitecSignature?.signature,
       fideitecSignature?.address,
       fideitecSignature ? new Date() : null,
-      !!(tenantSignature && fideitecSignature),
+      dualSignatureEnabled ? !!(tenantSignature && fideitecSignature) : !!fideitecSignature,
       certificateId
     ]
   );
 
   return {
     success: true,
+    mode: dualSignatureEnabled ? 'dual' : 'fideitec_only',
     tenantSigned: !!tenantSignature,
     fideitecSigned: !!fideitecSignature,
-    dualSignatureVerified: !!(tenantSignature && fideitecSignature),
+    dualSignatureEnabled,
+    dualSignatureVerified: dualSignatureEnabled ? !!(tenantSignature && fideitecSignature) : !!fideitecSignature,
     signatures: {
       tenant: tenantSignature ? {
         address: tenantSignature.address,
@@ -625,6 +667,7 @@ module.exports = {
   configureTenantWallet,
   getTenantWalletConfig,
   getTenantWallet,
+  toggleDualSignature,
   
   // Aprobación
   createPendingOperation,
@@ -632,7 +675,7 @@ module.exports = {
   approveOperation,
   rejectOperation,
   
-  // Doble firma
+  // Firma (Fideitec siempre, tenant opcional)
   signWithTenantWallet,
   signWithFideitecWallet,
   applyDualSignature,
