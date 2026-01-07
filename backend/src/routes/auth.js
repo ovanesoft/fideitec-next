@@ -87,46 +87,54 @@ router.get('/google/callback', async (req, res) => {
     return res.status(204).end();
   }
 
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
+  
+  // Verificar si viene del portal de clientes
+  let stateData = {};
+  if (state) {
+    try {
+      stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+    } catch (e) {
+      console.log('State decode error (normal for enterprise login):', e.message);
+    }
+  }
+  
+  const isClientPortal = stateData.type === 'client_portal';
+  const portalToken = stateData.portal_token;
+  
+  // URLs de redirección según el origen
+  const errorRedirectUrl = isClientPortal 
+    ? `${process.env.FRONTEND_URL}/portal/${portalToken}/login`
+    : `${process.env.FRONTEND_URL}/login`;
   
   if (error) {
     console.log('Google OAuth error:', error);
-    return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_denied`);
+    return res.redirect(`${errorRedirectUrl}?error=google_denied`);
   }
 
   if (!code) {
-    return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_code`);
+    return res.redirect(`${errorRedirectUrl}?error=no_code`);
   }
 
   try {
-    // DEBUG: Ver exactamente qué código recibimos
     console.log('=== GOOGLE OAUTH DEBUG ===');
-    console.log('Raw query string:', req.originalUrl);
-    console.log('Parsed code:', code);
-    console.log('Code length:', code.length);
-    console.log('Redirect URI:', process.env.GOOGLE_CALLBACK_URL.trim());
+    console.log('Is Client Portal:', isClientPortal);
+    console.log('Portal Token:', portalToken);
     
-    // Usar el código TAL CUAL viene en la URL original, sin decodificar
     const urlParams = new URL(req.originalUrl, `https://${req.headers.host}`).searchParams;
     const rawCode = urlParams.get('code');
-    console.log('Raw code from URL:', rawCode);
 
-    // Intercambiar código por tokens usando fetch nativo
     const bodyParams = new URLSearchParams({
-      code: rawCode, // Usar el código sin modificar
+      code: rawCode,
       client_id: process.env.GOOGLE_CLIENT_ID.trim(),
       client_secret: process.env.GOOGLE_CLIENT_SECRET.trim(),
       redirect_uri: process.env.GOOGLE_CALLBACK_URL.trim(),
       grant_type: 'authorization_code',
     });
-    
-    console.log('Sending to Google:', bodyParams.toString().substring(0, 100) + '...');
 
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: bodyParams,
     });
 
@@ -134,23 +142,92 @@ router.get('/google/callback', async (req, res) => {
     
     if (tokenData.error) {
       console.error('Google token error:', tokenData);
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
+      return res.redirect(`${errorRedirectUrl}?error=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
     }
 
-    // Obtener información del usuario
     const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`,
-      },
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
 
     const googleUser = await userInfoResponse.json();
-    console.log('Google user:', googleUser.email);
-
-    // Buscar o crear usuario en nuestra base de datos
-    const { query } = require('../config/database');
     const email = googleUser.email.toLowerCase();
+    console.log('Google user:', email);
 
+    const { query } = require('../config/database');
+
+    // ========================================
+    // FLUJO PARA PORTAL DE CLIENTES
+    // ========================================
+    if (isClientPortal && portalToken) {
+      const jwt = require('jsonwebtoken');
+      const crypto = require('crypto');
+      
+      // Verificar que el portal existe
+      const tenantResult = await query(
+        `SELECT id, name, client_portal_enabled FROM tenants WHERE client_portal_token = $1`,
+        [portalToken]
+      );
+      
+      if (tenantResult.rows.length === 0 || !tenantResult.rows[0].client_portal_enabled) {
+        return res.redirect(`${errorRedirectUrl}?error=portal_not_found`);
+      }
+      
+      const tenant = tenantResult.rows[0];
+      console.log('Portal OAuth - Tenant:', tenant.name);
+
+      // Buscar o crear cliente
+      let clientResult = await query(
+        `SELECT * FROM clients WHERE tenant_id = $1 AND (LOWER(email) = $2 OR google_id = $3)`,
+        [tenant.id, email, googleUser.id]
+      );
+
+      let client = clientResult.rows[0];
+
+      if (client) {
+        if (!client.google_id) {
+          await query(
+            `UPDATE clients SET google_id = $1, email_verified = true WHERE id = $2`,
+            [googleUser.id, client.id]
+          );
+        }
+      } else {
+        const insertResult = await query(
+          `INSERT INTO clients (
+            tenant_id, email, first_name, last_name, google_id,
+            auth_provider, email_verified, is_active, kyc_status
+          ) VALUES ($1, $2, $3, $4, $5, 'google', true, true, 'pending')
+          RETURNING *`,
+          [tenant.id, email, googleUser.given_name || 'Usuario', googleUser.family_name || '', googleUser.id]
+        );
+        client = insertResult.rows[0];
+      }
+
+      // Generar tokens JWT para cliente
+      const accessToken = jwt.sign(
+        { clientId: client.id, tenantId: tenant.id, type: 'client' },
+        process.env.JWT_SECRET,
+        { expiresIn: '15m' }
+      );
+      
+      const refreshToken = jwt.sign(
+        { clientId: client.id, tenantId: tenant.id, type: 'client_refresh' },
+        process.env.JWT_REFRESH_SECRET,
+        { expiresIn: '7d' }
+      );
+      
+      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      await query(
+        `INSERT INTO client_refresh_tokens (client_id, token_hash, expires_at, ip_address)
+         VALUES ($1, $2, NOW() + INTERVAL '7 days', $3)`,
+        [client.id, tokenHash, req.ip]
+      );
+
+      return res.redirect(`${process.env.FRONTEND_URL}/portal/${portalToken}/dashboard?token=${accessToken}&refresh=${refreshToken}`);
+    }
+
+    // ========================================
+    // FLUJO PARA USUARIOS DE EMPRESA (original)
+    // ========================================
     let result = await query(
       'SELECT * FROM users WHERE LOWER(email) = $1 OR google_id = $2',
       [email, googleUser.id]
@@ -159,7 +236,6 @@ router.get('/google/callback', async (req, res) => {
     let user = result.rows[0];
 
     if (user) {
-      // Usuario existe, actualizar google_id si no lo tiene
       if (!user.google_id) {
         await query(
           'UPDATE users SET google_id = $1, email_verified = true WHERE id = $2',
@@ -167,7 +243,6 @@ router.get('/google/callback', async (req, res) => {
         );
       }
     } else {
-      // Crear nuevo usuario
       const insertResult = await query(
         `INSERT INTO users (
           email, first_name, last_name, google_id, 
@@ -179,13 +254,12 @@ router.get('/google/callback', async (req, res) => {
       user = insertResult.rows[0];
     }
 
-    // Pasar el usuario al controlador de OAuth
     req.user = user;
     return authController.oauthCallback(req, res);
 
   } catch (err) {
     console.error('Google OAuth error:', err);
-    return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(err.message)}`);
+    return res.redirect(`${errorRedirectUrl}?error=${encodeURIComponent(err.message)}`);
   }
 });
 
