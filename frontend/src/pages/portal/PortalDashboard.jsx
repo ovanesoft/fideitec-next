@@ -88,6 +88,9 @@ const PortalDashboard = () => {
   const [purchasing, setPurchasing] = useState(false);
   const [purchaseResult, setPurchaseResult] = useState(null);
 
+  // Estado para polling y detección de cambios
+  const [previousPendingCount, setPreviousPendingCount] = useState(0);
+
   // Redirigir si no está autenticado
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -128,6 +131,51 @@ const PortalDashboard = () => {
       loadClientData();
     }
   }, [isAuthenticated, client?.id, loadClientData]);
+
+  // Polling automático cuando hay órdenes pendientes
+  useEffect(() => {
+    // Solo hacer polling si hay órdenes pendientes
+    const currentPendingCount = orders.filter(o => o.status === 'pending_approval').length;
+    
+    // Detectar si una orden pendiente fue procesada (completada o rechazada)
+    if (previousPendingCount > 0 && currentPendingCount < previousPendingCount) {
+      // Buscar si hay nuevas órdenes completadas
+      const newCompletedOrders = orders.filter(o => 
+        o.status === 'completed' && 
+        new Date(o.completed_at) > new Date(Date.now() - 30000) // últimos 30 segundos
+      );
+      
+      if (newCompletedOrders.length > 0) {
+        toast.success('🎉 ¡Tu compra ha sido aprobada! Revisa tus certificados.', {
+          duration: 6000,
+          icon: '✅'
+        });
+      }
+      
+      // Buscar si hay nuevas órdenes rechazadas
+      const newRejectedOrders = orders.filter(o => 
+        o.status === 'rejected' && 
+        new Date(o.rejected_at) > new Date(Date.now() - 30000)
+      );
+      
+      if (newRejectedOrders.length > 0) {
+        toast.error('Tu solicitud de compra fue rechazada. Revisa los detalles.', {
+          duration: 6000
+        });
+      }
+    }
+    
+    setPreviousPendingCount(currentPendingCount);
+    
+    // Configurar polling si hay órdenes pendientes
+    if (currentPendingCount > 0 && isAuthenticated && client?.id) {
+      const pollInterval = setInterval(() => {
+        loadClientData();
+      }, 15000); // Polling cada 15 segundos
+      
+      return () => clearInterval(pollInterval);
+    }
+  }, [orders, previousPendingCount, isAuthenticated, client?.id, loadClientData]);
 
   // Cargar tokens disponibles para comprar
   const loadAvailableTokens = useCallback(async () => {

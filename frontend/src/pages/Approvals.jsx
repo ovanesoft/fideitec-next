@@ -93,6 +93,10 @@ const Approvals = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  
+  // Modal de resultado de aprobación
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [approvalResult, setApprovalResult] = useState(null);
 
   // Cargar datos
   const loadData = useCallback(async () => {
@@ -139,37 +143,58 @@ const Approvals = () => {
     }
   }, [activeTab]);
 
-  // Aprobar operación
-  const handleApprove = async (orderId) => {
+  // Aprobar y Firmar (todo en un solo paso)
+  const handleApproveAndSign = async (orderId, orderInfo) => {
     try {
       setProcessingId(orderId);
+      
+      // Paso 1: Aprobar
       await api.post(`/approvals/${orderId}/approve`, {
         notes: 'Aprobado desde panel de administración'
       });
       
-      toast.success('✅ Operación aprobada. Proceda con la ejecución.');
-      loadData();
+      // Paso 2: Ejecutar (genera certificado, blockchain, envía email)
+      const res = await api.post(`/approvals/${orderId}/execute`);
+      
+      if (res.data.success) {
+        // Guardar resultado y mostrar modal
+        setApprovalResult({
+          success: true,
+          orderInfo,
+          data: res.data.data
+        });
+        setShowResultModal(true);
+        
+        toast.success('🎉 ¡Operación aprobada y firmada exitosamente!');
+        loadData();
+      }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Error al aprobar');
+      console.error('Error en aprobar y firmar:', error);
+      toast.error(error.response?.data?.message || 'Error al procesar la operación');
+      
+      // Si falló después de aprobar, recargar para mostrar estado actual
+      loadData();
     } finally {
       setProcessingId(null);
     }
   };
   
-  // Ejecutar operación aprobada
-  const handleExecute = async (orderId) => {
+  // Ejecutar operación ya aprobada (para órdenes que quedaron en estado approved)
+  const handleExecute = async (orderId, orderInfo) => {
     try {
       setProcessingId(orderId);
       const res = await api.post(`/approvals/${orderId}/execute`);
       
       if (res.data.success) {
-        toast.success('🎉 Operación ejecutada exitosamente');
+        // Guardar resultado y mostrar modal
+        setApprovalResult({
+          success: true,
+          orderInfo,
+          data: res.data.data
+        });
+        setShowResultModal(true);
         
-        // Mostrar info de la firma dual si existe
-        if (res.data.data?.dualSignature?.dualSignatureVerified) {
-          toast.success('🔐 Certificado firmado con doble firma (Tenant + Fideitec)');
-        }
-        
+        toast.success('🎉 ¡Operación ejecutada exitosamente!');
         loadData();
       }
     } catch (error) {
@@ -416,16 +441,16 @@ const Approvals = () => {
                       {approval.status === 'pending_approval' && (
                         <>
                           <button
-                            onClick={() => handleApprove(approval.id)}
+                            onClick={() => handleApproveAndSign(approval.id, approval)}
                             disabled={processingId === approval.id}
-                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 font-medium"
                           >
                             {processingId === approval.id ? (
                               <RefreshCw className="w-4 h-4 animate-spin" />
                             ) : (
-                              <CheckCircle2 className="w-4 h-4" />
+                              <ShieldCheck className="w-4 h-4" />
                             )}
-                            Aprobar
+                            Aprobar y Firmar
                           </button>
                           <button
                             onClick={() => {
@@ -443,7 +468,7 @@ const Approvals = () => {
                       
                       {approval.status === 'approved' && (
                         <button
-                          onClick={() => handleExecute(approval.id)}
+                          onClick={() => handleExecute(approval.id, approval)}
                           disabled={processingId === approval.id}
                           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                         >
@@ -452,7 +477,7 @@ const Approvals = () => {
                           ) : (
                             <Play className="w-4 h-4" />
                           )}
-                          Ejecutar
+                          Ejecutar Pendiente
                         </button>
                       )}
                     </div>
@@ -925,6 +950,194 @@ const Approvals = () => {
                   Confirmar Rechazo
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de resultado de aprobación */}
+      {showResultModal && approvalResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            {/* Header con gradiente */}
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                    <CheckCircle2 className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="text-white">
+                    <h2 className="text-2xl font-bold">¡Operación Completada!</h2>
+                    <p className="text-white/80">Token emitido y registrado en blockchain</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowResultModal(false);
+                    setApprovalResult(null);
+                  }}
+                  className="text-white/80 hover:text-white"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Info del cliente y orden */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 uppercase mb-1">Cliente</p>
+                  <p className="font-semibold text-gray-900">{approvalResult.orderInfo?.client_name || '-'}</p>
+                  <p className="text-sm text-gray-500">{approvalResult.orderInfo?.client_document || '-'}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 uppercase mb-1">Orden</p>
+                  <p className="font-mono font-semibold text-gray-900">{approvalResult.orderInfo?.order_number || '-'}</p>
+                  <p className="text-sm text-gray-500">
+                    {approvalResult.orderInfo?.order_type === 'buy' ? 'Compra' : 'Venta'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Info del token */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <Coins className="w-6 h-6 text-blue-600" />
+                  <h3 className="font-semibold text-blue-900">Token Emitido</h3>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs text-blue-600 uppercase">Token</p>
+                    <p className="font-semibold text-gray-900">{approvalResult.orderInfo?.token_name || '-'}</p>
+                    <p className="text-sm text-gray-500 font-mono">{approvalResult.orderInfo?.token_symbol || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-blue-600 uppercase">Cantidad</p>
+                    <p className="font-bold text-2xl text-gray-900">{approvalResult.orderInfo?.token_amount || 0}</p>
+                    <p className="text-sm text-gray-500">cuotas partes</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-blue-600 uppercase">Valor Total</p>
+                    <p className="font-bold text-xl text-green-600">
+                      {formatCurrency(approvalResult.orderInfo?.total_amount, approvalResult.orderInfo?.currency)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Certificado */}
+              {approvalResult.data?.certificate && (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <FileText className="w-6 h-6 text-purple-600" />
+                    <h3 className="font-semibold text-purple-900">Certificado Generado</h3>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-purple-600 uppercase">Número de Certificado</p>
+                      <p className="font-mono font-bold text-xl text-gray-900">
+                        {approvalResult.data.certificate.certificate_number || '-'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                        ✓ Emitido
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Blockchain */}
+              {approvalResult.data?.blockchain && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <ShieldCheck className="w-6 h-6 text-amber-600" />
+                    <h3 className="font-semibold text-amber-900">Registro en Blockchain</h3>
+                    <span className="px-2 py-0.5 bg-amber-200 text-amber-800 rounded-full text-xs font-medium">
+                      {approvalResult.data.blockchain.network || 'Base'}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="bg-white rounded-lg p-3">
+                      <p className="text-xs text-gray-500 uppercase mb-1">Transaction Hash</p>
+                      <div className="flex items-center gap-2">
+                        <code className="text-sm font-mono text-gray-800 flex-1 truncate">
+                          {approvalResult.data.blockchain.txHash || '-'}
+                        </code>
+                        {approvalResult.data.blockchain.txHash && (
+                          <CopyButton text={approvalResult.data.blockchain.txHash} />
+                        )}
+                      </div>
+                    </div>
+                    
+                    {approvalResult.data.blockchain.explorerLink && (
+                      <a
+                        href={approvalResult.data.blockchain.explorerLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors font-medium"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Ver en BaseScan
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Doble firma */}
+              {approvalResult.data?.dualSignature && (
+                <div className={`rounded-xl p-4 ${
+                  approvalResult.data.dualSignature.dualSignatureVerified 
+                    ? 'bg-green-50 border border-green-200' 
+                    : 'bg-gray-50 border border-gray-200'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <Lock className={`w-6 h-6 ${
+                      approvalResult.data.dualSignature.dualSignatureVerified 
+                        ? 'text-green-600' 
+                        : 'text-gray-500'
+                    }`} />
+                    <div>
+                      <h3 className={`font-semibold ${
+                        approvalResult.data.dualSignature.dualSignatureVerified 
+                          ? 'text-green-900' 
+                          : 'text-gray-700'
+                      }`}>
+                        {approvalResult.data.dualSignature.mode === 'dual' 
+                          ? 'Doble Firma Aplicada' 
+                          : 'Firma Fideitec'}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {approvalResult.data.dualSignature.tenantSigned && 'Tenant ✓ '}
+                        {approvalResult.data.dualSignature.fideitecSigned && 'Fideitec ✓'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notificación al cliente */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
+                <Bell className="w-5 h-5 text-blue-600" />
+                <p className="text-sm text-blue-800">
+                  Se ha enviado un email de notificación al cliente con los detalles de la operación.
+                </p>
+              </div>
+
+              {/* Botón cerrar */}
+              <button
+                onClick={() => {
+                  setShowResultModal(false);
+                  setApprovalResult(null);
+                }}
+                className="w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium"
+              >
+                Cerrar
+              </button>
             </div>
           </div>
         </div>
