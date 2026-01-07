@@ -266,12 +266,12 @@ const completeBuyOrder = async (orderId, processedBy) => {
        LEFT JOIN assets a ON ta.asset_id = a.id
        LEFT JOIN asset_units au ON ta.asset_unit_id = au.id
        LEFT JOIN trusts t ON ta.trust_id = t.id
-       WHERE o.id = $1 AND o.status = 'payment_received'`,
+       WHERE o.id = $1 AND o.status IN ('payment_received', 'approved')`,
       [orderId]
     );
 
     if (orderResult.rows.length === 0) {
-      throw new Error('Orden no encontrada o el pago no ha sido confirmado');
+      throw new Error('Orden no encontrada o no está lista para procesar');
     }
 
     const order = orderResult.rows[0];
