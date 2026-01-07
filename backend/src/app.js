@@ -28,6 +28,7 @@ const trustRoutes = require('./routes/trusts');
 const assetRoutes = require('./routes/assets');
 const unitRoutes = require('./routes/units');
 const tokenizationRoutes = require('./routes/tokenization');
+const approvalRoutes = require('./routes/approvals');
 
 const app = express();
 
@@ -646,6 +647,7 @@ app.use('/api/trusts', trustRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/units', unitRoutes);
 app.use('/api/tokenization', tokenizationRoutes);
+app.use('/api/approvals', approvalRoutes);
 
 // ===========================================
 // Ruta raíz

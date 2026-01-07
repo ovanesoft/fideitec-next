@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   LogOut, User, Building2, Users, Settings, Bell, 
   ChevronDown, Menu, X, Shield, Mail,
-  LayoutDashboard, Zap, UserCheck, Truck, Building, FileText, Coins
+  LayoutDashboard, Zap, UserCheck, Truck, Building, FileText, Coins, ShieldCheck
 } from 'lucide-react';
 
 const APP_VERSION = '1.17';
@@ -45,6 +45,7 @@ const DashboardLayout = () => {
     { name: 'Fideicomisos', icon: FileText, href: '/trusts' },
     { name: 'Activos', icon: Building, href: '/assets' },
     { name: 'Tokenización', icon: Coins, href: '/tokenization' },
+    { name: 'Aprobaciones', icon: ShieldCheck, href: '/approvals' },
     { name: 'Clientes', icon: UserCheck, href: '/clients' },
     { name: 'Proveedores', icon: Truck, href: '/suppliers' },
     { name: 'Configuración', icon: Settings, href: '#' },

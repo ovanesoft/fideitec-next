@@ -30,7 +30,8 @@ const createBuyOrder = async (params) => {
       clientId,
       tokenAmount,
       paymentMethod,
-      notes
+      notes,
+      status = 'pending_approval' // Por defecto requiere aprobación
     } = params;
 
     await dbClient.query('BEGIN');
@@ -71,13 +72,13 @@ const createBuyOrder = async (params) => {
         tenant_id, tokenized_asset_id, client_id, order_type,
         order_number, token_amount, price_per_token, subtotal,
         fees, taxes, total_amount, currency, payment_method,
-        status, notes
-      ) VALUES ($1, $2, $3, 'buy', $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', $13)
+        status, requires_approval, notes
+      ) VALUES ($1, $2, $3, 'buy', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true, $14)
       RETURNING *`,
       [
         tenantId, tokenizedAssetId, clientId, orderNumber,
         tokenAmount, pricePerToken, subtotal, fees, taxes, totalAmount,
-        asset.currency || 'ARS', paymentMethod, notes
+        asset.currency || 'ARS', paymentMethod, status, notes
       ]
     );
 
@@ -112,7 +113,8 @@ const createSellOrder = async (params) => {
       bankAccountType,
       bankAccountNumber,
       bankCbuAlias,
-      notes
+      notes,
+      status = 'pending_approval' // Por defecto requiere aprobación
     } = params;
 
     await dbClient.query('BEGIN');
@@ -157,14 +159,14 @@ const createSellOrder = async (params) => {
         order_number, token_amount, price_per_token, subtotal,
         fees, taxes, total_amount, currency, payment_method,
         bank_name, bank_account_type, bank_account_number, bank_cbu_alias,
-        status, notes
-      ) VALUES ($1, $2, $3, 'sell', $4, $5, $6, $7, $8, $9, $10, $11, 'bank_transfer', $12, $13, $14, $15, 'pending', $16)
+        status, requires_approval, notes
+      ) VALUES ($1, $2, $3, 'sell', $4, $5, $6, $7, $8, $9, $10, $11, 'bank_transfer', $12, $13, $14, $15, $16, true, $17)
       RETURNING *`,
       [
         tenantId, tokenizedAssetId, clientId, orderNumber,
         tokenAmount, pricePerToken, subtotal, fees, taxes, totalAmount,
         holder.currency || 'ARS', bankName, bankAccountType, bankAccountNumber,
-        bankCbuAlias, notes
+        bankCbuAlias, status, notes
       ]
     );
 

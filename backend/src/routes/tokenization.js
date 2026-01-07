@@ -7,9 +7,11 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { checkOperationLimit, registerOperation } = require('../middleware/operationLimit');
 const tokenizationController = require('../controllers/tokenizationController');
 const orderService = require('../services/orderService');
 const certificateService = require('../services/certificateService');
+const approvalService = require('../services/approvalService');
 
 // Todas las rutas requieren autenticación
 router.use(authenticateToken);
@@ -105,9 +107,11 @@ router.post(
  * POST /api/tokenization/assets/:id/transfer
  * Transferir/Endosar tokens a un cliente (admin manual)
  * Body: { client_id, amount, reason?, reference_id? }
+ * NOTA: Esta operación está sujeta a rate limiting (3/hora)
  */
 router.post(
   '/assets/:id/transfer',
+  checkOperationLimit,
   requireRole(['admin', 'root', 'manager']),
   tokenizationController.transferToClient
 );
@@ -202,24 +206,52 @@ router.get('/orders/:id', async (req, res) => {
 
 /**
  * POST /api/tokenization/orders/buy
- * Crear orden de compra
+ * Crear orden de compra (queda pendiente de aprobación)
  * Body: { tokenizedAssetId, clientId, tokenAmount, paymentMethod, notes? }
  */
-router.post('/orders/buy', requireRole(['admin', 'root', 'manager']), async (req, res) => {
+router.post('/orders/buy', checkOperationLimit, requireRole(['admin', 'root', 'manager']), async (req, res) => {
   try {
     const { tokenizedAssetId, clientId, tokenAmount, paymentMethod, notes } = req.body;
+    const tenantId = req.user.tenant_id;
+    const userId = req.user.id;
+
+    // Crear orden
     const order = await orderService.createBuyOrder({
-      tenantId: req.user.tenant_id,
+      tenantId,
       tokenizedAssetId,
       clientId,
       tokenAmount: parseInt(tokenAmount),
       paymentMethod,
-      notes
+      notes,
+      status: 'pending_approval' // Crear como pendiente
     });
+
+    // Registrar operación para rate limiting
+    await registerOperation(tenantId, userId, 'buy_order');
+
+    // Registrar en auditoría
+    await approvalService.logAuditEntry({
+      tenantId,
+      entityType: 'token_order',
+      entityId: order.id,
+      action: 'created',
+      newStatus: 'pending_approval',
+      requestedBy: userId,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      operationDetails: {
+        orderType: 'buy',
+        tokenAmount: parseInt(tokenAmount),
+        clientId
+      }
+    });
+
     res.status(201).json({
       success: true,
-      message: 'Orden de compra creada',
-      data: order
+      message: '🔔 Orden de compra creada y pendiente de aprobación',
+      data: order,
+      operationsRemaining: req.operationsRemaining,
+      requiresApproval: true
     });
   } catch (error) {
     console.error('Error creando orden de compra:', error);
@@ -229,26 +261,53 @@ router.post('/orders/buy', requireRole(['admin', 'root', 'manager']), async (req
 
 /**
  * POST /api/tokenization/orders/sell
- * Crear orden de venta
+ * Crear orden de venta (queda pendiente de aprobación)
  * Body: { tokenizedAssetId, clientId, tokenAmount, bankName, bankAccountNumber, etc. }
  */
-router.post('/orders/sell', requireRole(['admin', 'root', 'manager']), async (req, res) => {
+router.post('/orders/sell', checkOperationLimit, requireRole(['admin', 'root', 'manager']), async (req, res) => {
   try {
     const { 
       tokenizedAssetId, clientId, tokenAmount,
       bankName, bankAccountType, bankAccountNumber, bankCbuAlias, notes 
     } = req.body;
+    const tenantId = req.user.tenant_id;
+    const userId = req.user.id;
+
     const order = await orderService.createSellOrder({
-      tenantId: req.user.tenant_id,
+      tenantId,
       tokenizedAssetId,
       clientId,
       tokenAmount: parseInt(tokenAmount),
-      bankName, bankAccountType, bankAccountNumber, bankCbuAlias, notes
+      bankName, bankAccountType, bankAccountNumber, bankCbuAlias, notes,
+      status: 'pending_approval' // Crear como pendiente
     });
+
+    // Registrar operación para rate limiting
+    await registerOperation(tenantId, userId, 'sell_order');
+
+    // Registrar en auditoría
+    await approvalService.logAuditEntry({
+      tenantId,
+      entityType: 'token_order',
+      entityId: order.id,
+      action: 'created',
+      newStatus: 'pending_approval',
+      requestedBy: userId,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      operationDetails: {
+        orderType: 'sell',
+        tokenAmount: parseInt(tokenAmount),
+        clientId
+      }
+    });
+
     res.status(201).json({
       success: true,
-      message: 'Orden de venta creada',
-      data: order
+      message: '🔔 Orden de venta creada y pendiente de aprobación',
+      data: order,
+      operationsRemaining: req.operationsRemaining,
+      requiresApproval: true
     });
   } catch (error) {
     console.error('Error creando orden de venta:', error);
@@ -513,22 +572,21 @@ router.post('/certificates/:id/certify-blockchain', requireRole(['admin', 'root'
 
 /**
  * POST /api/tokenization/instant-buy
- * Compra instantánea de tokens con certificación blockchain
+ * Compra instantánea de tokens (AHORA REQUIERE APROBACIÓN)
  * 
- * Este endpoint hace todo el flujo en un solo paso:
- * 1. Crea la orden
- * 2. Confirma el pago automáticamente
- * 3. Transfiere los tokens
- * 4. Genera el certificado
- * 5. Ancla el hash en blockchain
- * 6. Devuelve el certificado completo
+ * Este endpoint crea la orden como PENDIENTE DE APROBACIÓN.
+ * El flujo completo se ejecuta cuando el admin aprueba.
+ * 
+ * Flujo:
+ * 1. Crea la orden como pending_approval
+ * 2. Aparece en el dashboard como alerta
+ * 3. Admin aprueba y ejecuta
+ * 4. Se transfieren tokens, genera certificado, doble firma, blockchain
  * 
  * Body: { tokenizedAssetId, clientId, tokenAmount }
  */
-router.post('/instant-buy', async (req, res) => {
+router.post('/instant-buy', checkOperationLimit, async (req, res) => {
   const { getClient } = require('../config/database');
-  const blockchainService = require('../services/blockchainService');
-  const { checkConfiguration, DEFAULT_NETWORK } = require('../config/blockchain');
   
   const dbClient = await getClient();
   
@@ -537,7 +595,7 @@ router.post('/instant-buy', async (req, res) => {
     const tenantId = req.user.tenant_id;
     const userId = req.user.id;
 
-    console.log('🛒 Iniciando compra instantánea...');
+    console.log('🛒 Creando orden de compra (pendiente de aprobación)...');
 
     // Validaciones
     if (!tokenizedAssetId || !clientId || !tokenAmount) {
@@ -592,7 +650,7 @@ router.post('/instant-buy', async (req, res) => {
     const pricePerToken = parseFloat(asset.token_price);
     const totalAmount = pricePerToken * tokenAmount;
 
-    // 4. Crear orden
+    // 4. Crear orden como PENDIENTE DE APROBACIÓN
     const orderNumberResult = await dbClient.query(
       `SELECT generate_order_number($1, 'buy') as order_number`,
       [tenantId]
@@ -604,194 +662,75 @@ router.post('/instant-buy', async (req, res) => {
         tenant_id, tokenized_asset_id, client_id, order_type,
         order_number, token_amount, price_per_token, subtotal,
         fees, taxes, total_amount, currency, payment_method,
-        status, payment_reference, payment_date, payment_confirmed_at,
-        processed_by
+        status, requires_approval, created_by
       ) VALUES ($1, $2, $3, 'buy', $4, $5, $6, $7, 0, 0, $7, $8, 'instant', 
-        'payment_received', 'INSTANT-' || $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $9)
+        'pending_approval', true, $9)
       RETURNING *`,
       [tenantId, tokenizedAssetId, clientId, orderNumber, tokenAmount, pricePerToken, 
        totalAmount, asset.currency || 'USD', userId]
     );
     const order = orderResult.rows[0];
-    console.log(`✅ Orden creada: ${orderNumber}`);
-
-    // 5. Obtener o crear holder del cliente
-    let holderResult = await dbClient.query(
-      `SELECT id FROM token_holders WHERE tokenized_asset_id = $1 AND client_id = $2`,
-      [tokenizedAssetId, clientId]
-    );
-
-    let clientHolderId;
-    if (holderResult.rows.length === 0) {
-      const newHolder = await dbClient.query(
-        `INSERT INTO token_holders (tenant_id, tokenized_asset_id, holder_type, client_id, balance)
-         VALUES ($1, $2, 'client', $3, 0) RETURNING id`,
-        [tenantId, tokenizedAssetId, clientId]
-      );
-      clientHolderId = newHolder.rows[0].id;
-    } else {
-      clientHolderId = holderResult.rows[0].id;
-    }
-
-    // 6. Obtener holder de Fideitec
-    const fideitecHolder = await dbClient.query(
-      `SELECT id FROM token_holders WHERE tokenized_asset_id = $1 AND holder_type = 'fideitec'`,
-      [tokenizedAssetId]
-    );
-
-    // 7. Registrar transacción de transferencia
-    const txResult = await dbClient.query(
-      `INSERT INTO token_transactions (
-        tenant_id, tokenized_asset_id, transaction_type,
-        from_holder_id, to_holder_id, amount, blockchain,
-        status, reason, reference_id, initiated_by, confirmed_at
-      ) VALUES ($1, $2, 'transfer', $3, $4, $5, 'internal', 'confirmed', 
-        'Compra instantánea - Orden ' || $6, $6, $7, CURRENT_TIMESTAMP)
-      RETURNING *`,
-      [tenantId, tokenizedAssetId, fideitecHolder.rows[0].id, clientHolderId,
-       tokenAmount, orderNumber, userId]
-    );
-    console.log(`✅ Transferencia registrada`);
-
-    // 8. Generar certificado
-    const certNumberResult = await dbClient.query(
-      'SELECT generate_certificate_number($1) as cert_number',
-      [tenantId]
-    );
-    const certificateNumber = certNumberResult.rows[0].cert_number;
-    const verificationCode = require('crypto').randomBytes(32).toString('hex');
-
-    const certResult = await dbClient.query(
-      `INSERT INTO token_certificates (
-        tenant_id, tokenized_asset_id, client_id, token_holder_id, transaction_id,
-        certificate_number, certificate_type, title, description,
-        token_amount, token_value_at_issue, total_value_at_issue, currency,
-        endorser_name, beneficiary_name, beneficiary_document_type, 
-        beneficiary_document_number, beneficiary_address,
-        verification_code, status, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, 'ownership', $7, $8, $9, $10, $11, $12, 
-        'FIDEITEC S.A.', $13, $14, $15, $16, $17, 'active', $18)
-      RETURNING *`,
-      [
-        tenantId, tokenizedAssetId, clientId, clientHolderId, txResult.rows[0].id,
-        certificateNumber, 
-        `Certificado de Posesión - ${asset.token_name}`,
-        `Posesión de ${tokenAmount} cuotas partes del activo ${asset.asset_name}`,
-        tokenAmount, pricePerToken, totalAmount, asset.currency || 'USD',
-        `${client.first_name} ${client.last_name}`,
-        client.document_type || 'DNI',
-        client.document_number || 'N/A',
-        client.address_street || 'N/A',
-        verificationCode, userId
-      ]
-    );
-    const certificate = certResult.rows[0];
-    console.log(`✅ Certificado generado: ${certificateNumber}`);
-
-    // 9. Generar hash del certificado
-    const certificateData = {
-      certificateNumber,
-      beneficiary: `${client.first_name} ${client.last_name}`,
-      tokenName: asset.token_name,
-      tokenAmount,
-      totalValue: totalAmount,
-      issuedAt: certificate.issued_at
-    };
-    const pdfHash = require('crypto')
-      .createHash('sha256')
-      .update(JSON.stringify(certificateData))
-      .digest('hex');
-
-    await dbClient.query(
-      'UPDATE token_certificates SET pdf_hash = $1 WHERE id = $2',
-      [pdfHash, certificate.id]
-    );
-
-    // 10. Actualizar orden como completada
-    await dbClient.query(
-      `UPDATE token_orders 
-       SET status = 'completed',
-           token_transaction_id = $1,
-           certificate_id = $2,
-           tokens_transferred_at = CURRENT_TIMESTAMP,
-           completed_at = CURRENT_TIMESTAMP
-       WHERE id = $3`,
-      [txResult.rows[0].id, certificate.id, order.id]
-    );
 
     await dbClient.query('COMMIT');
-    console.log(`✅ Base de datos actualizada`);
+    console.log(`✅ Orden creada como pendiente: ${orderNumber}`);
 
-    // 11. Anclar en blockchain (fuera de la transacción DB)
-    let blockchainResult = null;
-    const config = checkConfiguration();
-    
-    if (config.isConfigured) {
-      try {
-        console.log(`⛓️ Anclando en blockchain (${DEFAULT_NETWORK})...`);
-        blockchainResult = await blockchainService.anchorCertificateHash({
-          certificateHash: pdfHash,
-          certificateId: certificate.id,
-          certificateNumber: certificateNumber
-        });
-        
-        // Actualizar certificado con info de blockchain
-        await certificateService.setCertificateBlockchainInfo(certificate.id, {
-          blockchain: DEFAULT_NETWORK,
-          txHash: blockchainResult.txHash,
-          blockNumber: blockchainResult.blockNumber,
-          timestamp: blockchainResult.timestamp
-        });
-        
-        console.log(`✅ Anclado en blockchain: ${blockchainResult.txHash}`);
-      } catch (blockchainError) {
-        console.error('⚠️ Error en blockchain (el certificado se creó pero sin anclar):', blockchainError.message);
+    // 5. Registrar operación para rate limiting
+    await registerOperation(tenantId, userId, 'instant_buy');
+
+    // 6. Registrar en auditoría
+    await approvalService.logAuditEntry({
+      tenantId,
+      entityType: 'token_order',
+      entityId: order.id,
+      action: 'created',
+      newStatus: 'pending_approval',
+      requestedBy: userId,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      operationDetails: {
+        orderNumber,
+        orderType: 'instant_buy',
+        tokenAmount: parseInt(tokenAmount),
+        totalAmount,
+        clientId,
+        clientName: `${client.first_name} ${client.last_name}`,
+        assetName: asset.asset_name,
+        tokenName: asset.token_name
       }
-    } else {
-      console.log('⚠️ Blockchain no configurada - certificado sin anclar');
-    }
+    });
 
-    // 12. Respuesta completa
+    // 7. Respuesta
     res.status(201).json({
       success: true,
-      message: blockchainResult 
-        ? '🎉 ¡Compra completada y certificada en blockchain!' 
-        : '✅ Compra completada (certificado sin anclar en blockchain)',
+      message: '🔔 Orden creada y pendiente de aprobación. Un administrador debe aprobarla para ejecutar la operación.',
+      requiresApproval: true,
       data: {
         order: {
           id: order.id,
           orderNumber: orderNumber,
-          status: 'completed',
+          status: 'pending_approval',
           tokenAmount: tokenAmount,
           pricePerToken: pricePerToken,
           totalAmount: totalAmount,
-          currency: asset.currency || 'USD'
+          currency: asset.currency || 'USD',
+          client: {
+            name: `${client.first_name} ${client.last_name}`,
+            document: client.document_number
+          },
+          asset: {
+            name: asset.asset_name,
+            tokenName: asset.token_name,
+            tokenSymbol: asset.token_symbol
+          }
         },
-        certificate: {
-          id: certificate.id,
-          certificateNumber: certificateNumber,
-          beneficiaryName: `${client.first_name} ${client.last_name}`,
-          tokenName: asset.token_name,
-          tokenSymbol: asset.token_symbol,
-          tokenAmount: tokenAmount,
-          totalValue: totalAmount,
-          verificationCode: verificationCode,
-          pdfHash: pdfHash,
-          isBlockchainCertified: !!blockchainResult,
-          blockchain: blockchainResult ? {
-            network: DEFAULT_NETWORK,
-            txHash: blockchainResult.txHash,
-            blockNumber: blockchainResult.blockNumber,
-            explorerLink: blockchainResult.explorerLink
-          } : null
-        },
-        downloadUrl: `/api/tokenization/certificates/${certificate.id}/html`
+        operationsRemaining: req.operationsRemaining,
+        nextStep: 'Un administrador debe aprobar esta operación desde el panel de aprobaciones.'
       }
     });
 
   } catch (error) {
     await dbClient.query('ROLLBACK');
-    console.error('❌ Error en compra instantánea:', error);
+    console.error('❌ Error creando orden:', error);
     res.status(400).json({
       success: false,
       message: error.message
