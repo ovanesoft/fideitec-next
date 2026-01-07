@@ -171,7 +171,7 @@ const getTrustById = async (req, res) => {
         END as party_email,
         CASE 
           WHEN tp.party_type = 'client' THEN c.document_number
-          WHEN tp.party_type = 'supplier' THEN s.tax_id
+          WHEN tp.party_type = 'supplier' THEN s.document_number
           WHEN tp.party_type = 'external' THEN tp.external_document_number
         END as party_document
        FROM trust_parties tp
