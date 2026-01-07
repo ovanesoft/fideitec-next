@@ -437,6 +437,79 @@ app.post('/api/fix-trash-columns', async (req, res) => {
   }
 });
 
+// Debug: probar query de getTrustById directamente
+app.post('/api/debug-trust-query', async (req, res) => {
+  const { secret, trustId, tenantId } = req.body;
+  const ADMIN_SECRET = 'fdt_admin_2026_emergency';
+  if (secret !== ADMIN_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  
+  try {
+    const { pool } = require('./config/database');
+    
+    // Query 1: Obtener fideicomiso
+    const result = await pool.query(
+      `SELECT t.*, 
+              u.first_name || ' ' || u.last_name as created_by_name,
+              u2.first_name || ' ' || u2.last_name as updated_by_name
+       FROM trusts t
+       LEFT JOIN users u ON t.created_by = u.id
+       LEFT JOIN users u2 ON t.updated_by = u2.id
+       WHERE t.id = $1 AND t.tenant_id = $2`,
+      [trustId, tenantId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.json({ success: false, message: 'Trust not found', trustId, tenantId });
+    }
+    
+    const trust = result.rows[0];
+    
+    // Query 2: Partes
+    const partiesResult = await pool.query(
+      `SELECT 
+        tp.*,
+        CASE 
+          WHEN tp.party_type = 'client' THEN c.first_name || ' ' || c.last_name
+          WHEN tp.party_type = 'user' THEN u.first_name || ' ' || u.last_name
+          WHEN tp.party_type = 'supplier' THEN s.company_name
+          WHEN tp.party_type = 'external' THEN tp.external_name
+        END as party_name
+       FROM trust_parties tp
+       LEFT JOIN clients c ON tp.client_id = c.id
+       LEFT JOIN users u ON tp.user_id = u.id
+       LEFT JOIN suppliers s ON tp.supplier_id = s.id
+       WHERE tp.trust_id = $1
+       ORDER BY tp.party_role, tp.created_at`,
+      [trustId]
+    );
+    
+    // Query 3: Assets
+    const assetsResult = await pool.query(
+      `SELECT id, name, code, asset_category, asset_type, status, 
+              current_value, currency, is_tokenizable, project_stage
+       FROM assets
+       WHERE trust_id = $1 AND tenant_id = $2
+       ORDER BY created_at DESC`,
+      [trustId, tenantId]
+    );
+    
+    trust.parties = partiesResult.rows;
+    trust.assets = assetsResult.rows;
+    
+    res.json({ success: true, trust });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: error.message, 
+      detail: error.detail,
+      hint: error.hint,
+      code: error.code
+    });
+  }
+});
+
 // Debug: verificar tablas y datos de trusts
 app.post('/api/debug-trusts', async (req, res) => {
   const { secret, tenantId } = req.body;

@@ -189,7 +189,7 @@ const getTrustById = async (req, res) => {
     console.error('Error obteniendo fideicomiso:', error);
     res.status(500).json({
       success: false,
-      message: 'Error al obtener fideicomiso'
+      message: 'Error al obtener fideicomiso: ' + error.message
     });
   }
 };
