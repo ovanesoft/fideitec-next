@@ -9,6 +9,7 @@ ALTER TABLE token_orders ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP WITH TIM
 ALTER TABLE token_orders ADD COLUMN IF NOT EXISTS rejected_by UUID;
 ALTER TABLE token_orders ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE token_orders ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE token_orders ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id);
 
 -- Actualizar constraint de status para incluir nuevos estados
 ALTER TABLE token_orders DROP CONSTRAINT IF EXISTS token_orders_status_check;
