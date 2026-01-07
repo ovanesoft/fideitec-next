@@ -21,22 +21,24 @@ export const ClientAuthProvider = ({ children }) => {
         console.log('Client OAuth token detected, saving...');
         localStorage.setItem('clientAccessToken', oauthToken);
         if (oauthRefresh) {
+          console.log('Client OAuth refresh token detected, saving...');
           localStorage.setItem('clientRefreshToken', oauthRefresh);
         }
         // Limpiar sessionStorage del OAuth
         sessionStorage.removeItem('oauth_portal_token');
-        // Limpiar URL
+        // Limpiar URL (importante: hacer esto DESPUÉS de guardar los tokens)
         window.history.replaceState({}, document.title, window.location.pathname);
       }
+
+      // Esperar un tick para que localStorage se sincronice
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       const token = localStorage.getItem('clientAccessToken');
       const savedTenant = localStorage.getItem('portalTenant');
       
       if (token) {
         try {
-          // Configurar el token para las peticiones
-          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          
+          // El interceptor de axios ya lee el token de localStorage
           const response = await api.get('/portal/client/me');
           if (response.data.success) {
             setClient(response.data.data.client);
@@ -53,7 +55,6 @@ export const ClientAuthProvider = ({ children }) => {
           localStorage.removeItem('clientAccessToken');
           localStorage.removeItem('clientRefreshToken');
           localStorage.removeItem('portalTenant');
-          delete api.defaults.headers.common['Authorization'];
         }
       }
       setLoading(false);

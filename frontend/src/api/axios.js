@@ -26,15 +26,30 @@ const api = axios.create({
 
 // Detectar si estamos en el portal de clientes
 const isClientPortal = () => {
-  return window.location.pathname.includes('/portal/') && 
-         !window.location.pathname.includes('/supplier-portal/');
+  // Primero verificar por URL
+  const byUrl = window.location.pathname.includes('/portal/') && 
+                !window.location.pathname.includes('/supplier-portal/');
+  
+  // También verificar si hay tokens de cliente guardados (más confiable)
+  const hasClientToken = !!localStorage.getItem('clientAccessToken');
+  const hasCompanyToken = !!localStorage.getItem('accessToken');
+  
+  // Si la URL indica portal Y hay token de cliente, es portal
+  if (byUrl && hasClientToken) return true;
+  // Si la URL indica portal pero no hay token de cliente, aún así es portal
+  if (byUrl && !hasCompanyToken) return true;
+  
+  return false;
 };
 
 // Obtener el token correcto según el contexto
 const getToken = () => {
+  // Si estamos en el portal de clientes, usar clientAccessToken
   if (isClientPortal()) {
-    return localStorage.getItem('clientAccessToken');
+    const clientToken = localStorage.getItem('clientAccessToken');
+    if (clientToken) return clientToken;
   }
+  // Si no, usar el token de empresa
   return localStorage.getItem('accessToken');
 };
 
