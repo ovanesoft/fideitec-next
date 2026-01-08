@@ -59,7 +59,7 @@ router.get('/:portal_token/auth/google', async (req, res) => {
     });
     
     // Usar exactamente la misma URL que funciona en empresa (sin state)
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&prompt=select_account`;
     
     console.log('Portal Google OAuth - Cookie set, redirecting...');
     res.redirect(authUrl);

@@ -73,7 +73,7 @@ router.get('/google', (req, res) => {
   const redirectUri = process.env.GOOGLE_CALLBACK_URL;
   const scope = encodeURIComponent('profile email');
   
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&prompt=select_account`;
   
   res.redirect(authUrl);
 });

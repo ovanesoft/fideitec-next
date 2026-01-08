@@ -118,8 +118,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       clientSecret,
       callbackURL,
       proxy: true,
-      accessType: 'offline', // Asegura obtener refresh token si es necesario
-      prompt: 'consent'
+      prompt: 'select_account' // Solo muestra selector de cuenta, no pide permisos cada vez
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
