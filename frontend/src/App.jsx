@@ -29,6 +29,13 @@ import ClientSetup from './pages/client-portal/ClientSetup';
 import SupplierLogin from './pages/supplier-portal/SupplierLogin';
 import SupplierSetup from './pages/supplier-portal/SupplierSetup';
 import SupplierDashboard from './pages/supplier-portal/SupplierDashboard';
+// Root Admin Dashboard
+import RootAdminLayout from './pages/root-admin/RootAdminLayout';
+import RootDashboard from './pages/root-admin/RootDashboard';
+import TenantsList from './pages/root-admin/TenantsList';
+import UsersList from './pages/root-admin/UsersList';
+import BillingManagement from './pages/root-admin/BillingManagement';
+import AuditLogs from './pages/root-admin/AuditLogs';
 
 // Apply theme from localStorage (shared with landing page)
 const useTheme = () => {
@@ -96,6 +103,32 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
+// Root Admin Route Component (solo para usuarios root)
+const RootAdminRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin"></div>
+          <p className="text-slate-400">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role !== 'root') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
 function AppRoutes() {
   return (
     <Routes>
@@ -130,6 +163,19 @@ function AppRoutes() {
         <Route path="/assets" element={<Assets />} />
         <Route path="/tokenization" element={<Tokenization />} />
         <Route path="/approvals" element={<Approvals />} />
+      </Route>
+
+      {/* Root Admin Routes - Solo para usuarios root */}
+      <Route element={
+        <RootAdminRoute>
+          <RootAdminLayout />
+        </RootAdminRoute>
+      }>
+        <Route path="/root-admin" element={<RootDashboard />} />
+        <Route path="/root-admin/tenants" element={<TenantsList />} />
+        <Route path="/root-admin/users" element={<UsersList />} />
+        <Route path="/root-admin/billing" element={<BillingManagement />} />
+        <Route path="/root-admin/audit-logs" element={<AuditLogs />} />
       </Route>
 
       {/* Redirect root to login or dashboard */}

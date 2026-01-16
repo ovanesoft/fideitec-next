@@ -29,6 +29,7 @@ const assetRoutes = require('./routes/assets');
 const unitRoutes = require('./routes/units');
 const tokenizationRoutes = require('./routes/tokenization');
 const approvalRoutes = require('./routes/approvals');
+const rootAdminRoutes = require('./routes/rootAdmin');
 
 const app = express();
 
@@ -336,6 +337,7 @@ app.post('/api/migrate', async (req, res) => {
     await executeSQL(path.join(__dirname, 'database', 'migration_tokenization.sql'), 'Tokenización');
     await executeSQL(path.join(__dirname, 'database', 'migration_approval_columns.sql'), 'Columnas de Aprobación');
     await executeSQL(path.join(__dirname, 'database', 'migration_approval_system.sql'), 'Sistema de Aprobaciones');
+    await executeSQL(path.join(__dirname, 'database', 'migration_billing.sql'), 'Sistema de Billing');
     
     res.json({ success: true, message: 'Migraciones procesadas', results });
   } catch (error) {
@@ -651,6 +653,7 @@ app.use('/api/assets', assetRoutes);
 app.use('/api/units', unitRoutes);
 app.use('/api/tokenization', tokenizationRoutes);
 app.use('/api/approvals', approvalRoutes);
+app.use('/api/root-admin', rootAdminRoutes);
 
 // ===========================================
 // Ruta raíz
