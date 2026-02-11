@@ -8,7 +8,7 @@ const Privacy = () => {
         <div className="space-y-6 text-slate-600 leading-relaxed">
           <section>
             <h2 className="text-xl font-semibold text-slate-800 mb-3">1. Información que Recopilamos</h2>
-            <p>MyApp ("nosotros", "nuestro" o "la Aplicación") recopila la siguiente información cuando utilizas nuestros servicios:</p>
+            <p>FIDEITEC ("nosotros", "nuestro" o "la Aplicación") recopila la siguiente información cuando utilizas nuestros servicios:</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
               <li><strong>Información de registro:</strong> nombre, apellido, dirección de correo electrónico.</li>
               <li><strong>Información de autenticación:</strong> cuando inicias sesión con Google o Facebook, recibimos tu nombre, email y foto de perfil pública.</li>
@@ -94,7 +94,7 @@ const Privacy = () => {
           <section>
             <h2 className="text-xl font-semibold text-slate-800 mb-3">10. Contacto</h2>
             <p>Si tienes preguntas sobre esta política de privacidad, puedes contactarnos en:</p>
-            <p className="mt-2"><strong>Email:</strong> privacy@myapp.com</p>
+            <p className="mt-2"><strong>Email:</strong> soporte@fideitec.com</p>
           </section>
         </div>
 

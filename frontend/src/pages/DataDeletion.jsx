@@ -19,7 +19,7 @@ const DataDeletion = () => {
           <section>
             <h2 className="text-xl font-semibold text-slate-800 mb-3">Tu derecho a la eliminación de datos</h2>
             <p>
-              En MyApp respetamos tu privacidad y tu derecho a controlar tus datos personales. 
+              En FIDEITEC respetamos tu privacidad y tu derecho a controlar tus datos personales. 
               Puedes solicitar la eliminación completa de tu cuenta y todos los datos asociados en cualquier momento.
             </p>
           </section>
@@ -33,14 +33,14 @@ const DataDeletion = () => {
               Para solicitar la eliminación de tus datos, envía un email a:
             </p>
             <a 
-              href="mailto:support@yourdomain.com?subject=Solicitud%20de%20eliminación%20de%20datos%20-%20MyApp"
+              href="mailto:soporte@fideitec.com?subject=Solicitud%20de%20eliminación%20de%20datos%20-%20FIDEITEC"
               className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors"
             >
               <Mail className="w-5 h-5" />
-              support@yourdomain.com
+              soporte@fideitec.com
             </a>
             <p className="mt-4 text-sm text-slate-500">
-              Asunto sugerido: "Solicitud de eliminación de datos - MyApp"
+              Asunto sugerido: "Solicitud de eliminación de datos - FIDEITEC"
             </p>
           </section>
 
@@ -50,7 +50,7 @@ const DataDeletion = () => {
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                <span><strong>Email de tu cuenta:</strong> La dirección de correo electrónico asociada a tu cuenta de MyApp.</span>
+                <span><strong>Email de tu cuenta:</strong> La dirección de correo electrónico asociada a tu cuenta de FIDEITEC.</span>
               </li>
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />

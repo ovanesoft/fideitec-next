@@ -8,17 +8,17 @@ const Terms = () => {
         <div className="space-y-6 text-slate-600 leading-relaxed">
           <section>
             <h2 className="text-xl font-semibold text-slate-800 mb-3">1. Aceptación de los Términos</h2>
-            <p>Al acceder y utilizar MyApp ("la Aplicación", "el Servicio"), aceptas estar sujeto a estos Términos y Condiciones de Servicio. Si no estás de acuerdo con alguna parte de estos términos, no podrás acceder al servicio.</p>
+            <p>Al acceder y utilizar FIDEITEC ("la Aplicación", "el Servicio"), aceptas estar sujeto a estos Términos y Condiciones de Servicio. Si no estás de acuerdo con alguna parte de estos términos, no podrás acceder al servicio.</p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-slate-800 mb-3">2. Descripción del Servicio</h2>
-            <p>MyApp es una plataforma empresarial multi-tenant que permite a las organizaciones gestionar usuarios, equipos y recursos de manera eficiente. El servicio incluye:</p>
+            <p>FIDEITEC es una plataforma empresarial que permite a las organizaciones gestionar fideicomisos, clientes, proveedores y operaciones de manera eficiente. El servicio incluye:</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Gestión de usuarios y roles.</li>
-              <li>Autenticación segura (email/contraseña, Google, Facebook).</li>
-              <li>Panel de administración.</li>
-              <li>Funcionalidades colaborativas.</li>
+              <li>Gestión de fideicomisos y operaciones fiduciarias.</li>
+              <li>Portal de clientes y proveedores.</li>
+              <li>Autenticación segura y panel de administración.</li>
+              <li>Reportes y documentación.</li>
             </ul>
           </section>
 
@@ -50,7 +50,7 @@ const Terms = () => {
 
           <section>
             <h2 className="text-xl font-semibold text-slate-800 mb-3">5. Propiedad Intelectual</h2>
-            <p>El servicio y su contenido original, características y funcionalidad son propiedad de MyApp y están protegidos por leyes de propiedad intelectual. No puedes copiar, modificar, distribuir o crear obras derivadas sin autorización expresa.</p>
+            <p>El servicio y su contenido original, características y funcionalidad son propiedad de FIDEITEC y están protegidos por leyes de propiedad intelectual. No puedes copiar, modificar, distribuir o crear obras derivadas sin autorización expresa.</p>
           </section>
 
           <section>
@@ -81,7 +81,7 @@ const Terms = () => {
 
           <section>
             <h2 className="text-xl font-semibold text-slate-800 mb-3">10. Indemnización</h2>
-            <p>Aceptas indemnizar y mantener indemne a MyApp, sus directores, empleados y agentes, de cualquier reclamo, daño, pérdida o gasto que surja de tu uso del servicio o violación de estos términos.</p>
+            <p>Aceptas indemnizar y mantener indemne a FIDEITEC, sus directores, empleados y agentes, de cualquier reclamo, daño, pérdida o gasto que surja de tu uso del servicio o violación de estos términos.</p>
           </section>
 
           <section>
@@ -97,7 +97,7 @@ const Terms = () => {
           <section>
             <h2 className="text-xl font-semibold text-slate-800 mb-3">13. Contacto</h2>
             <p>Para preguntas sobre estos términos, contáctanos en:</p>
-            <p className="mt-2"><strong>Email:</strong> legal@myapp.com</p>
+            <p className="mt-2"><strong>Email:</strong> soporte@fideitec.com</p>
           </section>
         </div>
 
