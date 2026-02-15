@@ -31,4 +31,7 @@ router.get('/verify/:code', marketplaceController.verifyCertificate);
 // Verificación por hash de blockchain
 router.get('/verify-tx/:txHash', marketplaceController.verifyBlockchainTx);
 
+// Diagnóstico temporal
+router.get('/debug', marketplaceController.debugMarketplace);
+
 module.exports = router;

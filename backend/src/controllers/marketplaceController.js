@@ -501,11 +501,55 @@ const verifyBlockchainTx = async (req, res) => {
   }
 };
 
+/**
+ * Diagnóstico del marketplace - temporal
+ * GET /api/marketplace/debug
+ */
+const debugMarketplace = async (req, res) => {
+  try {
+    // Check tenants
+    const tenants = await query(
+      `SELECT id, name, slug, is_active, marketplace_enabled FROM tenants`
+    );
+    
+    // Check published assets
+    const assets = await query(
+      `SELECT id, name, status, is_published, marketplace_featured, tenant_id FROM assets WHERE is_published = true`
+    );
+    
+    // Check all assets
+    const allAssets = await query(
+      `SELECT id, name, status, is_published, tenant_id FROM assets LIMIT 10`
+    );
+    
+    // Try the view directly
+    let viewResult;
+    try {
+      viewResult = await query(`SELECT id, title, developer_name FROM v_marketplace_assets LIMIT 5`);
+    } catch (e) {
+      viewResult = { error: e.message };
+    }
+
+    res.json({
+      success: true,
+      data: {
+        tenants: tenants.rows,
+        published_assets: assets.rows,
+        all_assets: allAssets.rows,
+        view_result: viewResult.rows || viewResult
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   listProjects,
   getFeaturedProjects,
   getProjectDetail,
   getFilters,
   verifyCertificate,
-  verifyBlockchainTx
+  verifyBlockchainTx,
+  debugMarketplace
 };
