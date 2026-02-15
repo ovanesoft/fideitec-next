@@ -48,7 +48,7 @@ const DashboardLayout = () => {
     { name: 'Aprobaciones', icon: ShieldCheck, href: '/approvals' },
     { name: 'Clientes', icon: UserCheck, href: '/clients' },
     { name: 'Proveedores', icon: Truck, href: '/suppliers' },
-    { name: 'Configuración', icon: Settings, href: '#' },
+    { name: 'Configuración', icon: Settings, href: '/settings' },
   ];
 
   return (
@@ -162,10 +162,10 @@ const DashboardLayout = () => {
               </button>
               <div>
                 <h1 className="text-xl font-semibold text-slate-800">
-                  {user?.tenant_name || 'Mi Organización'}
+                  {user?.tenantName || 'Mi Organización'}
                 </h1>
                 <p className="text-sm text-slate-500">
-                  {user?.first_name ? `Hola, ${user.first_name}` : 'Bienvenido'}
+                  {user?.firstName ? `Hola, ${user.firstName}` : 'Bienvenido'}
                 </p>
               </div>
             </div>
@@ -184,11 +184,11 @@ const DashboardLayout = () => {
                   className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-100 transition-colors"
                 >
                   <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-purple-500 rounded-xl flex items-center justify-center text-white font-semibold">
-                    {user?.first_name?.[0]}{user?.last_name?.[0]}
+                    {user?.firstName?.[0]}{user?.lastName?.[0]}
                   </div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-medium text-slate-700">
-                      {user?.first_name} {user?.last_name}
+                      {user?.firstName} {user?.lastName}
                     </p>
                     <p className="text-xs text-slate-500">{user?.email}</p>
                   </div>
@@ -204,7 +204,7 @@ const DashboardLayout = () => {
                     <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-fade-in">
                       <div className="px-4 py-3 border-b border-slate-100">
                         <p className="text-sm font-medium text-slate-800">
-                          {user?.first_name} {user?.last_name}
+                          {user?.firstName} {user?.lastName}
                         </p>
                         <p className="text-xs text-slate-500">{user?.email}</p>
                         <span className={`inline-flex mt-2 px-2 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user?.role)}`}>
@@ -212,14 +212,20 @@ const DashboardLayout = () => {
                         </span>
                       </div>
                       <div className="py-1">
-                        <a href="#" className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                        <button 
+                          onClick={() => { navigate('/settings', { state: { section: 'profile' } }); setDropdownOpen(false); }}
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full"
+                        >
                           <User className="w-4 h-4" />
                           Mi perfil
-                        </a>
-                        <a href="#" className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                        </button>
+                        <button 
+                          onClick={() => { navigate('/settings'); setDropdownOpen(false); }}
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full"
+                        >
                           <Settings className="w-4 h-4" />
                           Configuración
-                        </a>
+                        </button>
                         {user?.role === 'root' && (
                           <button 
                             onClick={() => { navigate('/root-admin'); setDropdownOpen(false); }}

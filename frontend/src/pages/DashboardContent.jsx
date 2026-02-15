@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Mail, Calendar, Users, TrendingUp, DollarSign, Activity, Truck, Loader2, Building, FileText } from 'lucide-react';
+import { Shield, Mail, Calendar, Users, TrendingUp, DollarSign, Activity, Truck, Loader2, Building, FileText, ChevronRight } from 'lucide-react';
 import axios from '../api/axios';
 
 const DashboardContent = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     clients: 0,
     suppliers: 0,
@@ -57,23 +59,41 @@ const DashboardContent = () => {
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
         
         <div className="relative">
-          <h2 className="text-2xl font-bold mb-2">¡Bienvenido de vuelta, {user?.first_name}! 👋</h2>
+          <h2 className="text-2xl font-bold mb-2">¡Bienvenido de vuelta, {user?.firstName}! 👋</h2>
           <p className="text-white/80 mb-6 max-w-xl">
             Aquí tienes un resumen de tu actividad reciente. Tu organización está creciendo constantemente.
           </p>
           <div className="flex flex-wrap gap-4">
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
+            <button
+              onClick={() => navigate('/settings', { state: { section: 'profile' } })}
+              className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3 hover:bg-white/30 transition-colors cursor-pointer text-left group"
+            >
               <p className="text-white/70 text-sm">Rol</p>
-              <p className="font-semibold">{user?.role === 'admin' ? 'Administrador' : user?.role}</p>
-            </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold">{user?.role === 'admin' ? 'Administrador' : user?.role}</p>
+                <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </button>
+            <button
+              onClick={() => navigate('/settings', { state: { section: 'organization' } })}
+              className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3 hover:bg-white/30 transition-colors cursor-pointer text-left group"
+            >
               <p className="text-white/70 text-sm">Organización</p>
-              <p className="font-semibold">{user?.tenant_name || 'Mi Empresa'}</p>
-            </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold">{user?.tenantName || 'Mi Empresa'}</p>
+                <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </button>
+            <button
+              onClick={() => navigate('/settings', { state: { section: 'security' } })}
+              className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3 hover:bg-white/30 transition-colors cursor-pointer text-left group"
+            >
               <p className="text-white/70 text-sm">Email verificado</p>
-              <p className="font-semibold">{user?.email_verified ? 'Sí ✓' : 'Pendiente'}</p>
-            </div>
+              <div className="flex items-center gap-2">
+                <p className="font-semibold">{user?.emailVerified ? 'Sí ✓' : 'Pendiente'}</p>
+                <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -121,7 +141,7 @@ const DashboardContent = () => {
               <div>
                 <p className="text-sm text-slate-500">Cuenta verificada</p>
                 <p className="font-medium text-slate-800">
-                  {user?.email_verified ? 'Email verificado' : 'Pendiente de verificación'}
+                  {user?.emailVerified ? 'Email verificado' : 'Pendiente de verificación'}
                 </p>
               </div>
             </div>
@@ -132,8 +152,8 @@ const DashboardContent = () => {
               <div>
                 <p className="text-sm text-slate-500">Último acceso</p>
                 <p className="font-medium text-slate-800">
-                  {user?.last_login 
-                    ? new Date(user.last_login).toLocaleDateString('es-AR', { 
+                  {user?.lastLogin 
+                    ? new Date(user.lastLogin).toLocaleDateString('es-AR', { 
                         day: 'numeric', 
                         month: 'long', 
                         year: 'numeric',

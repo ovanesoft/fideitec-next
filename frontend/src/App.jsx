@@ -14,6 +14,7 @@ import Trusts from './pages/Trusts';
 import Assets from './pages/Assets';
 import Tokenization from './pages/Tokenization';
 import Approvals from './pages/Approvals';
+import Settings from './pages/Settings';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -163,6 +164,7 @@ function AppRoutes() {
         <Route path="/assets" element={<Assets />} />
         <Route path="/tokenization" element={<Tokenization />} />
         <Route path="/approvals" element={<Approvals />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
 
       {/* Root Admin Routes - Solo para usuarios root */}
