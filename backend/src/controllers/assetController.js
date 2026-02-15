@@ -447,26 +447,29 @@ const updateAsset = async (req, res) => {
     const values = [];
     let paramCount = 1;
 
-    // Campos numéricos que deben ser null si están vacíos
-    const numericFields = [
-      'total_area_m2', 'covered_area_m2', 'land_area_m2',
-      'rooms', 'bedrooms', 'bathrooms', 'parking_spaces', 'floors', 'year_built',
-      'risk_level', 'acquisition_value', 'current_value',
-      'total_tokens', 'token_value', 'tokens_available', 'tokens_sold',
-      'minimum_token_purchase', 'project_progress_percentage',
-      'monthly_rental_income', 'annual_expenses', 'occupancy_rate',
-      'marketplace_order'
-    ];
+    // Campos JSON que necesitan serialización
+    const jsonFields = ['tags', 'custom_fields', 'photos', 'documents', 'marketplace_images'];
+    // Campos booleanos
+    const booleanFields = ['is_tokenizable', 'is_outsourced', 'is_published', 'marketplace_featured'];
+    // Campos string que pueden quedar vacíos
+    const stringFields = ['name', 'code', 'description', 'notes', 'risk_notes', 'outsource_details',
+      'address_street', 'address_number', 'address_floor', 'address_unit', 'address_city',
+      'address_state', 'address_postal_code', 'address_country', 'status', 'asset_category',
+      'asset_type', 'currency', 'project_stage', 'property_title_url', 'cadastral_certificate_url',
+      'marketplace_title', 'marketplace_description'];
 
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
         setClauses.push(`${key} = $${paramCount}`);
-        if (['tags', 'custom_fields', 'photos', 'documents', 'marketplace_images'].includes(key)) {
+        if (jsonFields.includes(key)) {
           values.push(JSON.stringify(value));
-        } else if (numericFields.includes(key) && (value === '' || value === undefined)) {
-          values.push(null);
+        } else if (booleanFields.includes(key)) {
+          values.push(value === true || value === 'true');
+        } else if (stringFields.includes(key)) {
+          values.push(value || null);
         } else {
-          values.push(value);
+          // Numéricos, fechas, y cualquier otro: vacío = null
+          values.push(value === '' || value === undefined ? null : value);
         }
         paramCount++;
       }
