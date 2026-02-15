@@ -97,8 +97,8 @@ SELECT
     t.trust_type,
     t.status as trust_status,
     -- Unit stats
-    (SELECT COUNT(*) FROM asset_units au WHERE au.asset_id = a.id AND au.deleted_at IS NULL) as total_units,
-    (SELECT COUNT(*) FROM asset_units au WHERE au.asset_id = a.id AND au.status = 'available' AND au.deleted_at IS NULL) as available_units,
+    (SELECT COUNT(*) FROM asset_units au WHERE au.asset_id = a.id) as total_units,
+    (SELECT COUNT(*) FROM asset_units au WHERE au.asset_id = a.id AND au.status = 'available') as available_units,
     -- Tokenization info
     (SELECT ta.id FROM tokenized_assets ta WHERE ta.asset_id = a.id AND ta.status = 'active' LIMIT 1) as tokenized_asset_id,
     (SELECT ta.token_name FROM tokenized_assets ta WHERE ta.asset_id = a.id AND ta.status = 'active' LIMIT 1) as token_name,
@@ -157,8 +157,7 @@ WHERE au.is_published = true
   AND a.is_published = true
   AND tn.marketplace_enabled = true
   AND tn.is_active = true
-  AND au.status IN ('available', 'reserved')
-  AND au.deleted_at IS NULL;
+  AND au.status IN ('available', 'reserved');
 
 -- ===========================================
 -- COMENTARIOS
