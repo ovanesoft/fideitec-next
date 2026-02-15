@@ -185,11 +185,11 @@ function AppRoutes() {
         <Route path="/root-admin/audit-logs" element={<AuditLogs />} />
       </Route>
 
-      {/* Redirect root to login or dashboard */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Redirect root to marketplace */}
+      <Route path="/" element={<Navigate to="/marketplace" replace />} />
       
       {/* 404 */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/marketplace" replace />} />
     </Routes>
   );
 }
