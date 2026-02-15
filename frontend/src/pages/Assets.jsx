@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import UnitDetailModal from '../components/UnitDetailModal';
+import PublishModal from '../components/PublishModal';
 
 // Hook para debounce
 const useDebounce = (value, delay) => {
@@ -112,6 +113,10 @@ const Assets = () => {
   const [submitting, setSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
+  // Publish modal
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishAsset, setPublishAsset] = useState(null);
+
   // Papelera
   const [showTrashModal, setShowTrashModal] = useState(false);
   const [trashUnits, setTrashUnits] = useState([]);
@@ -908,13 +913,13 @@ const Assets = () => {
                         <td className="px-4 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button 
-                              onClick={() => handleTogglePublish(asset)}
+                              onClick={() => { setPublishAsset(asset); setShowPublishModal(true); }}
                               className={`p-2 rounded-lg transition-colors ${
                                 asset.is_published 
                                   ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' 
                                   : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
                               }`}
-                              title={asset.is_published ? 'Retirar del marketplace' : 'Publicar en marketplace'}
+                              title={asset.is_published ? 'Gestionar publicación' : 'Publicar en marketplace'}
                             >
                               <Globe className="w-4 h-4" />
                             </button>
@@ -1976,6 +1981,15 @@ const Assets = () => {
               loadAssetDetail(selectedAsset.id);
             }
           }}
+        />
+      )}
+
+      {/* Modal Publicar en Marketplace */}
+      {showPublishModal && publishAsset && (
+        <PublishModal
+          asset={publishAsset}
+          onClose={() => { setShowPublishModal(false); setPublishAsset(null); }}
+          onPublished={() => { loadAssets(); }}
         />
       )}
 

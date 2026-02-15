@@ -13,7 +13,10 @@ const {
   updateAssetUnit,
   deleteAssetUnit,
   updateProjectStage,
-  getAssetStats
+  getAssetStats,
+  publishToMarketplace,
+  unpublishFromMarketplace,
+  getPublishStatus
 } = require('../controllers/assetController');
 
 // Todas las rutas requieren autenticación
@@ -40,6 +43,11 @@ router.put('/:id', requireRole(['root', 'admin', 'manager', 'user']), updateAsse
 
 // DELETE /api/assets/:id - Eliminar activo (solo borrador)
 router.delete('/:id', requireRole(['root', 'admin']), deleteAsset);
+
+// Marketplace publishing
+router.get('/:id/publish-status', requireRole(['root', 'admin', 'manager', 'user']), getPublishStatus);
+router.post('/:id/publish', requireRole(['root', 'admin', 'manager', 'user']), publishToMarketplace);
+router.post('/:id/unpublish', requireRole(['root', 'admin', 'manager', 'user']), unpublishFromMarketplace);
 
 // ===========================================
 // Unidades del Activo

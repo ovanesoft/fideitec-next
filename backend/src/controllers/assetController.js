@@ -1165,6 +1165,207 @@ const getAssetStats = async (req, res) => {
   }
 };
 
+// ===========================================
+// Publicar / Despublicar en Marketplace
+// ===========================================
+
+/**
+ * Publicar un activo en el marketplace
+ * Hace todo automáticamente:
+ *  1. Habilita marketplace_enabled en el tenant si no estaba
+ *  2. Cambia el status del asset de 'draft' a 'active' si es necesario
+ *  3. Setea is_published = true con los datos de marketplace
+ *  4. Devuelve el estado completo
+ * 
+ * POST /api/assets/:id/publish
+ */
+const publishToMarketplace = async (req, res) => {
+  const dbClient = await getClient();
+  
+  try {
+    const { id } = req.params;
+    const user = req.user;
+    const tenantId = user.tenant_id;
+    const {
+      marketplace_title,
+      marketplace_description,
+      marketplace_images,
+      marketplace_featured
+    } = req.body;
+
+    await dbClient.query('BEGIN');
+
+    // 1. Verificar que el activo existe y pertenece al tenant
+    const assetResult = await dbClient.query(
+      'SELECT * FROM assets WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId]
+    );
+
+    if (assetResult.rows.length === 0) {
+      await dbClient.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Activo no encontrado' });
+    }
+
+    const asset = assetResult.rows[0];
+
+    // 2. Habilitar marketplace en el tenant si no estaba
+    const tenantResult = await dbClient.query(
+      'SELECT marketplace_enabled FROM tenants WHERE id = $1',
+      [tenantId]
+    );
+    
+    let tenantWasEnabled = tenantResult.rows[0]?.marketplace_enabled;
+    
+    if (!tenantWasEnabled) {
+      await dbClient.query(
+        `UPDATE tenants SET marketplace_enabled = true WHERE id = $1`,
+        [tenantId]
+      );
+    }
+
+    // 3. Si el asset está en draft, pasarlo a active
+    let statusChanged = false;
+    if (asset.status === 'draft') {
+      await dbClient.query(
+        `UPDATE assets SET status = 'active' WHERE id = $1`,
+        [id]
+      );
+      statusChanged = true;
+    }
+
+    // 4. Publicar el activo con los datos de marketplace
+    await dbClient.query(
+      `UPDATE assets SET 
+        is_published = true,
+        marketplace_featured = $2,
+        marketplace_title = $3,
+        marketplace_description = $4,
+        marketplace_images = $5,
+        published_at = COALESCE(published_at, NOW())
+       WHERE id = $1`,
+      [
+        id,
+        marketplace_featured || false,
+        marketplace_title || null,
+        marketplace_description || null,
+        JSON.stringify(marketplace_images || [])
+      ]
+    );
+
+    await dbClient.query('COMMIT');
+
+    // 5. Obtener el activo actualizado
+    const updatedAsset = await query(
+      'SELECT id, name, status, is_published, marketplace_featured, published_at FROM assets WHERE id = $1',
+      [id]
+    );
+
+    res.json({
+      success: true,
+      message: '¡Activo publicado en el marketplace!',
+      data: {
+        asset: updatedAsset.rows[0],
+        actions: {
+          tenant_marketplace_enabled: !tenantWasEnabled ? 'Se habilitó automáticamente' : 'Ya estaba habilitado',
+          status_changed: statusChanged ? `Cambiado de "draft" a "active"` : null,
+          published: true
+        }
+      }
+    });
+
+  } catch (error) {
+    await dbClient.query('ROLLBACK');
+    console.error('Error publicando en marketplace:', error);
+    res.status(500).json({ success: false, message: 'Error al publicar en marketplace' });
+  } finally {
+    dbClient.release();
+  }
+};
+
+/**
+ * Despublicar un activo del marketplace
+ * POST /api/assets/:id/unpublish
+ */
+const unpublishFromMarketplace = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+    const tenantId = user.tenant_id;
+
+    const result = await query(
+      `UPDATE assets SET is_published = false, marketplace_featured = false 
+       WHERE id = $1 AND tenant_id = $2 
+       RETURNING id, name, is_published`,
+      [id, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Activo no encontrado' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Activo retirado del marketplace',
+      data: { asset: result.rows[0] }
+    });
+
+  } catch (error) {
+    console.error('Error despublicando:', error);
+    res.status(500).json({ success: false, message: 'Error al retirar del marketplace' });
+  }
+};
+
+/**
+ * Obtener estado de publicación de un activo
+ * GET /api/assets/:id/publish-status
+ */
+const getPublishStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+    const tenantId = user.tenant_id;
+
+    const asset = await query(
+      `SELECT a.id, a.name, a.status, a.is_published, a.marketplace_featured,
+              a.marketplace_title, a.marketplace_description, a.marketplace_images,
+              a.published_at, a.current_value, a.currency, a.address_city,
+              t.marketplace_enabled as tenant_marketplace_enabled,
+              t.marketplace_brand_name
+       FROM assets a
+       JOIN tenants t ON a.tenant_id = t.id
+       WHERE a.id = $1 AND a.tenant_id = $2`,
+      [id, tenantId]
+    );
+
+    if (asset.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Activo no encontrado' });
+    }
+
+    const a = asset.rows[0];
+    
+    // Calcular warnings
+    const warnings = [];
+    if (a.status === 'draft') warnings.push('El activo está en borrador. Al publicar, pasará automáticamente a estado "Activo".');
+    if (a.status === 'inactive') warnings.push('El activo está inactivo. Cambiá su estado antes de publicar.');
+    if (!a.tenant_marketplace_enabled) warnings.push('El marketplace de tu empresa se habilitará automáticamente al publicar.');
+    if (!a.current_value) warnings.push('El activo no tiene un valor asignado. Se recomienda completarlo.');
+    if (!a.address_city) warnings.push('El activo no tiene ubicación. Se recomienda completarla.');
+
+    res.json({
+      success: true,
+      data: {
+        ...a,
+        warnings,
+        can_publish: a.status !== 'inactive'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo publish status:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener estado' });
+  }
+};
+
 module.exports = {
   listAssets,
   getAssetById,
@@ -1177,6 +1378,9 @@ module.exports = {
   updateAssetUnit,
   deleteAssetUnit,
   updateProjectStage,
-  getAssetStats
+  getAssetStats,
+  publishToMarketplace,
+  unpublishFromMarketplace,
+  getPublishStatus
 };
 
