@@ -27,16 +27,16 @@ router.use(authenticateToken);
 router.get('/', requireRole(['root', 'admin', 'manager', 'user']), listAssets);
 
 // GET /api/assets/stats - Estadísticas de activos
-router.get('/stats', requireRole(['root', 'admin', 'manager']), getAssetStats);
+router.get('/stats', requireRole(['root', 'admin', 'manager', 'user']), getAssetStats);
 
 // GET /api/assets/:id - Obtener activo por ID
 router.get('/:id', requireRole(['root', 'admin', 'manager', 'user']), getAssetById);
 
 // POST /api/assets - Crear activo
-router.post('/', requireRole(['root', 'admin', 'manager']), createAsset);
+router.post('/', requireRole(['root', 'admin', 'manager', 'user']), createAsset);
 
 // PUT /api/assets/:id - Actualizar activo
-router.put('/:id', requireRole(['root', 'admin', 'manager']), updateAsset);
+router.put('/:id', requireRole(['root', 'admin', 'manager', 'user']), updateAsset);
 
 // DELETE /api/assets/:id - Eliminar activo (solo borrador)
 router.delete('/:id', requireRole(['root', 'admin']), deleteAsset);
@@ -49,13 +49,13 @@ router.delete('/:id', requireRole(['root', 'admin']), deleteAsset);
 router.get('/:assetId/units', requireRole(['root', 'admin', 'manager', 'user']), listAssetUnits);
 
 // POST /api/assets/:assetId/units - Crear unidad
-router.post('/:assetId/units', requireRole(['root', 'admin', 'manager']), createAssetUnit);
+router.post('/:assetId/units', requireRole(['root', 'admin', 'manager', 'user']), createAssetUnit);
 
 // POST /api/assets/:assetId/units/:unitId/clone - Clonar unidad
-router.post('/:assetId/units/:unitId/clone', requireRole(['root', 'admin', 'manager']), cloneAssetUnit);
+router.post('/:assetId/units/:unitId/clone', requireRole(['root', 'admin', 'manager', 'user']), cloneAssetUnit);
 
 // PUT /api/assets/:assetId/units/:unitId - Actualizar unidad
-router.put('/:assetId/units/:unitId', requireRole(['root', 'admin', 'manager']), updateAssetUnit);
+router.put('/:assetId/units/:unitId', requireRole(['root', 'admin', 'manager', 'user']), updateAssetUnit);
 
 // DELETE /api/assets/:assetId/units/:unitId - Eliminar unidad
 router.delete('/:assetId/units/:unitId', requireRole(['root', 'admin', 'manager']), deleteAssetUnit);
@@ -65,7 +65,7 @@ router.delete('/:assetId/units/:unitId', requireRole(['root', 'admin', 'manager'
 // ===========================================
 
 // PUT /api/assets/:assetId/stages/:stage - Actualizar etapa
-router.put('/:assetId/stages/:stage', requireRole(['root', 'admin', 'manager']), updateProjectStage);
+router.put('/:assetId/stages/:stage', requireRole(['root', 'admin', 'manager', 'user']), updateProjectStage);
 
 module.exports = router;
 

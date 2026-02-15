@@ -12,9 +12,9 @@ const {
   resendClientInvite
 } = require('../controllers/clientController');
 
-// Todas las rutas requieren autenticación y rol de admin/manager mínimo
+// Todas las rutas requieren autenticación
 router.use(authenticateToken);
-router.use(requireRole(['root', 'admin', 'manager']));
+router.use(requireRole(['root', 'admin', 'manager', 'user']));
 
 // ===========================================
 // CRUD de Clientes

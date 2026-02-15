@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const supplierController = require('../controllers/supplierController');
-const { authenticateToken, requireTenantAdmin } = require('../middleware/auth');
+const { authenticateToken, requireRole } = require('../middleware/auth');
 
 // Todas las rutas requieren autenticación de usuario (empresa)
 router.use(authenticateToken);
-router.use(requireTenantAdmin);
+router.use(requireRole(['root', 'admin', 'manager', 'user']));
 
 // ===========================================
 // Rutas de gestión de proveedores (Dashboard Empresa)
