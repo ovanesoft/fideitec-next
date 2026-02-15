@@ -953,6 +953,7 @@ const Assets = () => {
                     type="text" 
                     className="input-field" 
                     placeholder="Nombre del activo"
+                    title="Nombre identificatorio del activo. Ej: Torre Norte - Piso 3, Lote 15 Barrio Cerrado, Departamento 4B"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
                     required
@@ -964,6 +965,7 @@ const Assets = () => {
                     type="text" 
                     className="input-field" 
                     placeholder="ACT-001"
+                    title="Código interno de referencia para identificar el activo. Ej: ACT-001, LOTE-15, DEPTO-4B"
                     value={formData.code}
                     onChange={(e) => setFormData({...formData, code: e.target.value})}
                   />
@@ -975,6 +977,7 @@ const Assets = () => {
                   <label className="form-label">Categoría *</label>
                   <select 
                     className="input-field"
+                    title="Clasificación general del activo: Inmueble, Proyecto en desarrollo, Terreno, etc."
                     value={formData.asset_category}
                     onChange={(e) => setFormData({...formData, asset_category: e.target.value})}
                   >
@@ -987,6 +990,7 @@ const Assets = () => {
                   <label className="form-label">Tipo</label>
                   <select 
                     className="input-field"
+                    title="Tipo específico del activo según su categoría. Ej: Departamento, Casa, Local comercial, Oficina"
                     value={formData.asset_type}
                     onChange={(e) => setFormData({...formData, asset_type: e.target.value})}
                   >
@@ -999,6 +1003,7 @@ const Assets = () => {
                   <label className="form-label">Fideicomiso</label>
                   <select 
                     className="input-field"
+                    title="Fideicomiso al que pertenece este activo. Dejalo vacío si el activo no está asociado a ningún fideicomiso"
                     value={formData.trust_id}
                     onChange={(e) => setFormData({...formData, trust_id: e.target.value})}
                   >
@@ -1015,6 +1020,7 @@ const Assets = () => {
                 <textarea 
                   className="input-field" 
                   rows="2"
+                  title="Descripción detallada del activo: características principales, estado, particularidades relevantes"
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
                 />
@@ -1031,6 +1037,7 @@ const Assets = () => {
                     <input 
                       type="text" 
                       className="input-field"
+                      title="Nombre de la calle o avenida donde se ubica el activo"
                       value={formData.address_street}
                       onChange={(e) => setFormData({...formData, address_street: e.target.value})}
                     />
@@ -1040,6 +1047,7 @@ const Assets = () => {
                     <input 
                       type="text" 
                       className="input-field"
+                      title="Número de puerta o altura de la calle. Ej: 1520, S/N"
                       value={formData.address_number}
                       onChange={(e) => setFormData({...formData, address_number: e.target.value})}
                     />
@@ -1049,6 +1057,7 @@ const Assets = () => {
                     <input 
                       type="text" 
                       className="input-field"
+                      title="Código postal de la ubicación del activo"
                       value={formData.address_postal_code}
                       onChange={(e) => setFormData({...formData, address_postal_code: e.target.value})}
                     />
@@ -1058,6 +1067,7 @@ const Assets = () => {
                     <input 
                       type="text" 
                       className="input-field"
+                      title="Ciudad o localidad donde se encuentra el activo"
                       value={formData.address_city}
                       onChange={(e) => setFormData({...formData, address_city: e.target.value})}
                     />
@@ -1067,6 +1077,7 @@ const Assets = () => {
                     <input 
                       type="text" 
                       className="input-field"
+                      title="Provincia, estado o región donde se ubica el activo"
                       value={formData.address_state}
                       onChange={(e) => setFormData({...formData, address_state: e.target.value})}
                     />
@@ -1086,6 +1097,7 @@ const Assets = () => {
                       type="number" 
                       className="input-field"
                       step="0.01"
+                      title="Superficie total del activo en metros cuadrados, incluyendo áreas cubiertas y descubiertas"
                       value={formData.total_area_m2}
                       onChange={(e) => setFormData({...formData, total_area_m2: e.target.value})}
                     />
@@ -1096,6 +1108,7 @@ const Assets = () => {
                       type="number" 
                       className="input-field"
                       step="0.01"
+                      title="Superficie cubierta o edificada en metros cuadrados (sin contar balcones, terrazas descubiertas, etc.)"
                       value={formData.covered_area_m2}
                       onChange={(e) => setFormData({...formData, covered_area_m2: e.target.value})}
                     />
@@ -1105,6 +1118,7 @@ const Assets = () => {
                     <input 
                       type="number" 
                       className="input-field"
+                      title="Cantidad total de ambientes (living, comedor, habitaciones, cocina, etc.)"
                       value={formData.rooms}
                       onChange={(e) => setFormData({...formData, rooms: e.target.value})}
                     />
@@ -1114,6 +1128,7 @@ const Assets = () => {
                     <input 
                       type="number" 
                       className="input-field"
+                      title="Cantidad de dormitorios o habitaciones destinadas a descanso"
                       value={formData.bedrooms}
                       onChange={(e) => setFormData({...formData, bedrooms: e.target.value})}
                     />
@@ -1123,6 +1138,7 @@ const Assets = () => {
                     <input 
                       type="number" 
                       className="input-field"
+                      title="Cantidad total de baños (completos y toilettes)"
                       value={formData.bathrooms}
                       onChange={(e) => setFormData({...formData, bathrooms: e.target.value})}
                     />
@@ -1132,6 +1148,7 @@ const Assets = () => {
                     <input 
                       type="number" 
                       className="input-field"
+                      title="Cantidad de espacios de estacionamiento incluidos con el activo"
                       value={formData.parking_spaces}
                       onChange={(e) => setFormData({...formData, parking_spaces: e.target.value})}
                     />
@@ -1141,6 +1158,7 @@ const Assets = () => {
                     <input 
                       type="number" 
                       className="input-field"
+                      title="Cantidad de pisos o plantas del edificio (aplica para edificios o torres)"
                       value={formData.floors}
                       onChange={(e) => setFormData({...formData, floors: e.target.value})}
                     />
@@ -1161,6 +1179,7 @@ const Assets = () => {
                         min="1" 
                         max="10"
                         className="flex-1"
+                        title="Nivel de riesgo del 1 al 10. 1-3: Bajo riesgo, 4-6: Riesgo moderado, 7-8: Riesgo alto, 9-10: Riesgo muy alto"
                         value={formData.risk_level}
                         onChange={(e) => setFormData({...formData, risk_level: e.target.value})}
                       />
@@ -1174,6 +1193,7 @@ const Assets = () => {
                       className="input-field" 
                       rows="2"
                       placeholder="Notas sobre el riesgo..."
+                      title="Detalle los factores de riesgo: ubicación, estado legal, condiciones del mercado, estado de la construcción, etc."
                       value={formData.risk_notes}
                       onChange={(e) => setFormData({...formData, risk_notes: e.target.value})}
                     />
@@ -1189,6 +1209,7 @@ const Assets = () => {
                         <label className="form-label">Moneda</label>
                         <select 
                           className="input-field"
+                          title="Moneda en la que están expresados los valores del activo"
                           value={formData.currency}
                           onChange={(e) => setFormData({...formData, currency: e.target.value})}
                         >
@@ -1202,6 +1223,7 @@ const Assets = () => {
                         <input 
                           type="date" 
                           className="input-field"
+                          title="Fecha en que se adquirió o incorporó el activo al fideicomiso"
                           value={formData.acquisition_date}
                           onChange={(e) => setFormData({...formData, acquisition_date: e.target.value})}
                         />
@@ -1213,6 +1235,7 @@ const Assets = () => {
                         type="number" 
                         className="input-field"
                         step="0.01"
+                        title="Precio de compra o valor de incorporación del activo al momento de la adquisición"
                         value={formData.acquisition_value}
                         onChange={(e) => setFormData({...formData, acquisition_value: e.target.value})}
                       />
@@ -1223,6 +1246,7 @@ const Assets = () => {
                         type="number" 
                         className="input-field"
                         step="0.01"
+                        title="Valor de mercado estimado del activo a la fecha actual, según tasación o referencia"
                         value={formData.current_value}
                         onChange={(e) => setFormData({...formData, current_value: e.target.value})}
                       />
@@ -1240,8 +1264,9 @@ const Assets = () => {
                     checked={formData.is_tokenizable}
                     onChange={(e) => setFormData({...formData, is_tokenizable: e.target.checked})}
                     className="w-4 h-4 text-primary-600 rounded"
+                    title="Permite fraccionar este activo en tokens digitales para su distribución o venta a inversores"
                   />
-                  <label htmlFor="asset_is_tokenizable" className="font-medium text-slate-800">
+                  <label htmlFor="asset_is_tokenizable" className="font-medium text-slate-800" title="Permite fraccionar este activo en tokens digitales para su distribución o venta a inversores">
                     Habilitar tokenización
                   </label>
                 </div>
@@ -1253,6 +1278,7 @@ const Assets = () => {
                       <input 
                         type="number" 
                         className="input-field"
+                        title="Cantidad total de tokens a emitir para este activo. Cada token representará una fracción del valor total"
                         value={formData.total_tokens}
                         onChange={(e) => setFormData({...formData, total_tokens: e.target.value})}
                       />
@@ -1263,6 +1289,7 @@ const Assets = () => {
                         type="number" 
                         className="input-field"
                         step="0.00000001"
+                        title="Precio unitario de cada token. Se calcula dividiendo el valor del activo por la cantidad de tokens"
                         value={formData.token_value}
                         onChange={(e) => setFormData({...formData, token_value: e.target.value})}
                       />
@@ -1282,6 +1309,7 @@ const Assets = () => {
                       <label className="form-label">Etapa Actual</label>
                       <select 
                         className="input-field"
+                        title="Etapa en la que se encuentra actualmente el proyecto de construcción o desarrollo"
                         value={formData.project_stage}
                         onChange={(e) => setFormData({...formData, project_stage: e.target.value})}
                       >
@@ -1296,6 +1324,7 @@ const Assets = () => {
                       <input 
                         type="date" 
                         className="input-field"
+                        title="Fecha de inicio de obras o desarrollo del proyecto"
                         value={formData.project_start_date}
                         onChange={(e) => setFormData({...formData, project_start_date: e.target.value})}
                       />
@@ -1305,6 +1334,7 @@ const Assets = () => {
                       <input 
                         type="date" 
                         className="input-field"
+                        title="Fecha estimada de finalización de la obra o entrega del proyecto"
                         value={formData.project_estimated_end_date}
                         onChange={(e) => setFormData({...formData, project_estimated_end_date: e.target.value})}
                       />
@@ -1322,8 +1352,9 @@ const Assets = () => {
                     checked={formData.is_outsourced}
                     onChange={(e) => setFormData({...formData, is_outsourced: e.target.checked})}
                     className="w-4 h-4 text-primary-600 rounded"
+                    title="Marcar si la administración o gestión de este activo está delegada a un tercero"
                   />
-                  <label htmlFor="is_outsourced" className="font-medium text-slate-800">
+                  <label htmlFor="is_outsourced" className="font-medium text-slate-800" title="Marcar si la administración o gestión de este activo está delegada a un tercero">
                     Activo tercerizado
                   </label>
                 </div>
@@ -1332,6 +1363,7 @@ const Assets = () => {
                     className="input-field" 
                     rows="2"
                     placeholder="Detalles de la tercerización..."
+                    title="Indique a quién se terceriza, tipo de contrato, condiciones, duración y responsabilidades delegadas"
                     value={formData.outsource_details}
                     onChange={(e) => setFormData({...formData, outsource_details: e.target.value})}
                   />
