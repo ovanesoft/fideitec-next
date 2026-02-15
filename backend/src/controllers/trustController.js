@@ -267,12 +267,12 @@ const createTrust = async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14, $15, $16, $16, $17, 'draft', $18, $19, $20)
       RETURNING *`,
       [
-        tenantId, name, code, description, trust_type || 'real_estate',
-        constitution_date, start_date, end_date,
-        contract_number, notary_name, notary_registry, registration_number,
+        tenantId, name, code || null, description || null, trust_type || 'real_estate',
+        constitution_date || null, start_date || null, end_date || null,
+        contract_number || null, notary_name || null, notary_registry || null, registration_number || null,
         initial_patrimony || 0, currency || 'ARS',
         is_tokenizable || false, total_tokens || 0, token_value || 0,
-        notes, JSON.stringify(tags || []), user.id
+        notes || null, JSON.stringify(tags || []), user.id
       ]
     );
 
@@ -329,13 +329,21 @@ const updateTrust = async (req, res) => {
     const values = [];
     let paramCount = 1;
 
+    const jsonFields = ['tags', 'custom_fields', 'additional_documents'];
+    const stringFields = ['name', 'code', 'description', 'trust_type', 'status',
+      'contract_number', 'notary_name', 'notary_registry', 'registration_number',
+      'contract_document_url', 'notes', 'currency'];
+
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
         setClauses.push(`${key} = $${paramCount}`);
-        if (['tags', 'custom_fields', 'additional_documents'].includes(key)) {
+        if (jsonFields.includes(key)) {
           values.push(JSON.stringify(value));
+        } else if (stringFields.includes(key)) {
+          values.push(value || null);
         } else {
-          values.push(value);
+          // Numéricos, fechas, booleanos: vacío = null
+          values.push(value === '' || value === undefined ? null : value);
         }
         paramCount++;
       }

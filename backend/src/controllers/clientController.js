@@ -207,9 +207,9 @@ const createClient = async (req, res) => {
       RETURNING id, email, first_name, last_name, created_at`,
       [
         tenantId, email.toLowerCase(), first_name, last_name,
-        phone, mobile, document_type, document_number, birth_date,
-        nationality, address_street, address_number, address_city,
-        address_state, address_postal_code, notes, JSON.stringify(tags || []),
+        phone || null, mobile || null, document_type || null, document_number || null, birth_date || null,
+        nationality || 'ARG', address_street || null, address_number || null, address_city || null,
+        address_state || null, address_postal_code || null, notes || null, JSON.stringify(tags || []),
         user.id, inviteToken, inviteExpires
       ]
     );
