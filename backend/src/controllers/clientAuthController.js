@@ -29,13 +29,13 @@ const generateClientRefreshToken = () => {
 // Obtener información del tenant por token del portal
 const getTenantByPortalToken = async (req, res) => {
   try {
-    const { token } = req.params;
+    const { slug } = req.params;
 
     const result = await query(
       `SELECT id, name, slug, logo_url, client_portal_enabled, client_portal_settings
        FROM tenants 
-       WHERE client_portal_token = $1 AND is_active = true`,
-      [token]
+       WHERE slug = $1 AND is_active = true`,
+      [slug]
     );
 
     if (result.rows.length === 0) {
@@ -81,7 +81,7 @@ const registerClient = async (req, res) => {
   const client = await getClient();
   
   try {
-    const { portal_token } = req.params;
+    const { slug } = req.params;
     const {
       email,
       password,
@@ -98,8 +98,8 @@ const registerClient = async (req, res) => {
     const tenantResult = await client.query(
       `SELECT id, name, client_portal_enabled, client_portal_settings
        FROM tenants 
-       WHERE client_portal_token = $1 AND is_active = true`,
-      [portal_token]
+       WHERE slug = $1 AND is_active = true`,
+      [slug]
     );
 
     if (tenantResult.rows.length === 0) {
@@ -202,15 +202,15 @@ const registerClient = async (req, res) => {
 // Login de cliente
 const loginClient = async (req, res) => {
   try {
-    const { portal_token } = req.params;
+    const { slug } = req.params;
     const { email, password } = req.body;
 
     // Verificar tenant
     const tenantResult = await query(
       `SELECT id, name, client_portal_enabled
        FROM tenants 
-       WHERE client_portal_token = $1 AND is_active = true`,
-      [portal_token]
+       WHERE slug = $1 AND is_active = true`,
+      [slug]
     );
 
     if (tenantResult.rows.length === 0 || !tenantResult.rows[0].client_portal_enabled) {
@@ -459,14 +459,14 @@ const getCurrentClient = async (req, res) => {
 // Solicitar reset de contraseña
 const forgotPassword = async (req, res) => {
   try {
-    const { portal_token } = req.params;
+    const { slug } = req.params;
     const { email } = req.body;
 
     // Verificar tenant
     const tenantResult = await query(
       `SELECT id FROM tenants 
-       WHERE client_portal_token = $1 AND is_active = true AND client_portal_enabled = true`,
-      [portal_token]
+       WHERE slug = $1 AND is_active = true AND client_portal_enabled = true`,
+      [slug]
     );
 
     if (tenantResult.rows.length === 0) {

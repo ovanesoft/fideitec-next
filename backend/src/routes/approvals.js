@@ -244,12 +244,12 @@ router.post('/:orderId/reject', requireRole(['admin', 'root']), async (req, res)
         
         // Obtener portal URL del tenant
         const tenantResult = await query(
-          `SELECT client_portal_token FROM tenants WHERE id = $1`,
+          `SELECT slug FROM tenants WHERE id = $1`,
           [tenantId]
         );
-        const portalToken = tenantResult.rows[0]?.client_portal_token;
-        const portalUrl = portalToken 
-          ? `${process.env.FRONTEND_URL}/portal/${portalToken}/dashboard`
+        const tenantSlug = tenantResult.rows[0]?.slug;
+        const portalUrl = tenantSlug 
+          ? `${process.env.FRONTEND_URL}/portal/${tenantSlug}/dashboard`
           : process.env.FRONTEND_URL;
 
         await sendTokenPurchaseRejectedEmail(
@@ -396,12 +396,12 @@ router.post('/:orderId/execute', requireRole(['admin', 'root']), async (req, res
       try {
         // Obtener portal URL del tenant
         const tenantResult = await query(
-          `SELECT client_portal_token FROM tenants WHERE id = $1`,
+          `SELECT slug FROM tenants WHERE id = $1`,
           [tenantId]
         );
-        const portalToken = tenantResult.rows[0]?.client_portal_token;
-        const portalUrl = portalToken 
-          ? `${process.env.FRONTEND_URL}/portal/${portalToken}/dashboard`
+        const tenantSlug = tenantResult.rows[0]?.slug;
+        const portalUrl = tenantSlug 
+          ? `${process.env.FRONTEND_URL}/portal/${tenantSlug}/dashboard`
           : process.env.FRONTEND_URL;
 
         await sendTokenPurchaseCompletedEmail(

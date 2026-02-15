@@ -170,7 +170,7 @@ const getTenantById = async (req, res) => {
 const updateTenant = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, domain, settings, is_active } = req.body;
+    const { name, slug, domain, settings, is_active } = req.body;
     const user = req.user;
 
     // Verificar acceso
@@ -196,6 +196,10 @@ const updateTenant = async (req, res) => {
     if (name !== undefined) {
       updates.push(`name = $${paramCount++}`);
       values.push(name);
+    }
+    if (slug !== undefined) {
+      updates.push(`slug = $${paramCount++}`);
+      values.push(slug.toLowerCase().replace(/[^a-z0-9-]/g, ''));
     }
     if (domain !== undefined) {
       updates.push(`domain = $${paramCount++}`);
@@ -628,7 +632,7 @@ const getClientPortalInfo = async (req, res) => {
     }
 
     const result = await query(
-      `SELECT client_portal_token, client_portal_enabled, client_portal_settings
+      `SELECT slug, client_portal_enabled, client_portal_settings
        FROM tenants WHERE id = $1`,
       [tenantId]
     );
@@ -641,14 +645,14 @@ const getClientPortalInfo = async (req, res) => {
     }
 
     const tenant = result.rows[0];
-    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/portal/${tenant.client_portal_token}`;
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/portal/${tenant.slug}`;
 
     res.json({
       success: true,
       data: {
         portal: {
           enabled: tenant.client_portal_enabled,
-          token: tenant.client_portal_token,
+          slug: tenant.slug,
           url: portalUrl,
           settings: tenant.client_portal_settings
         }
@@ -683,7 +687,7 @@ const toggleClientPortal = async (req, res) => {
       `UPDATE tenants 
        SET client_portal_enabled = $1
        WHERE id = $2
-       RETURNING client_portal_enabled, client_portal_token`,
+       RETURNING client_portal_enabled, slug`,
       [enabled, tenantId]
     );
 
@@ -695,7 +699,7 @@ const toggleClientPortal = async (req, res) => {
     }
 
     const tenant = result.rows[0];
-    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/portal/${tenant.client_portal_token}`;
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/portal/${tenant.slug}`;
 
     // Log de auditoría
     await query(
@@ -874,7 +878,7 @@ const getSupplierPortalInfo = async (req, res) => {
     }
 
     const result = await query(
-      `SELECT supplier_portal_token, supplier_portal_enabled
+      `SELECT slug, supplier_portal_enabled
        FROM tenants WHERE id = $1`,
       [tenantId]
     );
@@ -887,13 +891,13 @@ const getSupplierPortalInfo = async (req, res) => {
     }
 
     const tenant = result.rows[0];
-    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/supplier-portal/${tenant.supplier_portal_token}`;
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/supplier-portal/${tenant.slug}`;
 
     res.json({
       success: true,
       data: {
         supplierPortalEnabled: tenant.supplier_portal_enabled,
-        supplierPortalToken: tenant.supplier_portal_token,
+        supplierPortalSlug: tenant.slug,
         supplierPortalUrl: portalUrl
       }
     });
@@ -940,12 +944,12 @@ const toggleSupplierPortal = async (req, res) => {
       `UPDATE tenants 
        SET supplier_portal_enabled = $1
        WHERE id = $2
-       RETURNING supplier_portal_enabled, supplier_portal_token`,
+       RETURNING supplier_portal_enabled, slug`,
       [newEnabled, tenantId]
     );
 
     const tenant = result.rows[0];
-    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/supplier-portal/${tenant.supplier_portal_token}`;
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/supplier-portal/${tenant.slug}`;
 
     // Log de auditoría
     await query(
@@ -962,6 +966,7 @@ const toggleSupplierPortal = async (req, res) => {
       message: `Portal de proveedores ${newEnabled ? 'habilitado' : 'deshabilitado'}`,
       data: {
         supplierPortalEnabled: tenant.supplier_portal_enabled,
+        supplierPortalSlug: tenant.slug,
         supplierPortalUrl: portalUrl
       }
     });

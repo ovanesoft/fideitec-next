@@ -16,42 +16,42 @@ const {
 // RUTAS PÚBLICAS (Portal de Clientes)
 // ===========================================
 
-// GET /api/portal/:token - Obtener info del tenant por token del portal
-router.get('/:token', getTenantByPortalToken);
+// GET /api/portal/:slug - Obtener info del tenant por slug
+router.get('/:slug', getTenantByPortalToken);
 
-// POST /api/portal/:portal_token/register - Registro de cliente
-router.post('/:portal_token/register', registerClient);
+// POST /api/portal/:slug/register - Registro de cliente
+router.post('/:slug/register', registerClient);
 
-// POST /api/portal/:portal_token/login - Login de cliente
-router.post('/:portal_token/login', loginClient);
+// POST /api/portal/:slug/login - Login de cliente
+router.post('/:slug/login', loginClient);
 
 // ===========================================
 // Google OAuth para Portal de Clientes
 // ===========================================
 
-// GET /api/portal/:portal_token/auth/google - Iniciar flujo de Google OAuth
-router.get('/:portal_token/auth/google', async (req, res) => {
+// GET /api/portal/:slug/auth/google - Iniciar flujo de Google OAuth
+router.get('/:slug/auth/google', async (req, res) => {
   const { query } = require('../config/database');
-  const { portal_token } = req.params;
+  const { slug } = req.params;
   
   try {
     // Verificar que el portal existe
     const tenantResult = await query(
-      `SELECT id, name, client_portal_enabled FROM tenants WHERE client_portal_token = $1`,
-      [portal_token]
+      `SELECT id, name, client_portal_enabled FROM tenants WHERE slug = $1`,
+      [slug]
     );
     
     if (tenantResult.rows.length === 0 || !tenantResult.rows[0].client_portal_enabled) {
-      return res.redirect(`${process.env.FRONTEND_URL}/portal/${portal_token}/login?error=portal_not_found`);
+      return res.redirect(`${process.env.FRONTEND_URL}/portal/${slug}/login?error=portal_not_found`);
     }
     
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const redirectUri = process.env.GOOGLE_CALLBACK_URL;
     const scope = encodeURIComponent('profile email');
     
-    // Guardar el portal_token en una cookie para recuperarlo en el callback
+    // Guardar el slug en una cookie para recuperarlo en el callback
     // sameSite: 'none' permite que la cookie se envíe en redirects cross-site (desde Google)
-    res.cookie('oauth_portal_token', portal_token, {
+    res.cookie('oauth_portal_slug', slug, {
       httpOnly: true,
       secure: true, // Requerido para sameSite: 'none'
       sameSite: 'none',
@@ -65,31 +65,31 @@ router.get('/:portal_token/auth/google', async (req, res) => {
     res.redirect(authUrl);
   } catch (error) {
     console.error('Error iniciando Google OAuth:', error);
-    res.redirect(`${process.env.FRONTEND_URL}/portal/${portal_token}/login?error=oauth_error`);
+    res.redirect(`${process.env.FRONTEND_URL}/portal/${slug}/login?error=oauth_error`);
   }
 });
 
 // GET /api/portal/verify-email/:token - Verificar email
 router.get('/verify-email/:token', verifyClientEmail);
 
-// POST /api/portal/:portal_token/forgot-password - Solicitar reset de contraseña
-router.post('/:portal_token/forgot-password', forgotPassword);
+// POST /api/portal/:slug/forgot-password - Solicitar reset de contraseña
+router.post('/:slug/forgot-password', forgotPassword);
 
 // POST /api/portal/reset-password - Reset de contraseña
 router.post('/reset-password', resetPassword);
 
-// GET /api/portal/:portal_token/verify-invite/:invite_token - Verificar invitación
-router.get('/:portal_token/verify-invite/:invite_token', async (req, res) => {
+// GET /api/portal/:slug/verify-invite/:invite_token - Verificar invitación
+router.get('/:slug/verify-invite/:invite_token', async (req, res) => {
   const { query } = require('../config/database');
   
   try {
-    const { portal_token, invite_token } = req.params;
+    const { slug, invite_token } = req.params;
     
     // Verificar que el portal existe y está habilitado
     const tenantResult = await query(
       `SELECT id, name, client_portal_enabled FROM tenants 
-       WHERE client_portal_token = $1`,
-      [portal_token]
+       WHERE slug = $1`,
+      [slug]
     );
     
     if (tenantResult.rows.length === 0) {
@@ -140,14 +140,14 @@ router.get('/:portal_token/verify-invite/:invite_token', async (req, res) => {
   }
 });
 
-// POST /api/portal/:portal_token/setup/:invite_token - Establecer contraseña (cliente invitado)
-router.post('/:portal_token/setup/:invite_token', async (req, res) => {
+// POST /api/portal/:slug/setup/:invite_token - Establecer contraseña (cliente invitado)
+router.post('/:slug/setup/:invite_token', async (req, res) => {
   const { query } = require('../config/database');
   const bcrypt = require('bcryptjs');
   const jwt = require('jsonwebtoken');
   
   try {
-    const { portal_token, invite_token } = req.params;
+    const { slug, invite_token } = req.params;
     const { password } = req.body;
     
     if (!password || password.length < 8) {
@@ -160,8 +160,8 @@ router.post('/:portal_token/setup/:invite_token', async (req, res) => {
     // Verificar portal
     const tenantResult = await query(
       `SELECT id, name, client_portal_enabled FROM tenants 
-       WHERE client_portal_token = $1`,
-      [portal_token]
+       WHERE slug = $1`,
+      [slug]
     );
     
     if (tenantResult.rows.length === 0 || !tenantResult.rows[0].client_portal_enabled) {

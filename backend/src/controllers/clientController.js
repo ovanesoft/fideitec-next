@@ -218,14 +218,14 @@ const createClient = async (req, res) => {
 
     // Obtener info del tenant para el link
     const tenantResult = await query(
-      'SELECT client_portal_token FROM tenants WHERE id = $1',
+      'SELECT slug FROM tenants WHERE id = $1',
       [tenantId]
     );
-    const portalToken = tenantResult.rows[0]?.client_portal_token;
+    const tenantSlug = tenantResult.rows[0]?.slug;
 
     // Construir URL de invitación
     const FRONTEND_URL = process.env.FRONTEND_URL || 'https://app.fideitec.com';
-    const inviteUrl = `${FRONTEND_URL}/portal/${portalToken}/setup/${inviteToken}`;
+    const inviteUrl = `${FRONTEND_URL}/portal/${tenantSlug}/setup/${inviteToken}`;
 
     // Log de auditoría
     await query(
@@ -286,13 +286,13 @@ const resendClientInvite = async (req, res) => {
 
     // Obtener portal token
     const tenantResult = await query(
-      'SELECT client_portal_token FROM tenants WHERE id = $1',
+      'SELECT slug FROM tenants WHERE id = $1',
       [tenantId]
     );
-    const portalToken = tenantResult.rows[0]?.client_portal_token;
+    const tenantSlug = tenantResult.rows[0]?.slug;
 
     const FRONTEND_URL = process.env.FRONTEND_URL || 'https://app.fideitec.com';
-    const inviteUrl = `${FRONTEND_URL}/portal/${portalToken}/setup/${inviteToken}`;
+    const inviteUrl = `${FRONTEND_URL}/portal/${tenantSlug}/setup/${inviteToken}`;
 
     res.json({
       success: true,

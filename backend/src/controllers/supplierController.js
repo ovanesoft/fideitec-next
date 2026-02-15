@@ -220,13 +220,13 @@ const createSupplier = async (req, res) => {
 
     // Obtener info del tenant para el email
     const tenantInfo = await query(
-      'SELECT name, supplier_portal_token FROM tenants WHERE id = $1',
+      'SELECT name, slug FROM tenants WHERE id = $1',
       [tenantId]
     );
 
     // TODO: Enviar email de invitación al proveedor
     // Por ahora solo loguear
-    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/supplier-portal/${tenantInfo.rows[0].supplier_portal_token}/setup/${inviteToken}`;
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/supplier-portal/${tenantInfo.rows[0].slug}/setup/${inviteToken}`;
     console.log(`📧 =============== INVITACIÓN PROVEEDOR ===============`);
     console.log(`   To: ${email}`);
     console.log(`   Empresa: ${tenantInfo.rows[0].name}`);
@@ -385,11 +385,11 @@ const resendInvite = async (req, res) => {
 
     // Obtener info del tenant
     const tenantInfo = await query(
-      'SELECT name, supplier_portal_token FROM tenants WHERE id = $1',
+      'SELECT name, slug FROM tenants WHERE id = $1',
       [tenantId]
     );
 
-    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/supplier-portal/${tenantInfo.rows[0].supplier_portal_token}/setup/${inviteToken}`;
+    const portalUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/supplier-portal/${tenantInfo.rows[0].slug}/setup/${inviteToken}`;
     
     console.log(`📧 =============== REENVÍO INVITACIÓN PROVEEDOR ===============`);
     console.log(`   To: ${supplier.email}`);

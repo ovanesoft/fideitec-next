@@ -221,7 +221,7 @@ const Suppliers = () => {
   };
 
   const handleCopyLink = () => {
-    const portalUrl = `${window.location.origin}/supplier-portal/${portalInfo?.supplierPortalToken}/login`;
+    const portalUrl = `${window.location.origin}/supplier-portal/${portalInfo?.supplierPortalSlug}/login`;
     navigator.clipboard.writeText(portalUrl);
     setCopied(true);
     toast.success('Link copiado al portapapeles');
@@ -701,7 +701,7 @@ const Suppliers = () => {
               </div>
 
               {/* Link del portal */}
-              {portalInfo?.supplierPortalToken && (
+              {portalInfo?.supplierPortalSlug && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Link de acceso al portal
@@ -710,7 +710,7 @@ const Suppliers = () => {
                     <input
                       type="text"
                       readOnly
-                      value={`${window.location.origin}/supplier-portal/${portalInfo.supplierPortalToken}/login`}
+                      value={`${window.location.origin}/supplier-portal/${portalInfo.supplierPortalSlug}/login`}
                       className="input-field text-sm flex-1"
                     />
                     <button

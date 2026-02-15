@@ -7,17 +7,17 @@ const { authenticateSupplierToken } = require('../middleware/auth');
 // Rutas públicas del Portal de Proveedores
 // ===========================================
 
-// Obtener info del tenant por token del portal
-router.get('/:portalToken', supplierAuthController.getTenantByPortalToken);
+// Obtener info del tenant por slug del portal
+router.get('/:slug', supplierAuthController.getTenantByPortalToken);
 
 // Verificar invitación
-router.get('/:portalToken/setup/:inviteToken', supplierAuthController.verifyInvite);
+router.get('/:slug/setup/:inviteToken', supplierAuthController.verifyInvite);
 
 // Establecer contraseña (primera vez)
-router.post('/:portalToken/setup/:inviteToken', supplierAuthController.setupPassword);
+router.post('/:slug/setup/:inviteToken', supplierAuthController.setupPassword);
 
 // Login de proveedor
-router.post('/:portalToken/login', supplierAuthController.loginSupplier);
+router.post('/:slug/login', supplierAuthController.loginSupplier);
 
 // Refresh token
 router.post('/refresh', supplierAuthController.refreshSupplierToken);

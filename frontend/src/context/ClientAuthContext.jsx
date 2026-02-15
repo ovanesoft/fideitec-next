@@ -25,7 +25,7 @@ export const ClientAuthProvider = ({ children }) => {
           localStorage.setItem('clientRefreshToken', oauthRefresh);
         }
         // Limpiar sessionStorage del OAuth
-        sessionStorage.removeItem('oauth_portal_token');
+        sessionStorage.removeItem('oauth_portal_slug');
         // Limpiar URL (importante: hacer esto DESPUÉS de guardar los tokens)
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -175,7 +175,7 @@ export const ClientAuthProvider = ({ children }) => {
   // Google OAuth login
   const googleLogin = (portalToken) => {
     // Guardar el portalToken para recuperarlo después del callback
-    sessionStorage.setItem('oauth_portal_token', portalToken);
+    sessionStorage.setItem('oauth_portal_slug', portalToken);
     
     // Redirigir al mismo endpoint de Google que usa empresa
     // El callback detectará que es del portal por la cookie/sessionStorage

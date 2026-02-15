@@ -186,13 +186,14 @@ app.post('/api/admin/setup-tenant', async (req, res) => {
     const { query } = require('./config/database');
     const crypto = require('crypto');
     
-    // Crear tenant
+    // Crear tenant (el slug se usa como identificador del portal)
+    const slug = tenantName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const tenantResult = await query(
       `INSERT INTO tenants (name, slug, is_active, client_portal_enabled, supplier_portal_enabled, client_portal_token, supplier_portal_token) 
        VALUES ($1, $2, true, true, true, $3, $4) 
        ON CONFLICT (slug) DO UPDATE SET name = $1
-       RETURNING id, name, client_portal_token, supplier_portal_token`,
-      [tenantName, tenantName.toLowerCase().replace(/\s+/g, '-'), crypto.randomBytes(32).toString('hex'), crypto.randomBytes(32).toString('hex')]
+       RETURNING id, name, slug`,
+      [tenantName, slug, crypto.randomBytes(32).toString('hex'), crypto.randomBytes(32).toString('hex')]
     );
     
     const tenant = tenantResult.rows[0];

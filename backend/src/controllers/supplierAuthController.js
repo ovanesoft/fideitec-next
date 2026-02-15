@@ -57,13 +57,13 @@ const generateSupplierTokens = async (supplier, req) => {
 // Obtener info del tenant por token del portal
 const getTenantByPortalToken = async (req, res) => {
   try {
-    const { portalToken } = req.params;
+    const { slug } = req.params;
 
     const result = await query(
       `SELECT id, name, slug, logo_url, supplier_portal_enabled
        FROM tenants 
-       WHERE supplier_portal_token = $1 AND is_active = true`,
-      [portalToken]
+       WHERE slug = $1 AND is_active = true`,
+      [slug]
     );
 
     if (result.rows.length === 0) {
@@ -106,14 +106,14 @@ const getTenantByPortalToken = async (req, res) => {
 // Verificar invitación y mostrar info para setup
 const verifyInvite = async (req, res) => {
   try {
-    const { portalToken, inviteToken } = req.params;
+    const { slug, inviteToken } = req.params;
 
     // Verificar tenant
     const tenantResult = await query(
       `SELECT id, name, supplier_portal_enabled 
        FROM tenants 
-       WHERE supplier_portal_token = $1 AND is_active = true`,
-      [portalToken]
+       WHERE slug = $1 AND is_active = true`,
+      [slug]
     );
 
     if (tenantResult.rows.length === 0) {
@@ -191,7 +191,7 @@ const setupPassword = async (req, res) => {
   const client = await getClient();
   
   try {
-    const { portalToken, inviteToken } = req.params;
+    const { slug, inviteToken } = req.params;
     const { password } = req.body;
 
     if (!password || password.length < 8) {
@@ -206,8 +206,8 @@ const setupPassword = async (req, res) => {
     // Verificar tenant
     const tenantResult = await client.query(
       `SELECT id, name FROM tenants 
-       WHERE supplier_portal_token = $1 AND is_active = true AND supplier_portal_enabled = true`,
-      [portalToken]
+       WHERE slug = $1 AND is_active = true AND supplier_portal_enabled = true`,
+      [slug]
     );
 
     if (tenantResult.rows.length === 0) {
@@ -330,7 +330,7 @@ const setupPassword = async (req, res) => {
 // Login de proveedor
 const loginSupplier = async (req, res) => {
   try {
-    const { portalToken } = req.params;
+    const { slug } = req.params;
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -343,8 +343,8 @@ const loginSupplier = async (req, res) => {
     // Verificar tenant
     const tenantResult = await query(
       `SELECT id, name FROM tenants 
-       WHERE supplier_portal_token = $1 AND is_active = true AND supplier_portal_enabled = true`,
-      [portalToken]
+       WHERE slug = $1 AND is_active = true AND supplier_portal_enabled = true`,
+      [slug]
     );
 
     if (tenantResult.rows.length === 0) {

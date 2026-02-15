@@ -89,20 +89,20 @@ router.get('/google/callback', async (req, res) => {
 
   const { code, error } = req.query;
   
-  // Verificar si viene del portal de clientes (por cookie)
-  const portalToken = req.cookies?.oauth_portal_token;
-  const isClientPortal = !!portalToken;
+  // Verificar si viene del portal de clientes (por cookie - slug del tenant)
+  const portalSlug = req.cookies?.oauth_portal_slug;
+  const isClientPortal = !!portalSlug;
   
-  console.log('Google OAuth callback - isClientPortal:', isClientPortal, 'portalToken:', portalToken);
+  console.log('Google OAuth callback - isClientPortal:', isClientPortal, 'portalSlug:', portalSlug);
   
   // Limpiar la cookie
-  if (portalToken) {
-    res.clearCookie('oauth_portal_token');
+  if (portalSlug) {
+    res.clearCookie('oauth_portal_slug');
   }
   
   // URLs de redirección según el origen
   const errorRedirectUrl = isClientPortal 
-    ? `${process.env.FRONTEND_URL}/portal/${portalToken}/login`
+    ? `${process.env.FRONTEND_URL}/portal/${portalSlug}/login`
     : `${process.env.FRONTEND_URL}/login`;
   
   if (error) {
@@ -117,7 +117,7 @@ router.get('/google/callback', async (req, res) => {
   try {
     console.log('=== GOOGLE OAUTH DEBUG ===');
     console.log('Is Client Portal:', isClientPortal);
-    console.log('Portal Token:', portalToken);
+    console.log('Portal Slug:', portalSlug);
     
     const urlParams = new URL(req.originalUrl, `https://${req.headers.host}`).searchParams;
     const rawCode = urlParams.get('code');
@@ -156,14 +156,14 @@ router.get('/google/callback', async (req, res) => {
     // ========================================
     // FLUJO PARA PORTAL DE CLIENTES
     // ========================================
-    if (isClientPortal && portalToken) {
+    if (isClientPortal && portalSlug) {
       const jwt = require('jsonwebtoken');
       const crypto = require('crypto');
       
-      // Verificar que el portal existe
+      // Verificar que el portal existe por slug
       const tenantResult = await query(
-        `SELECT id, name, client_portal_enabled FROM tenants WHERE client_portal_token = $1`,
-        [portalToken]
+        `SELECT id, name, client_portal_enabled FROM tenants WHERE slug = $1`,
+        [portalSlug]
       );
       
       if (tenantResult.rows.length === 0 || !tenantResult.rows[0].client_portal_enabled) {
@@ -226,7 +226,7 @@ router.get('/google/callback', async (req, res) => {
         [client.id, tokenHash, req.ip]
       );
 
-      return res.redirect(`${process.env.FRONTEND_URL}/portal/${portalToken}/dashboard?token=${accessToken}&refresh=${refreshToken}`);
+      return res.redirect(`${process.env.FRONTEND_URL}/portal/${portalSlug}/dashboard?token=${accessToken}&refresh=${refreshToken}`);
     }
 
     // ========================================
