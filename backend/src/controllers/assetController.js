@@ -447,11 +447,24 @@ const updateAsset = async (req, res) => {
     const values = [];
     let paramCount = 1;
 
+    // Campos numéricos que deben ser null si están vacíos
+    const numericFields = [
+      'total_area_m2', 'covered_area_m2', 'land_area_m2',
+      'rooms', 'bedrooms', 'bathrooms', 'parking_spaces', 'floors', 'year_built',
+      'risk_level', 'acquisition_value', 'current_value',
+      'total_tokens', 'token_value', 'tokens_available', 'tokens_sold',
+      'minimum_token_purchase', 'project_progress_percentage',
+      'monthly_rental_income', 'annual_expenses', 'occupancy_rate',
+      'marketplace_order'
+    ];
+
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
         setClauses.push(`${key} = $${paramCount}`);
         if (['tags', 'custom_fields', 'photos', 'documents', 'marketplace_images'].includes(key)) {
           values.push(JSON.stringify(value));
+        } else if (numericFields.includes(key) && (value === '' || value === undefined)) {
+          values.push(null);
         } else {
           values.push(value);
         }
