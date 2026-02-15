@@ -332,6 +332,7 @@ const Clients = () => {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="input-field pl-10"
+              title="Buscar clientes por nombre, apellido, email o número de documento"
             />
           </div>
           <div className="flex gap-4">
@@ -339,6 +340,7 @@ const Clients = () => {
               value={kycFilter}
               onChange={(e) => setKycFilter(e.target.value)}
               className="input-field w-auto"
+              title="Filtrar clientes por estado de verificación KYC"
             >
               <option value="">Todos los estados KYC</option>
               <option value="pending">Pendiente</option>
@@ -572,6 +574,7 @@ const Clients = () => {
                     value={portalInfo.url}
                     readOnly
                     className="input-field flex-1 text-sm"
+                    title="URL del portal de auto-registro para clientes. Copiá y compartí este link"
                   />
                   <button
                     onClick={copyPortalLink}
@@ -639,6 +642,7 @@ const Clients = () => {
                     value={formData.first_name}
                     onChange={(e) => setFormData({...formData, first_name: e.target.value})}
                     required
+                    title="Nombre de pila del cliente. Ej: Juan"
                   />
                 </div>
                 <div>
@@ -650,6 +654,7 @@ const Clients = () => {
                     value={formData.last_name}
                     onChange={(e) => setFormData({...formData, last_name: e.target.value})}
                     required
+                    title="Apellido del cliente. Ej: Pérez"
                   />
                 </div>
               </div>
@@ -663,6 +668,7 @@ const Clients = () => {
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   required
+                  title="Dirección de correo electrónico del cliente. Se usará para enviar invitaciones y notificaciones"
                 />
               </div>
 
@@ -674,6 +680,7 @@ const Clients = () => {
                   placeholder="+54 11 1234 5678"
                   value={formData.phone}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  title="Número de teléfono del cliente con código de área. Ej: +54 11 1234 5678"
                 />
               </div>
 
@@ -684,6 +691,7 @@ const Clients = () => {
                     className="input-field"
                     value={formData.document_type}
                     onChange={(e) => setFormData({...formData, document_type: e.target.value})}
+                    title="Tipo de documento de identidad del cliente. Seleccione DNI, CUIT, CUIL o Pasaporte"
                   >
                     <option value="DNI">DNI</option>
                     <option value="CUIT">CUIT</option>
@@ -699,6 +707,7 @@ const Clients = () => {
                     placeholder="12345678"
                     value={formData.document_number}
                     onChange={(e) => setFormData({...formData, document_number: e.target.value})}
+                    title="Número de documento de identidad sin puntos ni guiones. Ej: 12345678"
                   />
                 </div>
               </div>
@@ -711,6 +720,7 @@ const Clients = () => {
                   placeholder="Notas internas sobre el cliente..."
                   value={formData.notes}
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                  title="Notas internas sobre el cliente. Solo visibles para el equipo, no para el cliente"
                 />
               </div>
 
@@ -776,6 +786,7 @@ const Clients = () => {
                     value={inviteLink}
                     readOnly
                     className="input-field flex-1 text-sm bg-slate-50"
+                    title="Link de invitación para que el cliente establezca su contraseña. Expira en 7 días"
                   />
                   <button
                     onClick={copyInviteLink}

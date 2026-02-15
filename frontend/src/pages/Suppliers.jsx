@@ -507,6 +507,7 @@ const Suppliers = () => {
                     onChange={(e) => setNewSupplier({ ...newSupplier, email: e.target.value })}
                     className="input-field"
                     placeholder="proveedor@empresa.com"
+                    title="Email de contacto del proveedor. Se enviará la invitación al portal a esta dirección"
                     required
                   />
                 </div>
@@ -521,6 +522,7 @@ const Suppliers = () => {
                     onChange={(e) => setNewSupplier({ ...newSupplier, company_name: e.target.value })}
                     className="input-field"
                     placeholder="Empresa S.A."
+                    title="Razón social o nombre de la empresa proveedora. Ej: Constructora Sur S.A."
                   />
                 </div>
 
@@ -534,6 +536,7 @@ const Suppliers = () => {
                     onChange={(e) => setNewSupplier({ ...newSupplier, first_name: e.target.value })}
                     className="input-field"
                     placeholder="Juan"
+                    title="Nombre del contacto principal del proveedor"
                   />
                 </div>
 
@@ -547,6 +550,7 @@ const Suppliers = () => {
                     onChange={(e) => setNewSupplier({ ...newSupplier, last_name: e.target.value })}
                     className="input-field"
                     placeholder="Pérez"
+                    title="Apellido del contacto principal del proveedor"
                   />
                 </div>
 
@@ -560,6 +564,7 @@ const Suppliers = () => {
                     onChange={(e) => setNewSupplier({ ...newSupplier, phone: e.target.value })}
                     className="input-field"
                     placeholder="+54 11 1234-5678"
+                    title="Teléfono de contacto del proveedor con código de área. Ej: +54 11 1234-5678"
                   />
                 </div>
 
@@ -571,6 +576,7 @@ const Suppliers = () => {
                     value={newSupplier.category}
                     onChange={(e) => setNewSupplier({ ...newSupplier, category: e.target.value })}
                     className="input-field"
+                    title="Rubro o categoría principal del proveedor. Permite clasificar y filtrar proveedores"
                   >
                     <option value="">Seleccionar...</option>
                     <option value="Construcción">Construcción</option>
@@ -591,6 +597,7 @@ const Suppliers = () => {
                     value={newSupplier.document_type}
                     onChange={(e) => setNewSupplier({ ...newSupplier, document_type: e.target.value })}
                     className="input-field"
+                    title="Tipo de documento fiscal del proveedor. Ej: CUIT para empresas argentinas"
                   >
                     <option value="CUIT">CUIT</option>
                     <option value="CUIL">CUIL</option>
@@ -611,6 +618,7 @@ const Suppliers = () => {
                     onChange={(e) => setNewSupplier({ ...newSupplier, document_number: e.target.value })}
                     className="input-field"
                     placeholder="30-12345678-9"
+                    title="Número de CUIT/CUIL/DNI del proveedor sin guiones. Ej: 30712345678"
                   />
                 </div>
               </div>
