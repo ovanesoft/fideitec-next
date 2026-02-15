@@ -122,11 +122,35 @@ app.use(sanitizeInput);
 // Health check
 // ===========================================
 
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  let dbCheck = {};
+  try {
+    const { query } = require('./config/database');
+    const cols = await query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'assets' AND column_name IN ('is_published', 'marketplace_title', 'marketplace_images')
+    `);
+    const tenantCols = await query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'tenants' AND column_name = 'marketplace_enabled'
+    `);
+    const views = await query(`
+      SELECT table_name FROM information_schema.views 
+      WHERE table_schema = 'public' AND table_name LIKE 'v_marketplace%'
+    `);
+    dbCheck = {
+      asset_marketplace_columns: cols.rows.map(r => r.column_name),
+      tenant_marketplace_enabled: tenantCols.rows.length > 0,
+      marketplace_views: views.rows.map(r => r.table_name)
+    };
+  } catch (e) {
+    dbCheck = { error: e.message };
+  }
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    marketplace_db: dbCheck
   });
 });
 
