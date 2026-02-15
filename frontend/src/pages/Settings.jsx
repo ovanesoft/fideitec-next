@@ -82,7 +82,7 @@ const Settings = () => {
   const handleSaveMarketplace = async () => {
     setMarketplaceSaving(true);
     try {
-      await axios.patch(`/tenants/${user.tenantId}`, marketplaceData);
+      await axios.put(`/tenants/${user.tenantId}`, marketplaceData);
       toast.success('Configuración de marketplace guardada');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error al guardar configuración');
