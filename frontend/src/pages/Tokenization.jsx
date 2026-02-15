@@ -98,7 +98,6 @@ const Tokenization = () => {
   const [showTokenizeModal, setShowTokenizeModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showContractModal, setShowContractModal] = useState(false);
   const [showBuyOrderModal, setShowBuyOrderModal] = useState(false);
   const [showSellOrderModal, setShowSellOrderModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
@@ -112,13 +111,6 @@ const Tokenization = () => {
   const [orderStats, setOrderStats] = useState(null);
   const [certificates, setCertificates] = useState([]);
   
-  // Formulario de contrato
-  const [contractForm, setContractForm] = useState({
-    name: '',
-    description: '',
-    contract_address: ''
-  });
-  
   // Datos para tokenizar
   const [availableAssets, setAvailableAssets] = useState([]);
   const [availableUnits, setAvailableUnits] = useState([]);
@@ -131,7 +123,6 @@ const Tokenization = () => {
     asset_id: '',
     asset_unit_id: '',
     trust_id: '',
-    contract_id: '',
     total_supply: 100,
     token_price: 0,
     token_name: '',
@@ -267,7 +258,6 @@ const Tokenization = () => {
         asset_id: '',
         asset_unit_id: '',
         trust_id: '',
-        contract_id: '',
         total_supply: 100,
         token_price: 0,
         token_name: '',
@@ -351,23 +341,6 @@ const Tokenization = () => {
       loadData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error al activar token');
-    }
-  };
-
-  const handleRegisterContract = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    
-    try {
-      const res = await api.post('/tokenization/contracts/deploy', contractForm);
-      toast.success(res.data.message || 'Contrato registrado');
-      setShowContractModal(false);
-      loadData();
-      setContractForm({ name: '', description: '', contract_address: '' });
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Error al registrar contrato');
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -1119,7 +1092,7 @@ const Tokenization = () => {
                         </span>
                         <CopyButton text={tx.tx_hash} />
                         <a
-                          href={`https://polygonscan.com/tx/${tx.tx_hash}`}
+                          href={`https://basescan.org/tx/${tx.tx_hash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:text-blue-800"
@@ -1557,7 +1530,7 @@ const Tokenization = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Tokenización</h1>
-          <p className="text-gray-500">Gestiona tokens de activos en blockchain</p>
+          <p className="text-gray-500">Gestiona tokens y certificados de activos en Base Mainnet</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -1570,25 +1543,13 @@ const Tokenization = () => {
           </button>
           
           {blockchainStatus?.isConfigured && (
-            <>
-              {contracts.length === 0 ? (
-                <button
-                  onClick={() => setShowContractModal(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Registrar Contrato
-                </button>
-              ) : (
-                <button
-                  onClick={openTokenizeModal}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Tokenizar
-                </button>
-              )}
-            </>
+            <button
+              onClick={openTokenizeModal}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Tokenizar
+            </button>
           )}
         </div>
       </div>
@@ -1665,89 +1626,7 @@ const Tokenization = () => {
       {renderTransferModal()}
       {renderDetailModal()}
       
-      {/* Modal Registrar Contrato */}
-      {showContractModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-bold">Registrar Contrato</h2>
-              <p className="text-sm text-gray-500">
-                Ingresá la dirección de un contrato ERC1155 desplegado desde{' '}
-                <a href="https://thirdweb.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                  Thirdweb Dashboard
-                </a>
-              </p>
-            </div>
-            
-            <form onSubmit={handleRegisterContract} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Dirección del Contrato *</label>
-                <input
-                  type="text"
-                  value={contractForm.contract_address}
-                  onChange={(e) => setContractForm({...contractForm, contract_address: e.target.value})}
-                  placeholder="0x..."
-                  required
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 font-mono"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Desplegá un contrato "Edition" (ERC1155) en Thirdweb y pegá su dirección aquí
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Nombre</label>
-                <input
-                  type="text"
-                  value={contractForm.name}
-                  onChange={(e) => setContractForm({...contractForm, name: e.target.value})}
-                  placeholder="Ej: FIDEITEC Tokens Principal"
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Descripción</label>
-                <textarea
-                  value={contractForm.description}
-                  onChange={(e) => setContractForm({...contractForm, description: e.target.value})}
-                  placeholder="Descripción del contrato..."
-                  rows={2}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div className="bg-blue-50 rounded-lg p-4 text-sm">
-                <p className="font-medium text-blue-800 mb-2">¿Cómo desplegar un contrato?</p>
-                <ol className="list-decimal list-inside text-blue-700 space-y-1">
-                  <li>Ir a <a href="https://thirdweb.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline">thirdweb.com/dashboard</a></li>
-                  <li>Click en "Deploy" → "Edition" (ERC1155)</li>
-                  <li>Seleccionar red: Polygon</li>
-                  <li>Completar datos y desplegar</li>
-                  <li>Copiar la dirección del contrato</li>
-                </ol>
-              </div>
-              
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowContractModal(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || !contractForm.contract_address}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {submitting ? 'Registrando...' : 'Registrar Contrato'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modal Registrar Contrato eliminado - Sistema migrado a certificación directa en Base Mainnet */}
 
       {/* Modal Crear Orden de Compra */}
       {showBuyOrderModal && (
