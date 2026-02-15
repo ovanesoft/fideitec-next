@@ -696,6 +696,7 @@ const Trusts = () => {
                     name="name"
                     className="input-field" 
                     placeholder="Nombre del fideicomiso"
+                    title="Nombre identificatorio del fideicomiso. Ej: Fideicomiso Torre Norte, Fideicomiso Agro Litoral"
                     value={formData.name}
                     onChange={handleFormChange}
                     required
@@ -708,6 +709,7 @@ const Trusts = () => {
                     name="code"
                     className="input-field" 
                     placeholder="FID-001"
+                    title="Código interno de referencia para identificar el fideicomiso. Ej: FID-001, TRUST-2024-A"
                     value={formData.code}
                     onChange={handleFormChange}
                   />
@@ -721,6 +723,7 @@ const Trusts = () => {
                   className="input-field" 
                   rows="2"
                   placeholder="Descripción del fideicomiso..."
+                  title="Breve descripción del objeto y propósito del fideicomiso. Incluya el tipo de bienes y la finalidad"
                   value={formData.description}
                   onChange={handleFormChange}
                 />
@@ -732,6 +735,7 @@ const Trusts = () => {
                   <select 
                     name="trust_type"
                     className="input-field"
+                    title="Seleccione la categoría que mejor describe la naturaleza del fideicomiso"
                     value={formData.trust_type}
                     onChange={handleFormChange}
                   >
@@ -748,6 +752,7 @@ const Trusts = () => {
                   <select 
                     name="currency"
                     className="input-field"
+                    title="Moneda principal en la que se denomina el patrimonio del fideicomiso"
                     value={formData.currency}
                     onChange={handleFormChange}
                   >
@@ -766,6 +771,7 @@ const Trusts = () => {
                     type="date" 
                     name="constitution_date"
                     className="input-field"
+                    title="Fecha en que se firmó la escritura pública o contrato de constitución del fideicomiso"
                     value={formData.constitution_date}
                     onChange={handleFormChange}
                   />
@@ -776,6 +782,7 @@ const Trusts = () => {
                     type="date" 
                     name="start_date"
                     className="input-field"
+                    title="Fecha efectiva de inicio de operaciones del fideicomiso"
                     value={formData.start_date}
                     onChange={handleFormChange}
                   />
@@ -786,6 +793,7 @@ const Trusts = () => {
                     type="date" 
                     name="end_date"
                     className="input-field"
+                    title="Fecha estimada de finalización o vencimiento del fideicomiso según contrato"
                     value={formData.end_date}
                     onChange={handleFormChange}
                   />
@@ -801,6 +809,7 @@ const Trusts = () => {
                     name="contract_number"
                     className="input-field"
                     placeholder="Escritura Nº"
+                    title="Número de escritura pública o contrato privado que formaliza el fideicomiso"
                     value={formData.contract_number}
                     onChange={handleFormChange}
                   />
@@ -812,6 +821,7 @@ const Trusts = () => {
                     name="notary_name"
                     className="input-field"
                     placeholder="Nombre del escribano"
+                    title="Nombre completo del escribano público interviniente en la constitución"
                     value={formData.notary_name}
                     onChange={handleFormChange}
                   />
@@ -823,6 +833,7 @@ const Trusts = () => {
                     name="notary_registry"
                     className="input-field"
                     placeholder="Nº de registro"
+                    title="Número de registro notarial del escribano interviniente"
                     value={formData.notary_registry}
                     onChange={handleFormChange}
                   />
@@ -838,6 +849,7 @@ const Trusts = () => {
                   className="input-field"
                   placeholder="0.00"
                   step="0.01"
+                  title="Valor monetario total de los bienes fideicomitidos al momento de la constitución"
                   value={formData.initial_patrimony}
                   onChange={handleFormChange}
                 />
@@ -853,8 +865,9 @@ const Trusts = () => {
                     checked={formData.is_tokenizable}
                     onChange={handleFormChange}
                     className="w-4 h-4 text-primary-600 rounded"
+                    title="Permite fraccionar el fideicomiso en tokens digitales para su distribución o venta"
                   />
-                  <label htmlFor="is_tokenizable" className="font-medium text-slate-800">
+                  <label htmlFor="is_tokenizable" className="font-medium text-slate-800" title="Permite fraccionar el fideicomiso en tokens digitales para su distribución o venta">
                     Habilitar tokenización
                   </label>
                 </div>
@@ -868,6 +881,7 @@ const Trusts = () => {
                         name="total_tokens"
                         className="input-field"
                         placeholder="1000000"
+                        title="Cantidad total de tokens a emitir. Cada token representará una fracción del fideicomiso"
                         value={formData.total_tokens}
                         onChange={handleFormChange}
                       />
@@ -880,6 +894,7 @@ const Trusts = () => {
                         className="input-field"
                         placeholder="1.00"
                         step="0.00000001"
+                        title="Precio unitario de cada token en la moneda seleccionada. Ej: si el patrimonio es $1.000.000 y hay 1.000.000 tokens, cada token vale $1"
                         value={formData.token_value}
                         onChange={handleFormChange}
                       />
@@ -896,6 +911,7 @@ const Trusts = () => {
                   className="input-field" 
                   rows="2"
                   placeholder="Notas adicionales..."
+                  title="Observaciones internas, comentarios o información adicional relevante sobre el fideicomiso"
                   value={formData.notes}
                   onChange={handleFormChange}
                 />
