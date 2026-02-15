@@ -172,25 +172,37 @@ const DashboardContent = () => {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
           <h3 className="text-lg font-semibold text-slate-800 mb-4">Acciones rápidas</h3>
           <div className="grid grid-cols-2 gap-3">
-            <button className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
+            <button 
+              onClick={() => navigate('/clients')}
+              className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left cursor-pointer"
+            >
               <Users className="w-6 h-6 text-primary-600 mb-2" />
               <p className="font-medium text-slate-800">Nuevo Cliente</p>
               <p className="text-xs text-slate-500">Agregar cliente</p>
             </button>
-            <button className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
+            <button 
+              onClick={() => navigate('/suppliers')}
+              className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left cursor-pointer"
+            >
               <Activity className="w-6 h-6 text-primary-600 mb-2" />
               <p className="font-medium text-slate-800">Nuevo Proveedor</p>
               <p className="text-xs text-slate-500">Invitar proveedor</p>
             </button>
-            <button className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
+            <button 
+              onClick={() => navigate('/trusts')}
+              className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left cursor-pointer"
+            >
               <DollarSign className="w-6 h-6 text-primary-600 mb-2" />
               <p className="font-medium text-slate-800">Fideicomiso</p>
               <p className="text-xs text-slate-500">Crear nuevo</p>
             </button>
-            <button className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
+            <button 
+              onClick={() => navigate('/settings')}
+              className="p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-left cursor-pointer"
+            >
               <TrendingUp className="w-6 h-6 text-primary-600 mb-2" />
-              <p className="font-medium text-slate-800">Reportes</p>
-              <p className="text-xs text-slate-500">Ver estadísticas</p>
+              <p className="font-medium text-slate-800">Configuración</p>
+              <p className="text-xs text-slate-500">Ajustes de cuenta</p>
             </button>
           </div>
         </div>

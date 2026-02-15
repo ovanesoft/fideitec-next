@@ -214,14 +214,14 @@ const DashboardLayout = () => {
                       <div className="py-1">
                         <button 
                           onClick={() => { navigate('/settings', { state: { section: 'profile' } }); setDropdownOpen(false); }}
-                          className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full"
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left cursor-pointer"
                         >
                           <User className="w-4 h-4" />
                           Mi perfil
                         </button>
                         <button 
                           onClick={() => { navigate('/settings'); setDropdownOpen(false); }}
-                          className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full"
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left cursor-pointer"
                         >
                           <Settings className="w-4 h-4" />
                           Configuración
