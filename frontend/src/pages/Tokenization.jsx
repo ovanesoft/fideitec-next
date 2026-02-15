@@ -10,7 +10,7 @@ import {
   Building2, Home, Briefcase, RefreshCw, Settings,
   TrendingUp, Users, Layers, Copy, Check, ArrowLeft,
   FileText, Download, ShoppingCart, DollarSign, 
-  CreditCard, ShieldCheck, QrCode, Link2, Zap
+  CreditCard, ShieldCheck, QrCode, Link2, Zap, HelpCircle, X
 } from 'lucide-react';
 
 // Estados de tokenización
@@ -99,6 +99,7 @@ const Tokenization = () => {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showBuyOrderModal, setShowBuyOrderModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [showSellOrderModal, setShowSellOrderModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
@@ -1535,6 +1536,13 @@ const Tokenization = () => {
         
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setShowHelpModal(true)}
+            className="p-2 hover:bg-blue-100 rounded-lg text-blue-600"
+            title="¿Cómo funciona la tokenización?"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
+          <button
             onClick={loadData}
             className="p-2 hover:bg-gray-100 rounded-lg"
             title="Actualizar"
@@ -1997,6 +2005,153 @@ const Tokenization = () => {
                     Certificar en Blockchain
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Ayuda */}
+      {showHelpModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white rounded-t-xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <HelpCircle className="w-5 h-5 text-blue-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">¿Cómo funciona la Tokenización?</h2>
+              </div>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6 text-gray-700">
+              {/* Qué es */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Qué es tokenizar?</h3>
+                <p>
+                  Tokenizar es dividir un bien (un inmueble, un fideicomiso, un terreno) en <strong>partes iguales digitales</strong> llamadas <strong>tokens</strong> o <strong>cuotas partes</strong>.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3">
+                  <p className="text-sm text-blue-800">
+                    <strong>Ejemplo:</strong> Si tenés un departamento valuado en USD 100.000 y lo tokenizás en 1.000 tokens, cada token vale USD 100 y representa una fracción del departamento.
+                  </p>
+                </div>
+              </div>
+
+              {/* Pasos */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">El proceso paso a paso</h3>
+                
+                <div className="space-y-4">
+                  {/* Paso 1 */}
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">1</div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Cargar el activo</h4>
+                      <p className="text-sm mt-1">
+                        Primero registrá el bien en el sistema desde el módulo de <strong>Activos</strong> o <strong>Fideicomisos</strong>. Completá los datos: nombre, descripción, ubicación, valor, etc.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Paso 2 */}
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">2</div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Tokenizar</h4>
+                      <p className="text-sm mt-1">
+                        Desde este módulo, hacé clic en <strong>"Tokenizar"</strong> y elegí qué activo querés fraccionar, en cuántas partes (tokens), qué precio le ponés a cada parte, y un nombre y código identificatorio.
+                      </p>
+                      <p className="text-sm mt-1 text-gray-500">
+                        En este momento, todos los tokens quedan en poder de tu empresa. Todavía no se vendió nada.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Paso 3 */}
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">3</div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Vender tokens a clientes</h4>
+                      <p className="text-sm mt-1">
+                        Cuando un cliente quiere invertir, se crea una <strong>Orden de Compra</strong> desde la pestaña "Órdenes". El cliente elige la cantidad de tokens que quiere comprar y realiza el pago. Una vez que confirmás la recepción del pago, se completa la orden y los tokens pasan al balance del cliente.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Paso 4 */}
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">4</div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Se genera el Certificado</h4>
+                      <p className="text-sm mt-1">
+                        Al completar una venta, el sistema genera automáticamente un <strong>Certificado de Posesión de Cuotas Partes</strong> con los datos del inversor, la cantidad de tokens, el valor y un código de verificación único. Se puede descargar en PDF.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Paso 5 */}
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-sm">5</div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Registro en Blockchain</h4>
+                      <p className="text-sm mt-1">
+                        Cada certificado puede registrarse en <strong>blockchain</strong> (Base Mainnet). Esto graba una huella digital del certificado de forma permanente e inalterable en una red pública, para que cualquiera pueda verificar que es auténtico y no fue modificado.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dónde se guarda */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">¿Qué queda grabado y dónde?</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Información</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Dónde se guarda</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 text-sm">
+                      <tr>
+                        <td className="px-4 py-2">Datos del activo</td>
+                        <td className="px-4 py-2 text-gray-500">Base de datos FIDEITEC</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-2">Tokens y balances</td>
+                        <td className="px-4 py-2 text-gray-500">Base de datos FIDEITEC</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-2">Órdenes de compra/venta</td>
+                        <td className="px-4 py-2 text-gray-500">Base de datos FIDEITEC</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-2">Certificados (PDF)</td>
+                        <td className="px-4 py-2 text-gray-500">Base de datos FIDEITEC</td>
+                      </tr>
+                      <tr className="bg-green-50">
+                        <td className="px-4 py-2 font-medium">Huella digital del certificado</td>
+                        <td className="px-4 py-2 text-green-700 font-medium">Blockchain (público y permanente)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Resumen */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-2">En resumen</h3>
+                <p className="text-sm">
+                  Todo el proceso de gestión (quién tiene cuántos tokens, a qué precio, cuándo compró) se maneja dentro de FIDEITEC. Blockchain se usa como <strong>sello de autenticidad</strong> de cada certificado emitido, garantizando que no pueda ser alterado.
+                </p>
               </div>
             </div>
           </div>
