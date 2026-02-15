@@ -20,7 +20,7 @@ import {
   MapPin, Ruler, DollarSign, Coins, Calendar, Trash2,
   Copy, Home, Building2, Warehouse, Hotel, Car, TreePine,
   Factory, Briefcase, PiggyBank, Layers, BarChart3,
-  RotateCcw, Archive
+  RotateCcw, Archive, Store, Globe
 } from 'lucide-react';
 
 // Categorías de activos
@@ -165,7 +165,13 @@ const Assets = () => {
     // Tercerización
     is_outsourced: false,
     outsource_details: '',
-    notes: ''
+    notes: '',
+    // Marketplace
+    is_published: false,
+    marketplace_featured: false,
+    marketplace_title: '',
+    marketplace_description: '',
+    marketplace_images: []
   });
 
   // Formulario de unidad (unit_code se genera automáticamente en el backend)
@@ -207,6 +213,21 @@ const Assets = () => {
       [name]: type === 'checkbox' ? checked : value
     }));
   }, []);
+
+  // Toggle publicar en marketplace
+  const handleTogglePublish = async (asset) => {
+    try {
+      const newState = !asset.is_published;
+      await api.put(`/assets/${asset.id}`, { 
+        is_published: newState,
+        ...(!asset.published_at && newState ? { published_at: new Date().toISOString() } : {})
+      });
+      toast.success(newState ? 'Publicado en marketplace' : 'Retirado del marketplace');
+      loadAssets();
+    } catch (err) {
+      toast.error('Error al cambiar estado de publicación');
+    }
+  };
 
   // Cargar activos
   const loadAssets = async () => {
@@ -374,7 +395,13 @@ const Assets = () => {
           total_tokens: assetData.total_tokens || '',
           token_value: assetData.token_value || '',
           project_stage: assetData.project_stage || '',
-          notes: assetData.notes || ''
+          notes: assetData.notes || '',
+          // Marketplace
+          is_published: assetData.is_published || false,
+          marketplace_featured: assetData.marketplace_featured || false,
+          marketplace_title: assetData.marketplace_title || '',
+          marketplace_description: assetData.marketplace_description || '',
+          marketplace_images: assetData.marketplace_images || []
         });
         setSelectedAsset(assetData);
         setIsEditing(true);
@@ -412,7 +439,13 @@ const Assets = () => {
         current_value: formData.current_value ? parseFloat(formData.current_value) : null,
         total_tokens: formData.total_tokens ? parseInt(formData.total_tokens) : 0,
         token_value: formData.token_value ? parseFloat(formData.token_value) : 0,
-        trust_id: formData.trust_id || null
+        trust_id: formData.trust_id || null,
+        // Marketplace
+        is_published: formData.is_published || false,
+        marketplace_featured: formData.marketplace_featured || false,
+        marketplace_title: formData.marketplace_title || null,
+        marketplace_description: formData.marketplace_description || null,
+        marketplace_images: formData.marketplace_images || []
       };
 
       let response;
@@ -547,7 +580,12 @@ const Assets = () => {
       project_estimated_end_date: '',
       is_outsourced: false,
       outsource_details: '',
-      notes: ''
+      notes: '',
+      is_published: false,
+      marketplace_featured: false,
+      marketplace_title: '',
+      marketplace_description: '',
+      marketplace_images: []
     });
   };
 
@@ -869,6 +907,17 @@ const Assets = () => {
                         </td>
                         <td className="px-4 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => handleTogglePublish(asset)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                asset.is_published 
+                                  ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' 
+                                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                              }`}
+                              title={asset.is_published ? 'Retirar del marketplace' : 'Publicar en marketplace'}
+                            >
+                              <Globe className="w-4 h-4" />
+                            </button>
                             <button 
                               onClick={() => loadAssetDetail(asset.id)}
                               className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
@@ -1342,6 +1391,80 @@ const Assets = () => {
                   </div>
                 </div>
               )}
+
+              {/* Marketplace */}
+              <div className="border-t pt-4">
+                <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                  <Store className="w-4 h-4 text-blue-600" />
+                  Marketplace
+                </h4>
+                <div className="flex items-center gap-3 mb-4">
+                  <input
+                    type="checkbox"
+                    id="is_published"
+                    checked={formData.is_published}
+                    onChange={(e) => setFormData({...formData, is_published: e.target.checked})}
+                    className="w-4 h-4 text-blue-600 rounded"
+                  />
+                  <label htmlFor="is_published" className="font-medium text-slate-800">
+                    Publicar en el marketplace
+                  </label>
+                </div>
+                {formData.is_published && (
+                  <div className="space-y-3 ml-7">
+                    <div className="flex items-center gap-3 mb-3">
+                      <input
+                        type="checkbox"
+                        id="marketplace_featured"
+                        checked={formData.marketplace_featured}
+                        onChange={(e) => setFormData({...formData, marketplace_featured: e.target.checked})}
+                        className="w-4 h-4 text-amber-600 rounded"
+                      />
+                      <label htmlFor="marketplace_featured" className="text-sm text-slate-700">
+                        Marcar como destacado
+                      </label>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-600 mb-1">Título para marketplace</label>
+                      <input 
+                        type="text"
+                        className="input-field"
+                        placeholder={formData.name || 'Se usa el nombre del activo si se deja vacío'}
+                        value={formData.marketplace_title}
+                        onChange={(e) => setFormData({...formData, marketplace_title: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-600 mb-1">Descripción para marketplace</label>
+                      <textarea 
+                        className="input-field" 
+                        rows="3"
+                        placeholder="Descripción atractiva del proyecto para inversores..."
+                        value={formData.marketplace_description}
+                        onChange={(e) => setFormData({...formData, marketplace_description: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-600 mb-1">
+                        Imágenes del marketplace (URLs, una por línea)
+                      </label>
+                      <textarea 
+                        className="input-field font-mono text-xs" 
+                        rows="3"
+                        placeholder={"https://ejemplo.com/foto1.jpg\nhttps://ejemplo.com/foto2.jpg"}
+                        value={(formData.marketplace_images || []).join('\n')}
+                        onChange={(e) => setFormData({
+                          ...formData, 
+                          marketplace_images: e.target.value.split('\n').map(u => u.trim()).filter(Boolean)
+                        })}
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        Podés subir fotos a Cloudinary u otro servicio y pegar las URLs acá
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Tercerización */}
               <div className="border-t pt-4">

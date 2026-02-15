@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { 
   User, Building2, Shield, Mail, Phone, Globe, 
   Camera, Save, Loader2, CheckCircle, AlertCircle,
-  Lock, Eye, EyeOff, Send, Copy, Link, Pencil, Check, X
+  Lock, Eye, EyeOff, Send, Copy, Link, Pencil, Check, X,
+  Store, ExternalLink
 } from 'lucide-react';
 import axios from '../api/axios';
 import toast from 'react-hot-toast';
@@ -22,6 +23,19 @@ const Settings = () => {
   const [slugSaving, setSlugSaving] = useState(false);
   const [copiedLink, setCopiedLink] = useState(null);
 
+  // Marketplace state
+  const [marketplaceData, setMarketplaceData] = useState({
+    marketplace_enabled: false,
+    marketplace_brand_name: '',
+    marketplace_description: '',
+    marketplace_logo_url: '',
+    marketplace_website: '',
+    marketplace_phone: '',
+    marketplace_email: ''
+  });
+  const [marketplaceLoading, setMarketplaceLoading] = useState(true);
+  const [marketplaceSaving, setMarketplaceSaving] = useState(false);
+
   // Password change state
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -37,6 +51,45 @@ const Settings = () => {
       setActiveTab(location.state.section);
     }
   }, [location.state]);
+
+  // Load marketplace data
+  useEffect(() => {
+    const loadMarketplaceData = async () => {
+      if (!user?.tenantId) return;
+      try {
+        const response = await axios.get(`/tenants/${user.tenantId}`);
+        if (response.data.success) {
+          const t = response.data.data.tenant || response.data.data;
+          setMarketplaceData({
+            marketplace_enabled: t.marketplace_enabled || false,
+            marketplace_brand_name: t.marketplace_brand_name || '',
+            marketplace_description: t.marketplace_description || '',
+            marketplace_logo_url: t.marketplace_logo_url || '',
+            marketplace_website: t.marketplace_website || '',
+            marketplace_phone: t.marketplace_phone || '',
+            marketplace_email: t.marketplace_email || ''
+          });
+        }
+      } catch (err) {
+        console.error('Error loading marketplace data:', err);
+      } finally {
+        setMarketplaceLoading(false);
+      }
+    };
+    loadMarketplaceData();
+  }, [user?.tenantId]);
+
+  const handleSaveMarketplace = async () => {
+    setMarketplaceSaving(true);
+    try {
+      await axios.patch(`/tenants/${user.tenantId}`, marketplaceData);
+      toast.success('Configuración de marketplace guardada');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error al guardar configuración');
+    } finally {
+      setMarketplaceSaving(false);
+    }
+  };
 
   const tabs = [
     { id: 'profile', label: 'Perfil', icon: User },
@@ -380,6 +433,155 @@ const Settings = () => {
               </div>
             </div>
           )}
+
+          {/* Marketplace */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <Store className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800">Marketplace</h3>
+                  <p className="text-sm text-slate-500">Publicá tus proyectos en el marketplace público de FIDEITEC</p>
+                </div>
+              </div>
+              <a 
+                href="/marketplace" 
+                target="_blank"
+                className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              >
+                Ver marketplace <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+
+            {marketplaceLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Toggle habilitado */}
+                <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <div>
+                    <p className="font-medium text-slate-800">Habilitar marketplace</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Permite publicar activos en el marketplace público
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setMarketplaceData(d => ({ ...d, marketplace_enabled: !d.marketplace_enabled }))}
+                    className={`relative w-12 h-7 rounded-full transition-colors ${
+                      marketplaceData.marketplace_enabled ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                      marketplaceData.marketplace_enabled ? 'translate-x-5' : ''
+                    }`} />
+                  </button>
+                </div>
+
+                {marketplaceData.marketplace_enabled && (
+                  <>
+                    {/* Nombre de marca */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Nombre de marca (público)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={user?.tenantName || 'Nombre de tu empresa'}
+                        value={marketplaceData.marketplace_brand_name}
+                        onChange={(e) => setMarketplaceData(d => ({ ...d, marketplace_brand_name: e.target.value }))}
+                        className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                      <p className="text-xs text-slate-400 mt-1">Si se deja vacío, se usa el nombre de la organización</p>
+                    </div>
+
+                    {/* Descripción */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Descripción de la empresa
+                      </label>
+                      <textarea
+                        rows="3"
+                        placeholder="Breve descripción de tu empresa que verán los inversores..."
+                        value={marketplaceData.marketplace_description}
+                        onChange={(e) => setMarketplaceData(d => ({ ...d, marketplace_description: e.target.value }))}
+                        className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+
+                    {/* Logo URL */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        URL del logo
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://ejemplo.com/logo.png"
+                        value={marketplaceData.marketplace_logo_url}
+                        onChange={(e) => setMarketplaceData(d => ({ ...d, marketplace_logo_url: e.target.value }))}
+                        className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+
+                    {/* Contacto */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Sitio web
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="https://..."
+                          value={marketplaceData.marketplace_website}
+                          onChange={(e) => setMarketplaceData(d => ({ ...d, marketplace_website: e.target.value }))}
+                          className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Email de contacto
+                        </label>
+                        <input
+                          type="email"
+                          placeholder="info@empresa.com"
+                          value={marketplaceData.marketplace_email}
+                          onChange={(e) => setMarketplaceData(d => ({ ...d, marketplace_email: e.target.value }))}
+                          className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Teléfono
+                        </label>
+                        <input
+                          type="tel"
+                          placeholder="+54 11 ..."
+                          value={marketplaceData.marketplace_phone}
+                          onChange={(e) => setMarketplaceData(d => ({ ...d, marketplace_phone: e.target.value }))}
+                          className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Guardar */}
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={handleSaveMarketplace}
+                    disabled={marketplaceSaving}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm font-medium"
+                  >
+                    {marketplaceSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Guardar marketplace
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Organization Notice */}
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">

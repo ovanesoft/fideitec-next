@@ -438,7 +438,9 @@ const updateAsset = async (req, res) => {
       'property_title_url', 'cadastral_certificate_url', 'photos', 'documents',
       'is_outsourced', 'outsource_details',
       'monthly_rental_income', 'annual_expenses', 'occupancy_rate',
-      'notes', 'tags', 'custom_fields'
+      'notes', 'tags', 'custom_fields',
+      'is_published', 'marketplace_title', 'marketplace_description', 'marketplace_images',
+      'marketplace_featured', 'marketplace_order', 'published_at'
     ];
 
     const setClauses = [];
@@ -448,7 +450,7 @@ const updateAsset = async (req, res) => {
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
         setClauses.push(`${key} = $${paramCount}`);
-        if (['tags', 'custom_fields', 'photos', 'documents'].includes(key)) {
+        if (['tags', 'custom_fields', 'photos', 'documents', 'marketplace_images'].includes(key)) {
           values.push(JSON.stringify(value));
         } else {
           values.push(value);

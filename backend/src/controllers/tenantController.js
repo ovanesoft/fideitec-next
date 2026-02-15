@@ -214,6 +214,18 @@ const updateTenant = async (req, res) => {
       values.push(is_active);
     }
 
+    // Marketplace fields
+    const marketplaceFields = [
+      'marketplace_enabled', 'marketplace_brand_name', 'marketplace_description',
+      'marketplace_logo_url', 'marketplace_website', 'marketplace_phone', 'marketplace_email'
+    ];
+    for (const field of marketplaceFields) {
+      if (req.body[field] !== undefined) {
+        updates.push(`${field} = $${paramCount++}`);
+        values.push(req.body[field]);
+      }
+    }
+
     if (updates.length === 0) {
       return res.status(400).json({
         success: false,
