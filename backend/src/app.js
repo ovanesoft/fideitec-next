@@ -805,6 +805,25 @@ const startServer = async () => {
       } else {
         console.log('✅ Tablas ya existen');
       }
+
+      // Siempre ejecutar migraciones incrementales (usan IF NOT EXISTS / CREATE OR REPLACE)
+      const incrementalMigrations = ['migration_marketplace.sql'];
+      for (const migFile of incrementalMigrations) {
+        try {
+          const migPath = require('path').join(__dirname, 'database', migFile);
+          if (require('fs').existsSync(migPath)) {
+            const migSql = require('fs').readFileSync(migPath, 'utf8');
+            await query(migSql);
+            console.log(`✅ Migración incremental aplicada: ${migFile}`);
+          }
+        } catch (migErr) {
+          if (migErr.message?.includes('already exists')) {
+            console.log(`⚠️ ${migFile}: ya aplicada (OK)`);
+          } else {
+            console.error(`⚠️ Error en ${migFile}:`, migErr.message);
+          }
+        }
+      }
     } catch (migrationError) {
       console.error('⚠️ Error en migración (continuando):', migrationError.message);
     }
