@@ -175,7 +175,7 @@ const SupplierSetup = () => {
             <span className="text-sm font-semibold text-white/80">Configuración de Cuenta</span>
           </div>
           
-          <h1 className="logo-text-lg mb-4">FIDEITEC</h1>
+          <a href="https://fideitec.com" className="logo-text-lg mb-4 inline-block hover:opacity-80 transition-opacity">FIDEITEC</a>
           
           <p className="text-xl text-slate-300 mb-8 max-w-md">
             Bienvenido al portal de proveedores de <span className="font-semibold text-white">{tenantName}</span>
@@ -201,7 +201,7 @@ const SupplierSetup = () => {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl mb-4 shadow-lg">
               <Truck className="w-8 h-8 text-white" />
             </div>
-            <h1 className="logo-text-lg">FIDEITEC</h1>
+            <a href="https://fideitec.com" className="logo-text-lg inline-block hover:opacity-80 transition-opacity">FIDEITEC</a>
             <div className="inline-block px-3 py-1 rounded-full bg-white/10 border border-white/20 mt-2">
               <span className="text-xs font-semibold text-white/80">Configuración de Cuenta</span>
             </div>

@@ -118,7 +118,7 @@ const Register = () => {
         
         <div className="relative z-10 text-center">
           <div className="mb-8">
-            <h1 className="logo-text-lg mb-2">FIDEITEC</h1>
+            <a href="https://fideitec.com" className="logo-text-lg mb-2 inline-block hover:opacity-80 transition-opacity cursor-pointer">FIDEITEC</a>
             <div className="inline-block px-4 py-1 rounded-full bg-white/10 border border-white/20 mb-4">
               <span className="text-sm font-semibold text-white/80">Portal de Empresa</span>
             </div>
@@ -147,7 +147,7 @@ const Register = () => {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
-            <h1 className="logo-text-lg">FIDEITEC</h1>
+            <a href="https://fideitec.com" className="logo-text-lg inline-block hover:opacity-80 transition-opacity cursor-pointer">FIDEITEC</a>
             <div className="inline-block px-3 py-1 rounded-full bg-white/10 border border-white/20 mt-2">
               <span className="text-xs font-semibold text-white/80">Portal de Empresa</span>
             </div>
