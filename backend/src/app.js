@@ -154,6 +154,24 @@ app.get('/health', async (req, res) => {
   });
 });
 
+// Endpoint temporal para habilitar marketplace en todos los tenants activos
+app.post('/api/admin/enable-marketplace', async (req, res) => {
+  const { secret } = req.body;
+  const ADMIN_SECRET = 'fdt_admin_2026_emergency';
+  if (secret !== ADMIN_SECRET && secret !== process.env.JWT_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  try {
+    const { query } = require('./config/database');
+    const result = await query(
+      `UPDATE tenants SET marketplace_enabled = true WHERE is_active = true RETURNING id, name, marketplace_enabled`
+    );
+    res.json({ success: true, updated: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ===========================================
 // Rutas de la API
 // ===========================================
