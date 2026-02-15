@@ -68,7 +68,7 @@ api.interceptors.request.use(
 );
 
 // Rutas públicas donde no se debe redirigir al login
-const publicPaths = ['/reset-password', '/forgot-password', '/verify-email', '/register', '/login', '/privacy', '/terms', '/data-deletion', '/portal', '/supplier-portal'];
+const publicPaths = ['/reset-password', '/forgot-password', '/verify-email', '/register', '/login', '/privacy', '/terms', '/data-deletion', '/portal', '/supplier-portal', '/marketplace'];
 
 const isPublicPath = () => {
   const currentPath = window.location.pathname;

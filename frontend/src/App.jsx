@@ -37,6 +37,11 @@ import TenantsList from './pages/root-admin/TenantsList';
 import UsersList from './pages/root-admin/UsersList';
 import BillingManagement from './pages/root-admin/BillingManagement';
 import AuditLogs from './pages/root-admin/AuditLogs';
+// Marketplace Público
+import MarketplaceLayout from './pages/marketplace/MarketplaceLayout';
+import MarketplaceHome from './pages/marketplace/MarketplaceHome';
+import ProjectDetail from './pages/marketplace/ProjectDetail';
+import VerifyCertificate from './pages/marketplace/VerifyCertificate';
 
 // Apply theme from localStorage (shared with landing page)
 const useTheme = () => {
@@ -241,6 +246,14 @@ function App() {
         }}
       />
       <Routes>
+        {/* Marketplace Público - rutas con /marketplace/* */}
+        <Route path="/marketplace" element={<MarketplaceLayout />}>
+          <Route index element={<MarketplaceHome />} />
+          <Route path="project/:id" element={<ProjectDetail />} />
+          <Route path="verify" element={<VerifyCertificate />} />
+          <Route path="verify/:code" element={<VerifyCertificate />} />
+        </Route>
+
         {/* Portal de Clientes - rutas con /portal/* */}
         <Route path="/portal/*" element={<PortalRoutes />} />
         

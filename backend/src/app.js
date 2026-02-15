@@ -30,6 +30,7 @@ const unitRoutes = require('./routes/units');
 const tokenizationRoutes = require('./routes/tokenization');
 const approvalRoutes = require('./routes/approvals');
 const rootAdminRoutes = require('./routes/rootAdmin');
+const marketplaceRoutes = require('./routes/marketplace');
 
 const app = express();
 
@@ -655,6 +656,9 @@ app.use('/api/units', unitRoutes);
 app.use('/api/tokenization', tokenizationRoutes);
 app.use('/api/approvals', approvalRoutes);
 app.use('/api/root-admin', rootAdminRoutes);
+
+// Marketplace público (sin autenticación)
+app.use('/api/marketplace', marketplaceRoutes);
 
 // ===========================================
 // Ruta raíz

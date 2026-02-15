@@ -17,7 +17,8 @@ const runMigrations = async () => {
     'migration_units.sql',
     'migration_tokenization.sql',
     'migration_approval_columns.sql',
-    'migration_approval_system.sql'
+    'migration_approval_system.sql',
+    'migration_marketplace.sql'
   ];
 
   let successCount = 0;
