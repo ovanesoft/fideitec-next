@@ -1,0 +1,18 @@
+============================================
+HUELLA DE INTEGRIDAD - FIDEITEC.COM v1.00
+============================================
+
+Archivo:            fideitec-com_extractos_v1.00.zip
+Fecha generación:   2026-01-16
+Archivos incluidos: 74
+
+SHA-256:
+cfd1c4c0e56773acbea7ea1f50913b70afc4ccc5add674c2c4b17a2b2ec91f75
+
+Este hash puede verificarse ejecutando:
+  shasum -a 256 fideitec-com_extractos_v1.00.zip
+
+============================================
+Titular: Pablo Martin Faranna
+CUIT: 20-27283949-3
+============================================
