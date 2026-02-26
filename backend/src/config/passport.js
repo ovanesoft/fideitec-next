@@ -3,7 +3,49 @@ const LocalStrategy = require('passport-local').Strategy;
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const FacebookStrategy = require('passport-facebook').Strategy;
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { query } = require('./database');
+
+async function createTenantForUser(userId, firstName, lastName, email) {
+  try {
+    const tenantName = `${firstName} ${lastName}`.trim() || email.split('@')[0];
+    let baseSlug = tenantName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    if (!baseSlug) baseSlug = email.split('@')[0].replace(/[^a-z0-9]/g, '-');
+
+    // Asegurar slug único
+    let slug = baseSlug;
+    let attempt = 0;
+    while (true) {
+      const existing = await query('SELECT id FROM tenants WHERE slug = $1', [slug]);
+      if (existing.rows.length === 0) break;
+      attempt++;
+      slug = `${baseSlug}-${attempt}`;
+    }
+
+    const portalToken = crypto.randomBytes(32).toString('hex');
+    const supplierToken = crypto.randomBytes(32).toString('hex');
+
+    const tenantResult = await query(
+      `INSERT INTO tenants (name, slug, created_by, is_active, client_portal_enabled, supplier_portal_enabled, client_portal_token, supplier_portal_token)
+       VALUES ($1, $2, $3, true, true, true, $4, $5)
+       RETURNING id, name, slug`,
+      [tenantName, slug, userId, portalToken, supplierToken]
+    );
+
+    const tenant = tenantResult.rows[0];
+
+    await query(
+      `UPDATE users SET tenant_id = $1, role = 'admin' WHERE id = $2`,
+      [tenant.id, userId]
+    );
+
+    console.log(`Google OAuth - tenant created: ${tenant.name} (${tenant.slug}) for user ${userId}`);
+    return tenant;
+  } catch (error) {
+    console.error('Error creating tenant for Google user:', error.message);
+    return null;
+  }
+}
 
 // Serialización de usuario
 passport.serializeUser((user, done) => {
@@ -124,6 +166,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       try {
         console.log('Google OAuth - profile received:', profile.emails?.[0]?.value);
         const email = profile.emails[0].value.toLowerCase();
+        const firstName = profile.name?.givenName || 'Usuario';
+        const lastName = profile.name?.familyName || '';
         
         // Buscar usuario existente
         let result = await query(
@@ -146,27 +190,46 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             user.google_id = profile.id;
             user.email_verified = true;
           }
+
+          // Si el usuario no tiene tenant, crear uno automáticamente
+          if (!user.tenant_id) {
+            console.log('Google OAuth - user has no tenant, creating one');
+            const tenant = await createTenantForUser(user.id, firstName, lastName, email);
+            if (tenant) {
+              user.tenant_id = tenant.id;
+              user.role = 'admin';
+            }
+          }
           
           return done(null, user);
         }
 
         // Crear nuevo usuario
-        console.log('Google OAuth - creating user');
+        console.log('Google OAuth - creating new user');
         const insertResult = await query(
           `INSERT INTO users (
             email, first_name, last_name, google_id, 
             auth_provider, email_verified, is_active, role, login_count
-          ) VALUES ($1, $2, $3, $4, 'google', true, true, 'user', 0)
+          ) VALUES ($1, $2, $3, $4, 'google', true, true, 'admin', 0)
           RETURNING id, email, first_name, last_name, role, tenant_id, is_active`,
-          [email, profile.name?.givenName || 'Usuario', profile.name?.familyName || '', profile.id]
+          [email, firstName, lastName, profile.id]
         );
 
         if (!insertResult.rows[0]) {
           throw new Error('No se pudo crear el usuario en la base de datos');
         }
 
-        console.log('Google OAuth - user created:', insertResult.rows[0].id);
-        return done(null, insertResult.rows[0]);
+        const newUser = insertResult.rows[0];
+        console.log('Google OAuth - user created:', newUser.id);
+
+        // Crear tenant para el nuevo usuario
+        const tenant = await createTenantForUser(newUser.id, firstName, lastName, email);
+        if (tenant) {
+          newUser.tenant_id = tenant.id;
+          newUser.role = 'admin';
+        }
+
+        return done(null, newUser);
 
       } catch (error) {
         console.error('Google OAuth error:', error.message);
