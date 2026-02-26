@@ -9,6 +9,14 @@ const listTrusts = async (req, res) => {
   try {
     const user = req.user;
     const tenantId = user.tenant_id;
+
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario sin tenant asignado'
+      });
+    }
+
     const { 
       page = 1, 
       limit = 20, 
@@ -216,7 +224,16 @@ const createTrust = async (req, res) => {
   
   try {
     const user = req.user;
-    const tenantId = user.tenant_id;
+    const tenantId = req.body.tenant_id || user.tenant_id;
+
+    if (!tenantId) {
+      dbClient.release();
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario sin tenant asignado'
+      });
+    }
+
     const {
       name,
       code,
@@ -312,6 +329,14 @@ const updateTrust = async (req, res) => {
     const { id } = req.params;
     const user = req.user;
     const tenantId = user.tenant_id;
+
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario sin tenant asignado'
+      });
+    }
+
     const updates = req.body;
 
     // Campos permitidos para actualizar
@@ -408,6 +433,13 @@ const deleteTrust = async (req, res) => {
     const user = req.user;
     const tenantId = user.tenant_id;
 
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario sin tenant asignado'
+      });
+    }
+
     const result = await query(
       `DELETE FROM trusts 
        WHERE id = $1 AND tenant_id = $2 AND status = 'draft'
@@ -458,6 +490,15 @@ const addTrustParty = async (req, res) => {
     const { trustId } = req.params;
     const user = req.user;
     const tenantId = user.tenant_id;
+
+    if (!tenantId) {
+      dbClient.release();
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario sin tenant asignado'
+      });
+    }
+
     const {
       party_role,
       party_type,
@@ -577,6 +618,14 @@ const updateTrustParty = async (req, res) => {
     const { trustId, partyId } = req.params;
     const user = req.user;
     const tenantId = user.tenant_id;
+
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario sin tenant asignado'
+      });
+    }
+
     const updates = req.body;
 
     const allowedFields = [
@@ -643,6 +692,13 @@ const removeTrustParty = async (req, res) => {
     const user = req.user;
     const tenantId = user.tenant_id;
 
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario sin tenant asignado'
+      });
+    }
+
     const result = await query(
       `DELETE FROM trust_parties 
        WHERE id = $1 AND trust_id = $2 AND tenant_id = $3
@@ -679,6 +735,13 @@ const getTrustStats = async (req, res) => {
   try {
     const user = req.user;
     const tenantId = user.tenant_id;
+
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario sin tenant asignado'
+      });
+    }
 
     const stats = await query(
       `SELECT 
@@ -728,6 +791,13 @@ const getTrustsForSelect = async (req, res) => {
   try {
     const user = req.user;
     const tenantId = user.tenant_id;
+
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario sin tenant asignado'
+      });
+    }
 
     const result = await query(
       `SELECT id, name, code, trust_type, status

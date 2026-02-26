@@ -7,7 +7,7 @@ const createTenant = async (req, res) => {
   const client = await getClient();
   
   try {
-    const { name, slug, domain } = req.body;
+    const { name, slug, domain, ownerEmail } = req.body;
     const createdBy = req.user.id;
 
     await client.query('BEGIN');
@@ -36,6 +36,21 @@ const createTenant = async (req, res) => {
 
     const tenant = result.rows[0];
 
+    let assignedUser = null;
+
+    if (ownerEmail) {
+      const userResult = await client.query(
+        `UPDATE users SET tenant_id = $1, role = 'admin'
+         WHERE LOWER(email) = $2 AND tenant_id IS NULL
+         RETURNING id, email, first_name, last_name, role`,
+        [tenant.id, ownerEmail.toLowerCase()]
+      );
+
+      if (userResult.rows.length > 0) {
+        assignedUser = userResult.rows[0];
+      }
+    }
+
     await client.query('COMMIT');
 
     // Log de auditoría
@@ -43,15 +58,17 @@ const createTenant = async (req, res) => {
       `SELECT log_audit($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         tenant.id, createdBy, 'TENANT_CREATED', 'tenants', tenant.id,
-        null, JSON.stringify({ name, slug }),
+        null, JSON.stringify({ name, slug, ownerEmail }),
         req.ip, req.headers['user-agent']
       ]
     ).catch(err => console.error('Error en auditoría:', err));
 
     res.status(201).json({
       success: true,
-      message: 'Organización creada exitosamente',
-      data: { tenant }
+      message: assignedUser
+        ? `Organización creada y asignada a ${assignedUser.email}`
+        : 'Organización creada exitosamente',
+      data: { tenant, assignedUser }
     });
 
   } catch (error) {

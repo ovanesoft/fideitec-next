@@ -253,6 +253,92 @@ app.post('/api/admin/setup-tenant', async (req, res) => {
   }
 });
 
+// Endpoint para asignar usuario a tenant existente (emergencia)
+app.post('/api/admin/assign-tenant', async (req, res) => {
+  const { secret, userEmail, tenantSlug, role } = req.body;
+  if (secret !== process.env.JWT_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  try {
+    const { query } = require('./config/database');
+
+    const tenantResult = await query(
+      'SELECT id, name, slug FROM tenants WHERE slug = $1',
+      [tenantSlug.toLowerCase()]
+    );
+
+    if (tenantResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Tenant no encontrado' });
+    }
+
+    const tenant = tenantResult.rows[0];
+
+    const userResult = await query(
+      `UPDATE users SET tenant_id = $1, role = $2
+       WHERE LOWER(email) = $3
+       RETURNING id, email, first_name, last_name, role, tenant_id`,
+      [tenant.id, role || 'admin', userEmail.toLowerCase()]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    res.json({
+      success: true,
+      message: `Usuario ${userEmail} asignado a ${tenant.name}`,
+      data: { user: userResult.rows[0], tenant }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Endpoint para diagnosticar usuario (emergencia)
+app.post('/api/admin/diagnose-user', async (req, res) => {
+  const { secret, email } = req.body;
+  if (secret !== process.env.JWT_SECRET) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  try {
+    const { query } = require('./config/database');
+
+    const userResult = await query(
+      `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.tenant_id,
+              u.is_active, u.email_verified, u.created_at,
+              t.name as tenant_name, t.slug as tenant_slug
+       FROM users u
+       LEFT JOIN tenants t ON u.tenant_id = t.id
+       WHERE LOWER(u.email) = $1`,
+      [email.toLowerCase()]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    const user = userResult.rows[0];
+
+    const ownedTenants = await query(
+      `SELECT id, name, slug, is_active FROM tenants WHERE created_by = $1`,
+      [user.id]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        user,
+        ownedTenants: ownedTenants.rows,
+        issue: !user.tenant_id ? 'Usuario SIN tenant_id asignado' : null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Endpoint para resetear contraseña (temporal - admin)
 app.post('/api/admin/reset-password', async (req, res) => {
   const { secret, email, newPassword } = req.body;
