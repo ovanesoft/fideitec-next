@@ -227,7 +227,6 @@ const createTrust = async (req, res) => {
     const tenantId = req.body.tenant_id || user.tenant_id;
 
     if (!tenantId) {
-      dbClient.release();
       return res.status(400).json({
         success: false,
         message: 'Usuario sin tenant asignado'
@@ -492,7 +491,6 @@ const addTrustParty = async (req, res) => {
     const tenantId = user.tenant_id;
 
     if (!tenantId) {
-      dbClient.release();
       return res.status(400).json({
         success: false,
         message: 'Usuario sin tenant asignado'
